@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- MathJax: preserved -->
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+    displayMath: [['$$','$$'], ['\\[','\\]']],
+    processEscapes: true
+  },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.png') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ExamPortal{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+<style>
+    html, body { 
+        height: 100%; 
+        margin: 0;
+        padding: 0;
+    }
+    
+    body {
+        background: linear-gradient(135deg, #0f1724 0%, #141428 40%, #1b2440 100%);
+        min-height: 100vh;
+        font-family: 'Inter','Segoe UI',Tahoma,Verdana,sans-serif;
+        display: flex;
+        flex-direction: column;
+        color: #e6eef8;
+    }
+    
+    main { 
+        flex: 1; 
+    }
+
+    /* NAVBAR - Fixed styling */
+    .navbar {
+        background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d2d5f 100%);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0;
+        padding: 1rem 0;
+        margin: 0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        position: relative;
+        z-index: 1000;
+    }
+
+    .navbar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%);
+        z-index: -1;
+    }
+
+    .navbar .container-fluid { 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between;
+        padding: 0 2rem;
+    }
+
+    /* BRAND - Non-clickable */
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 1.3rem;
+        text-decoration: none;
+        cursor: default;
+        pointer-events: none; /* Make completely non-clickable */
+    }
+
+    .navbar-brand i {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        padding: 10px;
+        border-radius: 12px;
+        color: white;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.25);
+    }
+
+    /* NAVIGATION LINKS - Fixed hover issues */
+    .navbar-nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .navbar-text {
+        color: rgba(255, 255, 255, 0.8) !important;
+        font-weight: 500;
+        margin: 0 1rem 0 0 !important;
+        white-space: nowrap;
+    }
+
+    .nav-link {
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-weight: 600;
+        padding: 0.6rem 1.2rem !important;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        border: 1px solid transparent;
+        white-space: nowrap;
+        min-height: 40px; /* Prevent size changes */
+        box-sizing: border-box;
+    }
+
+    /* Fixed hover state - no black text */
+    .nav-link:hover {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    }
+
+    /* Prevent navbar flickering */
+    .nav-link:hover,
+    .nav-link:focus,
+    .nav-link:active {
+        outline: none;
+        text-decoration: none;
+    }
+
+    /* Ensure proper spacing and prevent layout shifts */
+    .navbar-nav .nav-link + .nav-link {
+        margin-left: 0.5rem;
+    }
+
+    /* Alerts */
+    .alert { 
+        border-radius: 12px; 
+        box-shadow: 0 6px 18px rgba(2,6,23,0.45); 
+        margin: 1rem;
+    }
+
+    /* Footer */
+    .professional-footer { 
+        background: linear-gradient(135deg,#0b1220,#0f1724); 
+        color: #cfd8ef; 
+        padding: 1.25rem 0; 
+        margin-top: auto; 
+        box-shadow: 0 -2px 12px rgba(2,6,23,0.5); 
+    }
+    
+    .footer-brand { 
+        font-weight: 800; 
+        color: #cfe3ff; 
+    }
+    
+    .footer-links a { 
+        color: #a9bddf; 
+        text-decoration: none;
+    }
+    
+    .footer-links a:hover { 
+        color: #fff; 
+    }
+
+    /* Exam theme overrides */
+    body.exam-theme .question-card,
+    body.exam-theme .question-container,
+    body.exam-theme .question-panel {
+        background: linear-gradient(135deg, #1f2937, #111827) !important;
+        color: #e6eef8 !important;
+        box-shadow: 0 6px 20px rgba(2,6,23,0.3) !important;
+    }
+
+    body.exam-theme .option,
+    body.exam-theme .choice,
+    body.exam-theme .answer-option,
+    body.exam-theme .option-label {
+        background: #fff !important;
+        color: #0b1220 !important;
+        border: 1px solid rgba(11,18,32,0.06) !important;
+        border-radius: 10px !important;
+        padding: 0.65rem 0.9rem !important;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .navbar .container-fluid {
+            padding: 0 1rem;
+        }
+        
+        .navbar-brand { 
+            font-size: 1.1rem; 
+        }
+        
+        .nav-link {
+            padding: 0.5rem 0.8rem !important;
+            font-size: 0.9rem;
+        }
+    }
+    .nav-link {
+    transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
+.nav-link.active {
+    background: rgba(102, 126, 234, 0.2);
+    border-radius: 8px;
+}
+</style>
+</head>
+<body>
+{% if 'user_id' in session and not (request.endpoint in ['exam_page', 'submit_exam', 'take_exam'] or request.path.startswith('/exam/') or request.path.startswith('/submit-exam')) %}
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+        <div class="navbar-brand">
+            <i class="fas fa-graduation-cap"></i>
+            <span>ExamPortal</span>
+        </div>
+        
+<div class="navbar-nav ms-auto">
+    {% if session.get('admin_id') %}
+        <span class="navbar-text">
+            <i class="fas fa-user-shield me-1"></i>
+            Welcome, {{ session.get('admin_name', 'Admin') }}
+        </span>
+        <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
+            <i class="fas fa-tachometer-alt me-1"></i>Admin Dashboard
+        </a>
+        <a class="nav-link" href="{{ url_for('admin.logout') }}">
+            <i class="fas fa-sign-out-alt me-1"></i>Logout
+        </a>
+    {% elif session.get('user_id') %}
+        <span class="navbar-text">
+            <i class="fas fa-user me-1"></i>
+            Welcome, {{ session.get('full_name', 'User') }}
+        </span>
+        <a class="nav-link" href="{{ url_for('dashboard') }}">
+            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+        </a>
+        <a class="nav-link" href="{{ url_for('student_analytics') }}">
+            <i class="fas fa-chart-line me-1"></i>Analytics
+        </a>
+        <a class="nav-link" href="{{ url_for('logout') }}">
+            <i class="fas fa-sign-out-alt me-1"></i>Logout
+        </a>
+    {% endif %}
+</div>
+    </div>
+</nav>
+{% endif %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mt-3">
+                {% for category, message in messages %}
+                    <div class="alert alert-{% if category == 'error' %}danger{% else %}{{ category }}{% endif %} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <main>{% block content %}{% endblock %}</main>
+
+    {% if not (request.path.startswith('/exam/') or request.path.startswith('/submit-exam') or request.path == '/result' or request.path.startswith('/response')) %}
+    <footer class="professional-footer">
+        <div class="container d-flex justify-content-between align-items-center flex-wrap">
+            <div class="footer-brand"><i class="fas fa-graduation-cap"></i> ExamPortal</div>
+            <div class="footer-links d-flex gap-3">
+                <a href="{{ url_for('privacy_policy') }}">Privacy Policy</a>
+                <a href="{{ url_for('terms_of_service') }}">Terms</a>
+                <a href="{{ url_for('support') }}">Support</a>
+                <a href="{{ url_for('contact') }}">Contact</a>
+            </div>
+            <p class="mb-0" style="color:#9fb3e6;">© 2025 ExamPortal</p>
+        </div>
+    </footer>
+    {% endif %}
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    {% block scripts %}{% endblock %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const alerts = document.querySelectorAll('.alert-success');
+    alerts.forEach(function(alert) {
+        const txt = alert.textContent.toLowerCase();
+        if (txt.includes('login successful') || txt.includes('logout')) {
+            setTimeout(() => new bootstrap.Alert(alert).close(), 500);
+        }
+    });
+
+    if (window.location.pathname.startsWith('/exam/')) {
+        document.body.classList.add('exam-theme');
+    }
+
+    // ensure dropdown toggles get focus (accessibility)
+    document.querySelectorAll('.dropdown-toggle').forEach(dt => {
+        dt.addEventListener('click', () => dt.focus());
+    });
+});
+</script>
+{% if session.get('user_id') %}
+<script>
+(function(){
+  var PING_INTERVAL_MS = 30000;
+  function pingServer(){
+    fetch('/_ping', {method: 'POST', credentials: 'same-origin'})
+      .then(function(resp){
+        if(resp.status === 204) return;
+        if(resp.status === 401){
+          resp.json().then(function(j){
+            if(j && j.reason === 'other_device'){
+              window.location.href = '/login?reason=other_device';
+            } else {
+              window.location.href = '/login';
+            }
+          }).catch(function(){
+            window.location.href = '/login';
+          });
+        }
+      })
+      .catch(function(){});
+  }
+  setInterval(pingServer, PING_INTERVAL_MS);
+})();
+</script>
+{% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Enhanced navigation logic to prevent cross-portal access
+    const signInBtn = document.querySelector('a[href*="login"]');
+    const adminLoginBtn = document.querySelector('a[href*="admin/login"]');
+    
+    if (signInBtn) {
+        signInBtn.addEventListener('click', function(e) {
+            // Check if user is currently in admin session
+            if (window.location.pathname.includes('/admin/')) {
+                e.preventDefault();
+                alert('You are currently in Admin portal. Please logout first to access User portal.');
+                return false;
+            }
+        });
+    }
+    
+    if (adminLoginBtn) {
+        adminLoginBtn.addEventListener('click', function(e) {
+            // Check if user is currently in user session  
+            if (window.location.pathname.includes('/dashboard') || 
+                window.location.pathname.includes('/exam')) {
+                e.preventDefault();
+                alert('You are currently in User portal. Please logout first to access Admin portal.');
+                return false;
+            }
+        });
+    }
+});
+</script>
+
+</body>
+</html>

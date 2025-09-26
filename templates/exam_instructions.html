@@ -1,0 +1,629 @@
+{% extends "base.html" %}
+
+{% block title %}Exam Instructions - ExamPortal{% endblock %}
+
+{% block content %}
+<style>
+    /* (CSS unchanged - copied from your file to preserve layout exactly) */
+    :root{ --bg-1:#0f0f23; --bg-2:#1a1a3e; --accent-a:#667eea; --accent-b:#764ba2; --success:#10b981; }
+    .dashboard-body{ background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 50%, #2d2d5f 100%); min-height:100vh; position:relative; overflow-x:hidden; padding-top:2rem; color:#eaf0ff; }
+    .particles{ position:fixed; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; pointer-events:none; }
+    .particle{ position:absolute; background:linear-gradient(45deg, var(--accent-a), var(--accent-b)); border-radius:50%; animation:float 6s ease-in-out infinite; }
+    .particle:nth-child(1){ width:4px;height:4px; top:20%; left:10%; animation-delay:0s; }
+    .particle:nth-child(2){ width:6px;height:6px; top:60%; left:80%; animation-delay:1s; }
+    .particle:nth-child(3){ width:3px;height:3px; top:80%; left:20%; animation-delay:2s; }
+    .particle:nth-child(4){ width:5px;height:5px; top:40%; left:60%; animation-delay:3s; }
+    .particle:nth-child(5){ width:4px;height:4px; top:30%; left:90%; animation-delay:4s; }
+    @keyframes float{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-30px)} }
+
+    .container-wrap{ position:relative; z-index:2; max-width:1400px; margin:0 auto; padding:0 2rem; }
+    .welcome-section{ background:rgba(255,255,255,0.06); backdrop-filter:blur(20px); border-radius:24px; padding:2.4rem; margin-bottom:2rem; border:1px solid rgba(255,255,255,0.12); box-shadow:0 30px 60px rgba(0,0,0,0.3); }
+    .welcome-section h2{ font-size:2.4rem; font-weight:900; background:linear-gradient(135deg, #fff 0%, var(--accent-a) 50%, var(--accent-b) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:0.5rem; }
+    .welcome-section p{ color:rgba(255,255,255,0.85); font-size:1.05rem; margin:0; }
+
+    .modern-card{ background:rgba(255,255,255,0.06); backdrop-filter:blur(16px); border-radius:20px; border:1px solid rgba(255,255,255,0.12); box-shadow:0 20px 40px rgba(0,0,0,0.3); overflow:hidden; }
+    .card-header{ padding:1.6rem 1.6rem; display:flex; align-items:center; gap:0.8rem; border-bottom:none; }
+    .card-header h3{ margin:0; color:#fff; font-weight:800; }
+    .card-body{ padding:1.2rem 1.6rem; color:rgba(255,255,255,0.9); }
+
+    .status-badge{ padding:0.45rem 0.9rem; border-radius:20px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; border:1px solid; }
+    .status-badge.live{ background:linear-gradient(135deg, var(--success) 0%, #059669 100%); color:#fff; border-color:var(--success); box-shadow:0 0 20px rgba(16,185,129,0.35); animation:pulse 2s infinite; }
+    .status-badge.upcoming{ background:rgba(255,193,7,0.16); color:#ffc107; border-color:#ffc107; }
+    .status-badge.completed{ background:rgba(16,185,129,0.12); color:var(--success); border-color:var(--success); }
+    .status-badge.pending{ background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.7); border-color:rgba(255,255,255,0.06); }
+    @keyframes pulse{ 0%{box-shadow:0 0 20px rgba(16,185,129,0.35)} 50%{box-shadow:0 0 30px rgba(16,185,129,0.55)} 100%{box-shadow:0 0 20px rgba(16,185,129,0.35)} }
+
+    .exam-meta{ display:grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:1rem; margin-bottom:1rem; }
+    .exam-meta-item{ background:rgba(255,255,255,0.04); padding:0.7rem; border-radius:10px; border:1px solid rgba(255,255,255,0.06); display:flex; gap:0.6rem; align-items:center; }
+
+    /* Action button + mirror hover effect (match dashboard) */
+    .action-btn{ padding:0.9rem 1.3rem; border-radius:12px; font-weight:700; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.6rem; position:relative; overflow:hidden; text-decoration:none; }
+    .action-btn::before{ content:''; position:absolute; top:0; left:-100%; width:100%; height:100%; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent); transition:left 0.45s; }
+    .action-btn:hover::before{ left:100%; }
+
+    /* MAKE START BUTTON MATCH DASHBOARD EXACTLY */
+    .action-btn.start-exam{ background:linear-gradient(135deg, var(--success) 0%, #059669 100%); color:#fff; box-shadow:0 10px 30px rgba(16,185,129,0.35); }
+    .action-btn.start-exam:hover{ transform: translateY(-4px); box-shadow:0 20px 50px rgba(16,185,129,0.45); }
+
+    /* small mirrored shine on hover (like dashboard) */
+    .action-btn.start-exam::after{ content:''; position:absolute; top:-30%; left:-30%; width:60%; height:160%; background:linear-gradient(120deg, rgba(255,255,255,0.08), rgba(255,255,255,0)); transform:rotate(25deg); transition:all .6s ease; opacity:0; }
+    .action-btn.start-exam:hover::after{ left:120%; opacity:1; }
+
+    .action-btn.view-result{ background:linear-gradient(135deg, var(--accent-a), var(--accent-b)); color:#fff; box-shadow:0 10px 30px rgba(102,126,234,0.28); }
+    .action-btn.disabled{ background:rgba(255,255,255,0.03); color:rgba(255,255,255,0.6); cursor:not-allowed; }
+
+    .modern-table{ background:rgba(255,255,255,0.04); border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); }
+    .modern-table table{ color:#fff; width:100%; }
+    .modern-table th,.modern-table td{ padding:1rem 1.2rem; border-bottom:1px solid rgba(255,255,255,0.04); }
+
+    .marking-scheme{ display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+    .mark-box{ background:linear-gradient(135deg, rgba(102,126,234,0.06), rgba(118,75,162,0.03)); padding:0.8rem; border-radius:10px; min-width:160px; }
+
+    /* (Rest of glowing/loading and color indicator CSS unchanged) */
+    #preloadingAlert { background: linear-gradient(180deg, rgba(34,197,94,0.08), rgba(34,197,94,0.03)); border: 1px solid rgba(34,197,94,0.12); border-radius: 14px; padding: 18px; box-shadow: 0 10px 30px rgba(34,197,94,0.08); }
+    #loadingTitle { color: #bbf7d0 !important; font-weight: 700; text-shadow: 0 0 8px rgba(34,197,94,0.9), 0 0 16px rgba(34,197,94,0.6), 0 0 22px rgba(34,197,94,0.5); }
+    #loadingSubtitle { color: #d1fae5 !important; font-weight: 500; text-shadow: 0 0 6px rgba(16,185,129,0.8), 0 0 14px rgba(16,185,129,0.5); }
+    #loadingDetails { color: #86efac !important; font-weight: 500; }
+    #preloadProgress.bg-success { background: linear-gradient(90deg, #22c55e, #2dd4bf 40%, #16a34a); background-size: 200% 100%; animation: pulsePreloadBar 3s linear infinite; box-shadow: 0 8px 40px rgba(34,197,94,0.18), inset 0 0 10px rgba(255,255,255,0.04); }
+    @keyframes pulsePreloadBar { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    #loadingPercentage { color: #bbf7d0 !important; font-weight: 700; text-shadow: 0 0 6px rgba(34,197,94,0.9), 0 0 12px rgba(34,197,94,0.6); }
+
+    .color-indicator-section { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
+    .color-indicator { display: flex; gap: 0.5rem; align-items: center; padding: 0.5rem 0.8rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); transition: all 0.3s ease; }
+    .color-indicator:hover { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.2); box-shadow: 0 0 15px rgba(16,185,129,0.15); }
+    .color-box { width: 36px; height: 20px; border-radius: 6px; display: inline-block; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: all 0.3s ease; }
+
+    .loading-active .color-indicator-section { background: rgba(16,185,129,0.05); border-color: rgba(16,185,129,0.12); box-shadow: 0 0 20px rgba(16,185,129,0.08); }
+    .loading-active .color-indicator { background: rgba(16,185,129,0.04); border-color: rgba(16,185,129,0.15); color: rgba(255,255,255,0.95); }
+    .loading-active .color-box { box-shadow: 0 0 8px rgba(16,185,129,0.3); }
+
+    @media(max-width:768px){ .container-wrap{padding:0 1rem;} .welcome-section h2{font-size:1.6rem;} }
+</style>
+
+<div class="dashboard-body">
+    <div class="particles" aria-hidden="true">
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    </div>
+
+    <div class="container-wrap">
+        <div class="welcome-section">
+            <h2><i class="fas fa-info-circle"></i> Exam Instructions</h2>
+            <p>Please read the following instructions carefully before proceeding with the examination.</p>
+        </div>
+
+        <div class="modern-card">
+            <div class="card-header">
+                <h3>{{ exam.name }}</h3>
+                <div style="margin-left:auto; display:flex; align-items:center; gap:0.6rem;">
+                    {% if exam.status == 'ongoing' %}
+                        <span class="status-badge live">LIVE</span>
+                    {% elif exam.status == 'upcoming' %}
+                        <span class="status-badge upcoming">Upcoming</span>
+                    {% elif exam.status == 'completed' %}
+                        <span class="status-badge completed">Completed</span>
+                    {% else %}
+                        <span class="status-badge pending">Status</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="exam-meta">
+                    <div class="exam-meta-item"><i class="fas fa-calendar"></i><div>{{ exam.date }}</div></div>
+                    <div class="exam-meta-item"><i class="fas fa-clock"></i><div>{{ exam.start_time }}</div></div>
+                    <div class="exam-meta-item"><i class="fas fa-stopwatch"></i><div>{{ exam.duration }} mins</div></div>
+                    <div class="exam-meta-item"><i class="fas fa-question-circle"></i><div>{{ exam.total_questions }} questions</div></div>
+                </div>
+
+                <!-- Marking Scheme -->
+                <div class="marking-scheme">
+                    <div class="mark-box">
+                        <div style="font-weight:800;">Correct Answer</div>
+                        <div style="color:#34d399; font-weight:700;">{{ exam.positive_marks }} Mark(s)</div>
+                    </div>
+                    <div class="mark-box">
+                        <div style="font-weight:800;">Wrong Answer</div>
+                        <div style="color:#fb7185; font-weight:700;">{{ exam.negative_marks }} Mark(s) deduction</div>
+                    </div>
+                    <div class="mark-box">
+                        <div style="font-weight:800;">Unanswered</div>
+                        <div style="color:rgba(255,255,255,0.85);">0 Marks</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:1rem; color:rgba(255,255,255,0.85);">{{ exam.instructions }}</div>
+
+                <hr style="border:none; border-top:1px solid rgba(255,255,255,0.04); margin:1rem 0;">
+
+                <h5 style="margin:0 0 0.6rem 0;">Question Types</h5>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin-bottom:1rem;">
+                    <div class="modern-card" style="padding:0.8rem; background:rgba(255,255,255,0.02);">
+                        <div style="font-weight:800;">MCQ</div>
+                        <div class="small">Single correct choice. Select one option.</div>
+                    </div>
+                    <div class="modern-card" style="padding:0.8rem; background:rgba(255,255,255,0.02);">
+                        <div style="font-weight:800;">MSQ</div>
+                        <div class="small">Multiple correct choices. Select all correct options to score.</div>
+                    </div>
+                    <div class="modern-card" style="padding:0.8rem; background:rgba(255,255,255,0.02);">
+                        <div style="font-weight:800;">NUMERIC</div>
+                        <div class="small">Enter a numerical value. Decimals allowed.</div>
+                    </div>
+                </div>
+
+                <h5 style="margin-bottom:0.6rem;">General Instructions</h5>
+                <ol style="margin:0 0 1rem 1.1rem; color:rgba(255,255,255,0.9);">
+                    <li><strong>Secure Exam Environment:</strong> The exam opens in a secure, maximized window. Do not minimize or navigate away.</li>
+                    <li><strong>Do not refresh or close the browser</strong> once the exam starts — you may lose progress.</li>
+                    <li><strong>Time Management:</strong> The timer will auto-submit when it expires.</li>
+                    <li><strong>Navigation:</strong> Use the palette to jump between questions.</li>
+                    <li><strong>Answer Selection:</strong> MCQ-radio, MSQ-checkboxes, Numeric-input.</li>
+                    <li><strong>Review System:</strong> Mark for review to revisit questions later.</li>
+                    <li><strong>Submission:</strong> Confirm before final submit. Reports available after submission.</li>
+                </ol>
+
+                <h5 style="margin-bottom:0.6rem;">Question Status Indicators</h5>
+                <div class="color-indicator-section" id="colorIndicatorSection">
+                    <div class="color-indicator">
+                        <span class="color-box" style="background:#6b7280;"></span> 
+                        <span>Not Visited</span>
+                    </div>
+                    <div class="color-indicator">
+                        <span class="color-box" style="background:#17a2b8;"></span> 
+                        <span>Visited</span>
+                    </div>
+                    <div class="color-indicator">
+                        <span class="color-box" style="background:var(--success);"></span> 
+                        <span>Answered</span>
+                    </div>
+                    <div class="color-indicator">
+                        <span class="color-box" style="background:#f59e0b;"></span> 
+                        <span>Marked for Review</span>
+                    </div>
+                </div>
+
+<div style="margin-top:0.8rem; display:flex; gap:0.6rem; align-items:center;">
+    {% if active_attempt %}
+        <a id="resumeBtn" href="{{ url_for('exam_page', exam_id=exam.id) }}" class="action-btn start-exam">
+            <i class="fas fa-redo"></i> Resume Exam
+        </a>
+    {% else %}
+        {% if can_start %}
+            <button id="startExamBtn" class="action-btn start-exam" type="button">
+                <i class="fas fa-play"></i> Start Exam Now
+            </button>
+        {% else %}
+            <div class="action-btn disabled" title="Attempts exhausted">
+                <i class="fas fa-ban"></i> Attempts Exhausted
+            </div>
+        {% endif %}
+    {% endif %}
+
+    <a href="{{ url_for('dashboard') }}" class="action-btn view-result">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+{% if attempts_left is not none and attempts_left >= 0 %}
+    <div style="margin-top:0.4rem; color:rgba(255,255,255,0.85);">
+        Attempts left: <strong>{{ attempts_left }}</strong> / {{ max_attempts }}
+    </div>
+{% elif max_attempts == 0 %}
+    <div style="margin-top:0.4rem; color:rgba(255,255,255,0.85);">
+        Attempts: <strong>Unlimited</strong>
+    </div>
+{% endif %}
+{% if attempts_message %}
+    <div style="margin-top:0.4rem; color:#ffb4b4;">{{ attempts_message }}</div>
+{% endif %}
+
+
+                <!-- Preloading UI -->
+                <div class="modern-card" id="preloadingAlert" style="display:none; margin-top:1rem; padding:0.8rem;">
+                    <div style="display:flex; align-items:center; gap:0.8rem;">
+                        <div class="spinner-border spinner-border-sm text-success" role="status"><span class="visually-hidden">Loading...</span></div>
+                        <div style="flex:1;">
+                            <div id="loadingTitle" style="font-weight:700;">Preparing Your Exam...</div>
+                            <div id="loadingSubtitle" class="small">Please wait while we load your questions and resources</div>
+                        </div>
+                        <div id="loadingPercentage" style="font-weight:700; color:var(--success);">0%</div>
+                    </div>
+                    <div class="progress mt-2" style="height:10px; border-radius:6px; background:rgba(255,255,255,0.03); overflow:hidden; margin-top:0.6rem;">
+                        <div id="preloadProgress" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width:0%; transition:width 0.3s ease;"></div>
+                    </div>
+                    <div id="loadingDetails" class="small text-muted" style="margin-top:0.5rem;">Initializing exam environment...</div>
+                </div>
+
+                <div id="successAlert" class="modern-card" style="display:none; margin-top:0.8rem; padding:0.9rem; color:var(--success);"><i class="fas fa-check-circle"></i> Exam Ready!</div>
+                <div id="errorAlert" class="modern-card" style="display:none; margin-top:0.8rem; padding:0.9rem; color:#ef4444;"></div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Elements
+    const startBtn = document.getElementById('startExamBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
+    const preloadingAlert = document.getElementById('preloadingAlert');
+    const successAlert = document.getElementById('successAlert');
+    const errorAlert = document.getElementById('errorAlert');
+    const progressBar = document.getElementById('preloadProgress');
+    const loadingTitle = document.getElementById('loadingTitle');
+    const loadingSubtitle = document.getElementById('loadingSubtitle');
+    const loadingDetails = document.getElementById('loadingDetails');
+    const loadingPercentage = document.getElementById('loadingPercentage');
+    const colorIndicatorSection = document.getElementById('colorIndicatorSection');
+
+    // Config
+    const examId = {{ exam.id|tojson }};
+    const POLL_INTERVAL = 30000;
+
+    // Safety debounce
+    let startInProgress = false;
+
+    // Helper: show error
+    function showError(message) {
+        if (preloadingAlert) preloadingAlert.style.display = 'none';
+        if (errorAlert) {
+            errorAlert.style.display = 'block';
+            errorAlert.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + message;
+        }
+        if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.classList.remove('disabled');
+            startBtn.innerHTML = startBtn.dataset.origHtml || '<i class="fas fa-play"></i> Start Exam Now';
+        }
+        if (colorIndicatorSection && colorIndicatorSection.parentElement) colorIndicatorSection.parentElement.classList.remove('loading-active');
+    }
+
+    // Helper: small UI update before network calls
+    function startUiPrepare() {
+        if (colorIndicatorSection && colorIndicatorSection.parentElement) colorIndicatorSection.parentElement.classList.add('loading-active');
+        if (successAlert) successAlert.style.display = 'none';
+        if (errorAlert) { errorAlert.style.display = 'none'; errorAlert.innerHTML = ''; }
+        if (preloadingAlert) preloadingAlert.style.display = 'block';
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.classList.add('disabled');
+            startBtn.dataset.origHtml = startBtn.innerHTML;
+            startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+        }
+        if (progressBar) progressBar.style.width = '10%';
+        if (loadingPercentage) loadingPercentage.textContent = '10%';
+        if (loadingTitle) loadingTitle.textContent = 'Connecting to Server...';
+        if (loadingDetails) loadingDetails.textContent = 'Initializing exam session';
+    }
+
+    // Build features for popup (maximize-ish)
+    function buildFeatures() {
+        const screenWidth = screen.availWidth || window.screen.width;
+        const screenHeight = screen.availHeight || window.screen.height;
+        const features = [
+            'width=' + screenWidth,
+            'height=' + screenHeight,
+            'top=0', 'left=0',
+            'resizable=no', 'scrollbars=yes',
+            'menubar=no', 'toolbar=no', 'location=no', 'status=no',
+            'directories=no', 'copyhistory=no', 'fullscreen=yes'
+        ].join(',');
+        return {screenWidth, screenHeight, features};
+    }
+
+    // Update UI toggles (Start / Resume / Exhausted)
+function renderAttemptUI(info) {
+    try {
+        const attemptsLeft = Number(info.attempts_left);
+        const maxAttempts = Number(info.max_attempts);
+        const activeAttempt = !!info.active_attempt_exists;
+
+        console.log('renderAttemptUI:', {attemptsLeft, maxAttempts, activeAttempt, info}); // Debug log
+
+        // If unlimited attempts (max_attempts = 0) or attempts available
+        if (maxAttempts === 0 || attemptsLeft > 0 || attemptsLeft === -1) {
+            // remove any exhausted message
+            const existing = document.getElementById('attemptsExhaustedMsg');
+            if (existing) existing.remove();
+
+            // Show appropriate button
+            if (activeAttempt) {
+                if (resumeBtn) resumeBtn.style.display = 'inline-flex';
+                if (startBtn) startBtn.style.display = 'none';
+            } else {
+                if (startBtn) startBtn.style.display = 'inline-flex';
+                if (resumeBtn) resumeBtn.style.display = 'none';
+            }
+            return;
+        }
+
+        // Only show exhausted if maxAttempts > 0 AND attemptsLeft <= 0
+        if (maxAttempts > 0 && attemptsLeft <= 0) {
+            // remove start/resume buttons
+            if (startBtn) startBtn.style.display = 'none';
+            if (resumeBtn) resumeBtn.style.display = 'none';
+
+            // show exhausted message
+            let existing = document.getElementById('attemptsExhaustedMsg');
+            if (!existing) {
+                const container = (startBtn || resumeBtn)?.parentElement;
+                if (container) {
+                    const el = document.createElement('div');
+                    el.id = 'attemptsExhaustedMsg';
+                    el.className = 'action-btn disabled';
+                    el.style.cursor = 'default';
+                    el.style.display = 'inline-flex';
+                    el.style.alignItems = 'center';
+                    el.style.gap = '0.6rem';
+                    el.innerHTML = '<i class="fas fa-lock"></i> Attempts exhausted – contact administration';
+                    container.insertBefore(el, container.firstChild);
+                }
+            }
+        }
+
+    } catch (e) {
+        console.warn('renderAttemptUI error', e);
+    }
+}
+
+    // API call to fetch current attempt status for this user+exam
+    async function fetchAttemptStatus() {
+        try {
+            const r = await fetch(`/api/exam-attempts-status/${examId}`, { cache: 'no-store' });
+            if (!r.ok) {
+                console.warn('attempt status fetch failed', r.status);
+                return null;
+            }
+            const data = await r.json();
+            return data;
+        } catch (e) {
+            console.warn('fetchAttemptStatus error', e);
+            return null;
+        }
+    }
+
+    // NEW: Preloading function from old file
+    async function startActualPreloading() {
+        if (loadingTitle) loadingTitle.textContent = 'Connecting to Server...';
+        if (loadingSubtitle) loadingSubtitle.textContent = 'Establishing secure connection';
+        if (loadingDetails) loadingDetails.textContent = 'Initializing exam session';
+        if (progressBar) progressBar.style.width = '10%';
+        if (loadingPercentage) loadingPercentage.textContent = '10%';
+
+        try {
+            // Fetch preload endpoint
+            const response = await fetch(`/preload-exam/${examId}`, { 
+                method: 'GET', 
+                headers: { 'Content-Type': 'application/json' },
+                cache: 'no-store'
+            });
+
+            if (loadingTitle) loadingTitle.textContent = 'Loading Exam Data...';
+            if (loadingSubtitle) loadingSubtitle.textContent = 'Downloading questions and resources';
+            if (loadingDetails) loadingDetails.textContent = 'Processing exam configuration';
+            if (progressBar) progressBar.style.width = '50%';
+            if (loadingPercentage) loadingPercentage.textContent = '50%';
+
+            const data = await response.json();
+
+            if (loadingTitle) loadingTitle.textContent = 'Processing Questions...';
+            if (loadingSubtitle) loadingSubtitle.textContent = 'Preparing exam interface';
+            if (loadingDetails) loadingDetails.textContent = 'Loading images and media content';
+            if (progressBar) progressBar.style.width = '80%';
+            if (loadingPercentage) loadingPercentage.textContent = '80%';
+
+            if (data && data.success) {
+                if (loadingTitle) loadingTitle.textContent = 'Finalizing Setup...';
+                if (loadingSubtitle) loadingSubtitle.textContent = 'Preparing secure exam environment';
+                if (loadingDetails) loadingDetails.textContent = 'Setting up question navigation';
+                if (progressBar) progressBar.style.width = '95%';
+                if (loadingPercentage) loadingPercentage.textContent = '95%';
+
+                await new Promise(resolve => setTimeout(resolve, 800));
+
+                if (progressBar) progressBar.style.width = '100%';
+                if (loadingPercentage) loadingPercentage.textContent = '100%';
+                if (loadingTitle) loadingTitle.textContent = 'Exam Ready!';
+                if (loadingSubtitle) loadingSubtitle.textContent = 'Opening secure exam window...';
+                if (loadingDetails) loadingDetails.textContent = 'Launching exam interface';
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                if (preloadingAlert) preloadingAlert.style.display = 'none';
+                if (successAlert) successAlert.style.display = 'block';
+                
+                // Now open the secure exam window
+                return true; // Success
+            } else {
+                throw new Error((data && data.message) || 'Failed to load exam data');
+            }
+        } catch (err) {
+            console.error('Preload error:', err);
+            throw err;
+        }
+    }
+
+    // Primary unified start handler with preloading
+    async function unifiedStartHandler(event) {
+        event && event.preventDefault();
+        if (startInProgress) return;
+        startInProgress = true;
+
+        // Prepare UI
+        startUiPrepare();
+
+        try {
+            // STEP 1: First, run the preloading process (this shows the green glowing loader)
+            await startActualPreloading();
+            
+            // STEP 2: After preloading is complete, proceed with starting the exam
+            const resp = await fetch(`/start-exam/${examId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_ts: Date.now() })
+            });
+
+            let data;
+            try {
+                data = await resp.json();
+            } catch (err) {
+                const text = await resp.text().catch(()=>null);
+                throw new Error(text || 'Server error');
+            }
+
+            // If not success => show error
+            if (!resp.ok || !data || !data.success) {
+                const msg = (data && data.message) ? data.message : 'Failed to start exam. Please try again.';
+                showError(msg);
+                startInProgress = false;
+                return;
+            }
+
+            // STEP 3: Success! Now create and open the exam window (AFTER everything is ready)
+            const { features } = buildFeatures();
+            let examWindow = null;
+            try {
+                examWindow = window.open('about:blank', '_blank', features);
+                if (examWindow) examWindow.focus();
+            } catch (e) {
+                examWindow = null;
+            }
+
+            // Navigate the exam window to the exam page
+            const redirectUrl = data.redirect_url || (`/exam/${examId}`);
+            if (examWindow) {
+                try {
+                    examWindow.location.href = redirectUrl + (redirectUrl.indexOf('?') === -1 ? '?secure=1&from_instructions=1' : '&secure=1&from_instructions=1');
+                } catch (e) {
+                    try { examWindow.location.replace(redirectUrl); } catch (e2) {}
+                }
+            } else {
+                // popup null => blocked; open current tab as fallback
+                if (errorAlert) {
+                    errorAlert.style.display = 'block';
+                    errorAlert.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Popup blocked — opening in current tab.';
+                }
+                window.location.href = redirectUrl;
+            }
+
+            // Show final success state
+            setTimeout(() => {
+                if (preloadingAlert) preloadingAlert.style.display = 'none';
+                if (successAlert) successAlert.style.display = 'block';
+            }, 400);
+
+            // Immediately refresh attempt counts so the instructions page shows correct Start/Resume/Exhausted
+            setTimeout(async () => {
+                await refreshAttemptStatusAndRender();
+            }, 700);
+
+        } catch (err) {
+            console.error('Start-exam error:', err);
+            
+            // Show error with retry option
+            const errorMessage = err.message || 'Network or server error starting exam. Please try again.';
+            showError(errorMessage + ' <button onclick="location.reload()" style="margin-left:10px;padding:4px 8px;background:#059669;color:white;border:none;border-radius:4px;cursor:pointer;">Retry</button>');
+        } finally {
+            startInProgress = false;
+            if (colorIndicatorSection && colorIndicatorSection.parentElement) colorIndicatorSection.parentElement.classList.remove('loading-active');
+        }
+    }
+
+    // Resume button: open exam_page in new window (do not create a new attempt)
+    function resumeHandler(e) {
+        e.preventDefault();
+        const { features } = buildFeatures();
+        // open popup immediately to avoid blocker
+        let w = null;
+        try {
+            w = window.open('about:blank', '_blank', features);
+            if (w) w.focus();
+        } catch (e) {
+            w = null;
+        }
+        const resumeUrl = resumeBtn ? resumeBtn.href : (`/exam/${examId}`);
+        if (w) {
+            try { w.location.href = resumeUrl + (resumeUrl.indexOf('?') === -1 ? '?secure=1&resume=1' : '&secure=1&resume=1'); }
+            catch (e) { try { w.location.replace(resumeUrl); } catch (e2) {} }
+        } else {
+            alert('Popup blocked. Opening in current tab.');
+            window.location.href = resumeUrl;
+        }
+    }
+
+    // Refresh attempt status and update UI
+    let pollHandle = null;
+    async function refreshAttemptStatusAndRender() {
+        try {
+            const info = await fetchAttemptStatus();
+            if (info) {
+                renderAttemptUI(info);
+            }
+        } catch (e) {
+            console.warn('refreshAttemptStatusAndRender error', e);
+        }
+    }
+
+    // Start periodic poll (only when page visible) - with backoff on errors
+    let pollErrors = 0;
+    function startPolling() {
+        if (pollHandle) clearInterval(pollHandle);
+        const pollInterval = Math.min(POLL_INTERVAL * Math.pow(1.5, pollErrors), 120000); // Max 2 minutes
+        pollHandle = setInterval(async () => {
+            try {
+                await refreshAttemptStatusAndRender();
+                pollErrors = 0; // Reset on success
+            } catch (e) {
+                pollErrors = Math.min(pollErrors + 1, 5); // Cap at 5 errors
+                console.warn('Poll error:', e);
+            }
+        }, pollInterval);
+    }
+    function stopPolling() {
+        if (pollHandle) clearInterval(pollHandle);
+        pollHandle = null;
+    }
+
+    // Attach handlers
+    if (startBtn) {
+        startBtn.addEventListener('click', unifiedStartHandler);
+    }
+    if (resumeBtn) {
+        resumeBtn.addEventListener('click', resumeHandler);
+    }
+
+    // Visibility handling: refresh when user returns to tab
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            refreshAttemptStatusAndRender();
+            startPolling();
+        } else {
+            stopPolling();
+        }
+    });
+
+    // Beforeunload protection stays: preserve your existing message if preloading is active
+    window.addEventListener('beforeunload', function (e) {
+        const pre = document.getElementById('preloadingAlert');
+        if (pre && pre.style.display === 'block') {
+            const msg = 'Exam is currently loading. Are you sure you want to leave? This may affect your exam access.';
+            e.returnValue = msg;
+            return msg;
+        }
+    });
+
+    // Initial fetch to set UI, then start polling
+    (async function init() {
+        await refreshAttemptStatusAndRender();
+        startPolling();
+    })();
+
+});
+</script>
+
+
+
+
+{% endblock %}
