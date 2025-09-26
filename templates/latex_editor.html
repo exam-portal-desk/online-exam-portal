@@ -952,7 +952,7 @@ $$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/mhchem.min.js"></script>
 
-  <script>
+ <script>
 (function() {
   'use strict';
   
@@ -1146,7 +1146,7 @@ $$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$
     }
   }
 
-  // LaTeX rendering
+  // LaTeX rendering (fixed and robust)
   function renderPreview() {
     if (!state.previewVisible || !window.katex) return;
 
@@ -1154,29 +1154,62 @@ $$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$
     state.renderTimeout = setTimeout(() => {
       try {
         showStatus(elements.renderStatus, 'warning', 'Rendering...');
-        
-        const content = elements.editor.value.trim();
-        
-        if (!content) {
+
+        const content = elements.editor.value;
+        if (!content || !content.trim()) {
           elements.previewContent.innerHTML = '<div style="padding: 40px; text-align: center; color: #666; font-style: italic;">Start typing LaTeX to see preview...</div>';
           showStatus(elements.renderStatus, 'success', 'Ready');
           return;
         }
 
+        const parts = [];
+        let cursor = 0;
+
+        // Regexes (careful order: display $$, env, inline $)
+        const displayDollarRegex = /\$\$[\s\S]*?\$\$/;
+        const envRegex = /\\begin\{(equation|align|gather|multline|split|aligned|gathered|pmatrix|bmatrix|vmatrix|Vmatrix|matrix|cases)(\*?)\}[\s\S]*?\\end\{\1\2\}/;
+        const inlineDollarRegex = /\$[^$\n][\s\S]*?[^$\n]\$/;
+
+        while (cursor < content.length) {
+          const rest = content.slice(cursor);
+
+          const dMatch = rest.match(displayDollarRegex);
+          const eMatch = rest.match(envRegex);
+          const iMatch = rest.match(inlineDollarRegex);
+
+          const dPos = dMatch ? cursor + rest.indexOf(dMatch[0]) : -1;
+          const ePos = eMatch ? cursor + rest.indexOf(eMatch[0]) : -1;
+          const iPos = iMatch ? cursor + rest.indexOf(iMatch[0]) : -1;
+
+          let nextPos = -1;
+          let kind = null;
+          let matchText = null;
+
+          if (dPos >= 0 && (nextPos === -1 || dPos < nextPos)) { nextPos = dPos; kind = 'displayDollar'; matchText = dMatch[0]; }
+          if (ePos >= 0 && (nextPos === -1 || ePos < nextPos)) { nextPos = ePos; kind = 'env'; matchText = eMatch[0]; }
+          if (iPos >= 0 && (nextPos === -1 || iPos < nextPos)) { nextPos = iPos; kind = 'inlineDollar'; matchText = iMatch[0]; }
+
+          if (nextPos === -1) {
+            parts.push({ type: 'text', content: content.slice(cursor) });
+            break;
+          }
+
+          if (nextPos > cursor) {
+            parts.push({ type: 'text', content: content.slice(cursor, nextPos) });
+          }
+
+          parts.push({ type: kind, content: matchText });
+          cursor = nextPos + matchText.length;
+        }
+
         let renderedHTML = '';
-        
-        // Split content by math delimiters
-        const parts = content.split(/((?:\$\$[\s\S]*?\$\$)|(?:\$[^$\n]*?\$)|(?:\\begin\{(?:equation|align|gather|multline|split|aligned|gathered|pmatrix|bmatrix|vmatrix|Vmatrix|matrix|cases)\*?\}[\s\S]*?\\end\{(?:equation|align|gather|multline|split|aligned|gathered|pmatrix|bmatrix|vmatrix|Vmatrix|matrix|cases)\*?\}))/);
-
-        parts.forEach((part, index) => {
-          if (!part.trim()) return;
-
+        parts.forEach(part => {
+          if (!part.content || part.content.trim() === '') return;
           try {
-            // Display math $...$
-            if (part.startsWith('$') && part.endsWith('$')) {
-              const mathExpr = part.slice(2, -2).trim();
-              if (mathExpr) {
-                const rendered = katex.renderToString(mathExpr, {
+            if (part.type === 'displayDollar') {
+              const inner = part.content.slice(2, -2).trim();
+              if (inner) {
+                const rendered = katex.renderToString(inner, {
                   displayMode: true,
                   throwOnError: false,
                   trust: true,
@@ -1184,12 +1217,10 @@ $$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$
                 });
                 renderedHTML += `<div style="text-align: center; margin: 20px 0;">${rendered}</div>`;
               }
-            }
-            // Inline math $...$
-            else if (part.startsWith(') && part.endsWith(') && !part.startsWith('$')) {
-              const mathExpr = part.slice(1, -1).trim();
-              if (mathExpr) {
-                const rendered = katex.renderToString(mathExpr, {
+            } else if (part.type === 'inlineDollar') {
+              const inner = part.content.slice(1, -1).trim();
+              if (inner) {
+                const rendered = katex.renderToString(inner, {
                   displayMode: false,
                   throwOnError: false,
                   trust: true,
@@ -1197,41 +1228,36 @@ $$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$
                 });
                 renderedHTML += `<span>${rendered}</span>`;
               }
-            }
-            // Environment blocks
-            else if (part.includes('\\begin{')) {
-              const rendered = katex.renderToString(part.trim(), {
+            } else if (part.type === 'env') {
+              const envText = part.content.trim();
+              const rendered = katex.renderToString(envText, {
                 displayMode: true,
                 throwOnError: false,
                 trust: true,
                 strict: false
               });
               renderedHTML += `<div style="text-align: center; margin: 20px 0;">${rendered}</div>`;
-            }
-            // Regular text
-            else {
-              // Basic text processing
-              let textContent = part
+            } else {
+              let textContent = part.content
                 .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
                 .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
-                .replace(/\\text\{([^}]+)\}/g, '$1')
+                .replace(/\\title\{([^}]+)\}/g, '<h1 style="color: #222; margin: 30px 0 20px 0; text-align: center;">$1</h1>')
                 .replace(/\\section\{([^}]+)\}/g, '<h2 style="color: #333; margin: 25px 0 15px 0;">$1</h2>')
                 .replace(/\\subsection\{([^}]+)\}/g, '<h3 style="color: #555; margin: 20px 0 10px 0;">$1</h3>')
-                .replace(/\\title\{([^}]+)\}/g, '<h1 style="color: #222; margin: 30px 0 20px 0; text-align: center;">$1</h1>')
                 .replace(/\\maketitle/g, '')
                 .replace(/\\newline|\\\\(?!\w)/g, '<br>')
-                .replace(/%(.*?)$/gm, '<span style="color: #666; font-style: italic;">% $1</span>') // Comments
+                .replace(/%(.*?)$/gm, '<span style="color: #666; font-style: italic;">% $1</span>')
                 .replace(/\n\s*\n/g, '</p><p style="margin: 15px 0;">')
                 .replace(/\n/g, ' ');
 
               if (textContent.trim() && !textContent.match(/^\\(documentclass|usepackage|begin\{document\}|end\{document\})/)) {
-                renderedHTML += `<p style="margin: 15px 0; line-height: 1.6;">${textContent}</p>`;
+                renderedHTML += `<p style="margin: 15px 0; line-height: 1.6; color: #000;">${textContent}</p>`;
               }
             }
           } catch (err) {
             console.warn('Render error for part:', part, err);
             renderedHTML += `<div style="color: #d63384; background: #f8d7da; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 13px;">
-              <strong>Render Error:</strong> ${err.message}
+              <strong>Render Error:</strong> ${err && err.message ? err.message : 'Unknown error'}
             </div>`;
           }
         });
@@ -1242,7 +1268,6 @@ $$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$
 
         elements.previewContent.innerHTML = renderedHTML;
         elements.previewContent.style.transform = `scale(${state.zoomLevel})`;
-        
         showStatus(elements.renderStatus, 'success', 'Rendered ✓', 2000);
 
       } catch (error) {
@@ -1250,7 +1275,7 @@ $$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$
         elements.previewContent.innerHTML = `
           <div style="color: #d63384; background: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px; font-family: monospace;">
             <h4 style="margin: 0 0 10px 0; color: #721c24;">Render Error</h4>
-            <p style="margin: 0;">${error.message}</p>
+            <p style="margin: 0;">${error && error.message ? error.message : String(error)}</p>
             <small style="opacity: 0.8;">Check your LaTeX syntax and try again.</small>
           </div>
         `;
@@ -1634,5 +1659,6 @@ Chemistry: $\\ce{2H2 + O2 -> 2H2O}$
 
 })();
 </script>
+
 </body>
 </html>
