@@ -29,7 +29,8 @@ from flask import Response
 import math
 import bcrypt
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import re
 from google_drive_service import create_drive_service, load_csv_from_drive, save_csv_to_drive, find_file_by_name, get_public_url, get_drive_service
 from login_attempts_cache import check_login_attempts, record_failed_login, clear_login_attempts
@@ -3994,7 +3995,7 @@ def submit_exam(exam_id):
             else: return "F"
         
         grade = calculate_grade(percentage)
-        completed_at = datetime.now(timezone.utc).isoformat()
+        completed_at = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M:%S")
         
         # Load existing results and responses
         results_df = safe_csv_load_with_recovery('results.csv')
