@@ -1,0 +1,2162 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Questions{% endblock %}
+
+{% block content %}
+<style>
+  .page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 28px 32px;
+    margin: -32px -32px 32px -32px;
+    border-radius: 0 0 24px 24px;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2);
+  }
+  
+  .page-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin: 0;
+  }
+  
+  .control-card {
+    background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    margin-bottom: 20px;
+  }
+  
+  .batch-card {
+    background: linear-gradient(135deg, #545da8 0%, #8993ac 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  }
+  
+  .batch-header {
+    color: #2d3748;
+    font-weight: 800;
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+  }
+  
+  .batch-description {
+    color: #4a5568;
+    font-weight: 500;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #f0f4ff 0%, #e6f2ff 100%);
+    border-radius: 10px;
+    border-left: 4px solid #667eea;
+  }
+  
+  .apply-controls {
+    background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+  }
+  
+  .batch-row {
+    background: rgb(255, 255, 255);
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+  }
+  
+  .batch-row:hover {
+    border-color: #667eea;
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.1);
+    transform: translateY(-2px);
+  }
+  
+  .enhanced-table {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    border: none;
+  }
+  
+  .enhanced-table thead th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 700;
+    padding: 20px 16px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .enhanced-table tbody td {
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+    padding: 16px;
+    color: #4a5568;
+    font-weight: 500;
+    vertical-align: middle;
+  }
+  
+  .enhanced-table tbody tr:hover {
+    background: linear-gradient(135deg, #f8faff 0%, rgba(102, 126, 234, 0.02) 100%);
+  }
+  
+  .enhanced-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .question-text {
+    max-width: 420px;
+    white-space: pre-wrap;
+    line-height: 1.5;
+    color: #2d3748;
+    font-weight: 500;
+  }
+  
+  .question-id {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 12px;
+  }
+  
+  .question-type {
+    background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  
+  .marks-info {
+    background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+    color: blue;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  
+  .image-path {
+    color: #667eea;
+    background: #f0f4ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: monospace;
+  }
+  
+  .action-buttons .btn {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 12px;
+    margin: 0 2px;
+  }
+  
+  .selection-controls {
+    background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  
+  .enhanced-checkbox {
+    width: 20px;
+    height: 20px;
+    accent-color: #667eea;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  
+  .batch-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  
+  .batch-btn {
+    position: relative !important;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: 600;
+    border: 2px solid;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    overflow: hidden !important;
+    letter-spacing: 0.3px !important;
+  }
+  
+  .batch-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    transition: left 0.5s ease;
+  }
+
+  .batch-btn:hover::before {
+    left: 100%;
+  }
+
+  .batch-btn:active {
+    transform: translateY(-1px) scale(1.01) !important;
+  }
+
+  .batch-btn i {
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+  }
+
+  /* Add Row Button - Green Success */
+  #add-row {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
+  }
+
+  #add-row:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4) !important;
+    color: white !important;
+  }
+
+  /* Clear All Button - Red Danger */
+  #clear-rows {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3) !important;
+  }
+
+  #clear-rows:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4) !important;
+    color: white !important;
+  }
+
+  /* Add All Questions Button - Orange Action */
+  #batch-submit {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3) !important;
+  }
+
+  #batch-submit:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4) !important;
+    color: white !important;
+  }
+
+  /* Open LaTeX Editor Button - Purple/Blue Premium */
+  #open-latex-editor {
+    position: relative;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    letter-spacing: 0.5px;
+    padding: 14px 28px !important;
+    border-radius: 12px !important;
+    box-shadow: 
+      0 4px 15px rgba(102, 126, 234, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    overflow: hidden;
+  }
+
+  #open-latex-editor::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+  }
+
+  #open-latex-editor:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%) !important;
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 
+      0 8px 25px rgba(102, 126, 234, 0.4),
+      0 4px 12px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  }
+
+  #open-latex-editor:hover::before {
+    left: 100%;
+  }
+
+  #open-latex-editor:active {
+    transform: translateY(-1px) scale(1.01) !important;
+  }
+
+  
+  .load-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 24px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+  }
+  
+  .load-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    color: white;
+  }
+
+  /* Pagination Styles */
+  .pagination-container {
+    background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 20px;
+  }
+
+  .pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .pagination-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+
+  .entries-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .entries-selector select {
+    padding: 8px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    font-weight: 600;
+    color: #4a5568;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .entries-selector select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+
+  .pagination-stats {
+    color: #4a5568;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .pagination-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .pagination-btn {
+    padding: 10px 15px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #4a5568;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .pagination-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    text-decoration: none;
+  }
+
+  .pagination-btn:disabled,
+  .pagination-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .pagination-btn:disabled:hover,
+  .pagination-btn.disabled:hover {
+    border-color: #e2e8f0;
+    color: #4a5568;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .pagination-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+  }
+
+  .pagination-btn.active:hover {
+    color: white;
+  }
+
+  .page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .search-controls {
+    background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+
+  .search-input {
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+
+  .no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: #64748b;
+  }
+
+  .no-results i {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+  }
+
+  @media (max-width: 768px) {
+    .pagination-controls {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 15px;
+    }
+
+    .pagination-info {
+      justify-content: center;
+      text-align: center;
+    }
+
+    .pagination-nav {
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .page-numbers {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+  }
+</style>
+<style>
+/* Mobile Responsive Fixes for All Admin Pages */
+@media (max-width: 768px) {
+  /* Container and Layout Fixes */
+  .container, .container-fluid {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+
+  /* Page Headers */
+  .page-header, .header-content, .analytics-header, .main-container .page-header {
+    padding: 20px 15px !important;
+    margin: -20px -15px 20px -15px !important;
+    text-align: center;
+  }
+
+  .page-title, .analytics-header h1, h1, h2 {
+    font-size: 1.5rem !important;
+    margin-bottom: 10px !important;
+  }
+
+  .page-subtitle, .analytics-header p {
+    font-size: 0.9rem !important;
+  }
+
+  /* Cards and Panels */
+  .card, .main-container, .analytics-card, .stats-card, .exam-card {
+    margin-bottom: 20px !important;
+    border-radius: 12px !important;
+  }
+
+  .card-body, .card-content {
+    padding: 15px !important;
+  }
+
+  .card-header {
+    padding: 15px !important;
+    font-size: 1rem !important;
+  }
+
+  /* Tables - Make them horizontally scrollable */
+  .table-responsive {
+    margin: 0 -15px !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .table {
+    font-size: 0.85rem !important;
+    margin-bottom: 0 !important;
+  }
+
+  .table th, .table td {
+    padding: 8px 6px !important;
+    white-space: nowrap !important;
+    min-width: 80px !important;
+  }
+
+  .table th {
+    font-size: 0.75rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Action buttons in tables */
+  .btn-sm, .table .btn {
+    padding: 6px 10px !important;
+    font-size: 0.8rem !important;
+    margin: 2px !important;
+  }
+
+  /* Forms */
+  .form-control, .form-select, input, textarea, select {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 12px 15px !important;
+    border-radius: 8px !important;
+  }
+
+  .form-label, label {
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 5px !important;
+  }
+
+  .form-group, .mb-3, .mb-4 {
+    margin-bottom: 15px !important;
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 12px 20px !important;
+    font-size: 0.9rem !important;
+    border-radius: 8px !important;
+    margin: 5px 2px !important;
+    min-height: 44px !important;
+    display: inline-block;
+  }
+
+  .btn-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+  }
+
+  .btn-group .btn {
+    margin: 0 0 5px 0 !important;
+    width: 100% !important;
+  }
+
+  /* Modals */
+  .modal-dialog {
+    margin: 10px !important;
+    max-width: calc(100% - 20px) !important;
+  }
+
+  .modal-content {
+    border-radius: 15px !important;
+  }
+
+  .modal-header, .modal-body, .modal-footer {
+    padding: 15px !important;
+  }
+
+  .modal-title {
+    font-size: 1.1rem !important;
+  }
+
+  /* Stats and Analytics */
+  .stats-row, .stat-cards, .quick-stats {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+  }
+
+  .stat-card, .analytics-card, .stats-card {
+    margin-bottom: 15px !important;
+    padding: 15px !important;
+  }
+
+  .stat-value, .stat-number {
+    font-size: 1.8rem !important;
+  }
+
+  .stat-label {
+    font-size: 0.85rem !important;
+  }
+
+  /* Filters and Controls */
+  .controls-section, .filter-section, .tab-controls-container {
+    padding: 15px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .filter-row, .controls-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+  }
+
+  .filter-group, .control-group {
+    width: 100% !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* Tabs */
+  .nav-tabs, .nav-tabs-custom, .modern-tabs {
+    flex-direction: column !important;
+    border: none !important;
+  }
+
+  .nav-tab, .nav-link {
+    margin-bottom: 5px !important;
+    text-align: center !important;
+    padding: 12px 15px !important;
+  }
+
+  /* Grid Layouts */
+  .row {
+    margin-left: -10px !important;
+    margin-right: -10px !important;
+  }
+
+  .col, .col-md-6, .col-lg-4, .col-xl-3, [class*="col-"] {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    margin-bottom: 15px !important;
+  }
+
+  /* Specific Page Elements */
+  .exam-grid, .question-grid, .analytics-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+  }
+
+  .exam-card, .question-card, .attempt-card {
+    width: 100% !important;
+    margin-bottom: 15px !important;
+  }
+
+  /* Search and Filters */
+  .search-container, .filter-container {
+    padding: 15px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .search-input, input[type="search"] {
+    width: 100% !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* Action Bars */
+  .action-bar, .page-actions, .bulk-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 15px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .action-bar .btn, .page-actions .btn {
+    width: 100% !important;
+  }
+
+  /* Pagination */
+  .pagination {
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+    margin: 20px 0 !important;
+  }
+
+  .pagination .page-link {
+    padding: 8px 12px !important;
+    font-size: 0.85rem !important;
+    margin: 2px !important;
+  }
+
+  /* Alerts */
+  .alert {
+    margin: 10px 0 !important;
+    padding: 12px 15px !important;
+    font-size: 0.9rem !important;
+    border-radius: 8px !important;
+  }
+
+  /* Breadcrumbs */
+  .breadcrumb {
+    padding: 10px 15px !important;
+    margin-bottom: 15px !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Progress Bars */
+  .progress {
+    height: 8px !important;
+    margin: 10px 0 !important;
+  }
+
+  /* Badges and Labels */
+  .badge {
+    font-size: 0.7rem !important;
+    padding: 4px 8px !important;
+  }
+
+  /* Tooltips - Disable on mobile */
+  .tooltip {
+    display: none !important;
+  }
+
+  /* Dropdown Menus */
+  .dropdown-menu {
+    position: static !important;
+    display: block !important;
+    float: none !important;
+    width: 100% !important;
+    margin-top: 5px !important;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* Charts and Graphs */
+  .chart-container, .graph-container {
+    overflow-x: auto !important;
+    margin: 0 -15px !important;
+    padding: 0 15px !important;
+  }
+
+  /* File Upload Areas */
+  .upload-area, .file-drop-zone {
+    padding: 20px 15px !important;
+    margin: 15px 0 !important;
+    text-align: center !important;
+  }
+
+  /* Status Indicators */
+  .status-indicator, .badge-status {
+    font-size: 0.75rem !important;
+    padding: 3px 8px !important;
+  }
+
+  /* List Views */
+  .list-group-item {
+    padding: 12px 15px !important;
+    border-radius: 8px !important;
+    margin-bottom: 5px !important;
+  }
+
+  /* Media Objects */
+  .media, .d-flex.align-items-center {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 10px !important;
+  }
+
+  /* Utility Classes Override */
+  .text-nowrap {
+    white-space: normal !important;
+  }
+
+  .d-none.d-md-block {
+    display: none !important;
+  }
+
+  .d-md-flex {
+    display: block !important;
+  }
+
+  /* Hide desktop-only elements */
+  .desktop-only, .d-none.d-lg-block, .d-none.d-xl-block {
+    display: none !important;
+  }
+
+  /* Show mobile-only elements */
+  .mobile-only {
+    display: block !important;
+  }
+
+  /* Fix overflow issues */
+  .overflow-auto {
+    overflow-x: auto !important;
+  }
+
+  /* Center align content */
+  .text-center-mobile {
+    text-align: center !important;
+  }
+
+  /* Full width mobile buttons */
+  .btn-mobile-full {
+    width: 100% !important;
+    margin-bottom: 10px !important;
+  }
+}
+
+/* Extra Small Devices (320px and below) */
+@media (max-width: 575px) {
+  .container, .container-fluid {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .page-title, h1 {
+    font-size: 1.3rem !important;
+  }
+
+  .card-body {
+    padding: 12px !important;
+  }
+
+  .btn {
+    padding: 10px 15px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .table th, .table td {
+    padding: 6px 4px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .form-control, input, select, textarea {
+    padding: 10px 12px !important;
+  }
+
+  .modal-dialog {
+    margin: 5px !important;
+    max-width: calc(100% - 10px) !important;
+  }
+}
+
+/* Landscape Orientation Adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .page-header {
+    padding: 15px !important;
+  }
+
+  .card-body {
+    padding: 15px !important;
+  }
+
+  .modal-dialog {
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* High DPI Screens */
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2) {
+  .btn {
+    border-width: 0.5px !important;
+  }
+
+  .table {
+    border-width: 0.5px !important;
+  }
+}
+
+/* Print Styles for Mobile */
+@media print {
+  .mobile-menu-toggle, .sidebar {
+    display: none !important;
+  }
+
+  .content-wrap {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+/* Accessibility Improvements */
+@media (max-width: 768px) {
+  /* Focus states */
+  .btn:focus, .form-control:focus, .form-select:focus {
+    outline: 3px solid rgba(102, 126, 234, 0.3) !important;
+    outline-offset: 2px !important;
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .btn {
+      border: 2px solid !important;
+    }
+    
+    .card {
+      border: 2px solid #333 !important;
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+}
+</style>
+<div class="page-header">
+  <div class="d-flex justify-content-between align-items-center">
+    <h1 class="page-title">
+      <i class="fas fa-question-circle me-3"></i>Questions Management
+    </h1>
+    <div>
+      <a class="btn btn-light me-2" href="{{ url_for('admin.add_question') }}" style="border-radius: 10px; font-weight: 900;">
+        <i class="fas fa-plus me-2"></i>Add Question
+      </a>
+      <a class="btn btn-outline-light" href="{{ url_for('admin.questions_index') }}" style="border-radius: 10px; font-weight: 600;">
+        <i class="fas fa-list me-2"></i>Back to List
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Enhanced Exam selector -->
+<div class="control-card">
+  <form id="exam-select-form" class="row g-3 align-items-end">
+    <div class="col-md-8">
+      <label class="form-label fw-bold" style="color: #2d3748;">Select Exam to Manage</label>
+      <select id="exam-select" class="form-select" name="exam_id" style="font-weight: 500;">
+        {% for e in exams %}
+          <option value="{{ e.id }}" {% if selected_exam_id == e.id %}selected{% endif %}>{{ e.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <button id="reload-btn" type="button" class="load-btn w-100">
+        <i class="fas fa-sync-alt me-2"></i>Load Questions
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Search Controls -->
+<div class="search-controls">
+  <div class="row g-3 align-items-center">
+    <div class="col-md-4">
+      <label class="form-label fw-bold" style="color: #2d3748;">
+        <i class="fas fa-search me-2"></i>Search Questions
+      </label>
+      <input type="text" id="search-input" class="search-input" placeholder="Search by question text, ID, or type...">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label fw-bold" style="color: #2d3748;">Filter by Type</label>
+      <select id="type-filter" class="form-select">
+        <option value="">All Types</option>
+        <option value="MCQ">MCQ</option>
+        <option value="MSQ">MSQ</option>
+        <option value="NUMERIC">NUMERIC</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-bold" style="color: #2d3748;">Show Images</label>
+      <select id="image-filter" class="form-select">
+        <option value="">All</option>
+        <option value="with">With Images</option>
+        <option value="without">Without Images</option>
+      </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end gap-2">
+      <button id="clear-filters" class="btn btn-outline-secondary">
+        <i class="fas fa-times me-1"></i>Clear
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Enhanced Questions listing + controls -->
+<div class="card border-0 shadow-lg mb-4">
+  <div class="card-header" style="background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%); border: none;">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="mb-0" style="color: #2d3748; font-weight: 700;">
+        <i class="fas fa-list-alt me-2" style="color: #667eea;"></i>
+        Questions List (<span id="total-count">{{ questions|length }}</span>)
+      </h4>
+      <div class="d-flex gap-2">
+        <button id="delete-selected" class="btn btn-danger">
+          <i class="fas fa-trash me-1"></i>Delete Selected
+        </button>
+        <button id="select-none" class="btn btn-outline-secondary">
+          <i class="fas fa-times me-1"></i>Clear Selection
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card-body p-0">
+    <!-- Apply controls for listing -->
+    <div class="selection-controls m-4">
+      <h6 class="mb-3 fw-bold" style="color: #2d3748;">
+        <i class="fas fa-cogs me-2" style="color: #667eea;"></i>Bulk Update Settings
+      </h6>
+      <div class="row g-3 align-items-end">
+        <div class="col-auto">
+          <label class="form-label fw-bold">Question Type</label>
+          <select id="list-type" class="form-select">
+            <option value="MCQ">MCQ</option>
+            <option value="MSQ">MSQ</option>
+            <option value="NUMERIC">NUMERIC</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-bold">Positive Marks</label>
+          <input id="list-pos" class="form-control" placeholder="e.g. 4">
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-bold">Negative Marks</label>
+          <input id="list-neg" class="form-control" placeholder="e.g. 1">
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-bold">Tolerance</label>
+          <input id="list-tol" class="form-control" placeholder="For NUMERIC">
+        </div>
+        <div class="col-auto">
+          <button id="apply-list" class="btn btn-primary">
+            <i class="fas fa-magic me-1"></i>Apply Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="questions-container">
+      {% if questions %}
+        <table class="table enhanced-table mb-0" id="questions-table">
+          <thead>
+            <tr>
+              <th style="width:50px">
+                <input id="select-all" type="checkbox" class="enhanced-checkbox" title="Select all">
+              </th>
+              <th>ID</th>
+              <th>Question</th>
+              <th>Type</th>
+              <th>Image</th>
+              <th>Marks</th>
+              <th style="width:120px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="questions-tbody">
+            {% for q in questions %}
+              <tr class="question-row" 
+                  data-question-text="{{ q.question_text|lower }}"
+                  data-question-type="{{ q.question_type }}"
+                  data-has-image="{{ 'true' if q.image_path else 'false' }}"
+                  data-question-id="{{ q.id }}">
+                <td>
+                  <input class="row-checkbox enhanced-checkbox" data-id="{{ q.id }}" type="checkbox">
+                </td>
+                <td>
+                  <span class="question-id">{{ q.id }}</span>
+                </td>
+                <td>
+                  <div class="question-text">{{ q.question_text }}</div>
+                </td>
+                <td>
+                  <span class="question-type">{{ q.question_type }}</span>
+                </td>
+                <td>
+                  {% if q.image_path %}
+                    <span class="image-path">{{ q.image_path }}</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="marks-info">+{{ q.positive_marks }}/-{{ q.negative_marks }}</span>
+                  {% if q.tolerance %}
+                    <br><small class="text-info fw-bold">(tol: {{ q.tolerance }})</small>
+                  {% endif %}
+                </td>
+                <td class="action-buttons">
+                  <a class="btn btn-warning btn-sm" href="{{ url_for('admin.edit_question', question_id=q.id) }}" title="Edit">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <form method="post" action="{{ url_for('admin.delete_question', question_id=q.id) }}" style="display:inline" onsubmit="return confirm('Delete question #{{ q.id }}?');">
+                    <button class="btn btn-danger btn-sm" type="submit" title="Delete">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <!-- Pagination Controls -->
+        <div class="pagination-container">
+          <div class="pagination-controls">
+            <div class="pagination-info">
+              <div class="entries-selector">
+                <label for="entries-per-page" class="fw-bold" style="color: #2d3748;">Show:</label>
+                <select id="entries-per-page">
+                  <option value="5">5</option>
+                  <option value="10" selected>10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="all">All</option>
+                </select>
+                <span class="fw-bold" style="color: #2d3748;">entries</span>
+              </div>
+              <div class="pagination-stats">
+                Showing <span id="start-entry">1</span> to <span id="end-entry">10</span> of <span id="filtered-count">{{ questions|length }}</span> entries
+                <span id="filter-info"></span>
+              </div>
+            </div>
+            
+            <div class="pagination-nav">
+              <button id="first-page" class="pagination-btn">
+                <i class="fas fa-angle-double-left"></i> First
+              </button>
+              <button id="prev-page" class="pagination-btn">
+                <i class="fas fa-angle-left"></i> Previous
+              </button>
+              
+              <div class="page-numbers" id="page-numbers">
+                <!-- Page numbers will be generated by JavaScript -->
+              </div>
+              
+              <button id="next-page" class="pagination-btn">
+                Next <i class="fas fa-angle-right"></i>
+              </button>
+              <button id="last-page" class="pagination-btn">
+                Last <i class="fas fa-angle-double-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="p-5 text-center">
+          <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted">No questions found for this exam</h5>
+          <p class="text-muted">Start by adding some questions using the "Add Question" button above.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Enhanced Batch add panel -->
+<div class="batch-card">
+  <h4 class="batch-header">
+    <i class="fas fa-layer-group me-2" style="color: #667eea;"></i>Batch Add Questions
+  </h4>
+  
+  <div class="batch-description">
+    <i class="fas fa-info-circle me-2"></i>
+    Add multiple questions at once! Create rows below, fill in the details, then click "Add All" to save everything in one operation.
+  </div>
+
+  <div class="batch-controls">
+    <button id="add-row" class="btn btn-success batch-btn">
+      <i class="fas fa-plus me-1"></i>Add Row
+    </button>
+    <button id="clear-rows" class="btn btn-outline-secondary batch-btn">
+      <i class="fas fa-broom me-1"></i>Clear All
+    </button>
+    <button id="batch-submit" class="btn btn-primary batch-btn">
+      <i class="fas fa-upload me-1"></i>Add All Questions
+    <button id="open-latex-editor" class="btn btn-primary batch-btn" aria-label="Open LaTeX editor">
+      <span class="latex-icon" aria-hidden="true">∫</span>
+      Open LaTeX Editor
+    </button>
+  </div>
+
+  <!-- Global apply controls for batch rows -->
+  <div class="apply-controls mb-4">
+    <h6 class="mb-3 fw-bold" style="color: #2d3748;">
+      <i class="fas fa-magic me-2" style="color: #667eea;"></i>Quick Apply Settings
+    </h6>
+    <div class="row g-3 align-items-end">
+      <div class="col-auto">
+        <label class="form-label fw-bold">Apply to Type</label>
+        <select id="global-type" class="form-select">
+          <option value="MCQ">MCQ</option>
+          <option value="MSQ">MSQ</option>
+          <option value="NUMERIC">NUMERIC</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label fw-bold">Positive Marks</label>
+        <input id="global-pos" class="form-control" placeholder="e.g. 4">
+      </div>
+      <div class="col-auto">
+        <label class="form-label fw-bold">Negative Marks</label>
+        <input id="global-neg" class="form-control" placeholder="e.g. 1">
+      </div>
+      <div class="col-auto">
+        <label class="form-label fw-bold">Tolerance</label>
+        <input id="global-tol" class="form-control" placeholder="For NUMERIC">
+      </div>
+      <div class="col-auto">
+        <button id="apply-global" class="btn btn-outline-primary">
+          <i class="fas fa-wand-magic-sparkles me-1"></i>Apply to Rows
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="batch-rows"></div>
+</div>
+
+<script>
+(function(){
+  // Pagination variables
+  let currentPage = 1;
+  let itemsPerPage = 10;
+  let filteredRows = [];
+  let allRows = [];
+  
+  // Initialize pagination
+  function initializePagination() {
+    allRows = Array.from(document.querySelectorAll('.question-row'));
+    filteredRows = [...allRows];
+    updatePagination();
+  }
+
+  // Search and filter functionality
+  function applyFilters() {
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const typeFilter = document.getElementById('type-filter').value;
+    const imageFilter = document.getElementById('image-filter').value;
+    
+    filteredRows = allRows.filter(row => {
+      const questionText = row.dataset.questionText;
+      const questionId = row.dataset.questionId;
+      const questionType = row.dataset.questionType;
+      const hasImage = row.dataset.hasImage === 'true';
+      
+      // Search filter
+      const matchesSearch = !searchTerm || 
+        questionText.includes(searchTerm) || 
+        questionId.includes(searchTerm) ||
+        questionType.toLowerCase().includes(searchTerm);
+      
+      // Type filter
+      const matchesType = !typeFilter || questionType === typeFilter;
+      
+      // Image filter
+      let matchesImage = true;
+      if (imageFilter === 'with') matchesImage = hasImage;
+      else if (imageFilter === 'without') matchesImage = !hasImage;
+      
+      return matchesSearch && matchesType && matchesImage;
+    });
+    
+    currentPage = 1;
+    updatePagination();
+    updateFilterInfo();
+  }
+
+  function updateFilterInfo() {
+    const filterInfo = document.getElementById('filter-info');
+    const totalCount = document.getElementById('total-count');
+    const filteredCount = document.getElementById('filtered-count');
+    
+    totalCount.textContent = allRows.length;
+    filteredCount.textContent = filteredRows.length;
+    
+    if (filteredRows.length < allRows.length) {
+      filterInfo.textContent = ` (filtered from ${allRows.length} total)`;
+    } else {
+      filterInfo.textContent = '';
+    }
+  }
+
+  function updatePagination() {
+    const totalItems = filteredRows.length;
+    const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(totalItems / itemsPerPage);
+    
+    // Update pagination stats
+    let startEntry, endEntry;
+    if (itemsPerPage === 'all') {
+      startEntry = totalItems > 0 ? 1 : 0;
+      endEntry = totalItems;
+    } else {
+      startEntry = totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
+      endEntry = Math.min(currentPage * itemsPerPage, totalItems);
+    }
+    
+    document.getElementById('start-entry').textContent = startEntry;
+    document.getElementById('end-entry').textContent = endEntry;
+    
+    // Show/hide rows
+    allRows.forEach(row => row.style.display = 'none');
+    
+    if (itemsPerPage === 'all') {
+      filteredRows.forEach(row => row.style.display = '');
+    } else {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      filteredRows.slice(startIndex, endIndex).forEach(row => row.style.display = '');
+    }
+    
+    // Update navigation buttons
+    const firstBtn = document.getElementById('first-page');
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+    const lastBtn = document.getElementById('last-page');
+    
+    firstBtn.disabled = currentPage === 1 || itemsPerPage === 'all';
+    prevBtn.disabled = currentPage === 1 || itemsPerPage === 'all';
+    nextBtn.disabled = currentPage === totalPages || itemsPerPage === 'all';
+    lastBtn.disabled = currentPage === totalPages || itemsPerPage === 'all';
+    
+    firstBtn.classList.toggle('disabled', firstBtn.disabled);
+    prevBtn.classList.toggle('disabled', prevBtn.disabled);
+    nextBtn.classList.toggle('disabled', nextBtn.disabled);
+    lastBtn.classList.toggle('disabled', lastBtn.disabled);
+    
+    // Generate page numbers
+    generatePageNumbers(totalPages);
+  }
+
+  function generatePageNumbers(totalPages) {
+    const pageNumbersContainer = document.getElementById('page-numbers');
+    pageNumbersContainer.innerHTML = '';
+    
+    if (itemsPerPage === 'all' || totalPages <= 1) {
+      return;
+    }
+    
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    // Adjust startPage if we're near the end
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    // Add ellipsis and first page if needed
+    if (startPage > 1) {
+      addPageButton(1);
+      if (startPage > 2) {
+        const ellipsis = document.createElement('span');
+        ellipsis.textContent = '...';
+        ellipsis.className = 'pagination-ellipsis';
+        ellipsis.style.padding = '10px 8px';
+        ellipsis.style.color = '#64748b';
+        pageNumbersContainer.appendChild(ellipsis);
+      }
+    }
+    
+    // Add visible page numbers
+    for (let i = startPage; i <= endPage; i++) {
+      addPageButton(i);
+    }
+    
+    // Add ellipsis and last page if needed
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        const ellipsis = document.createElement('span');
+        ellipsis.textContent = '...';
+        ellipsis.className = 'pagination-ellipsis';
+        ellipsis.style.padding = '10px 8px';
+        ellipsis.style.color = '#64748b';
+        pageNumbersContainer.appendChild(ellipsis);
+      }
+      addPageButton(totalPages);
+    }
+  }
+
+  function addPageButton(pageNum) {
+    const pageBtn = document.createElement('button');
+    pageBtn.textContent = pageNum;
+    pageBtn.className = 'pagination-btn';
+    pageBtn.style.minWidth = '40px';
+    
+    if (pageNum === currentPage) {
+      pageBtn.classList.add('active');
+    }
+    
+    pageBtn.addEventListener('click', () => {
+      currentPage = pageNum;
+      updatePagination();
+    });
+    
+    document.getElementById('page-numbers').appendChild(pageBtn);
+  }
+
+  // Event listeners
+  document.getElementById('search-input').addEventListener('input', applyFilters);
+  document.getElementById('type-filter').addEventListener('change', applyFilters);
+  document.getElementById('image-filter').addEventListener('change', applyFilters);
+  
+  document.getElementById('clear-filters').addEventListener('click', () => {
+    document.getElementById('search-input').value = '';
+    document.getElementById('type-filter').value = '';
+    document.getElementById('image-filter').value = '';
+    applyFilters();
+  });
+
+  document.getElementById('entries-per-page').addEventListener('change', (e) => {
+    itemsPerPage = e.target.value === 'all' ? 'all' : parseInt(e.target.value);
+    currentPage = 1;
+    updatePagination();
+  });
+
+  // Navigation button event listeners
+  document.getElementById('first-page').addEventListener('click', () => {
+    currentPage = 1;
+    updatePagination();
+  });
+
+  document.getElementById('prev-page').addEventListener('click', () => {
+    if (currentPage > 1) {
+      currentPage--;
+      updatePagination();
+    }
+  });
+
+  document.getElementById('next-page').addEventListener('click', () => {
+    const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+    if (currentPage < totalPages) {
+      currentPage++;
+      updatePagination();
+    }
+  });
+
+  document.getElementById('last-page').addEventListener('click', () => {
+    const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+    currentPage = totalPages;
+    updatePagination();
+  });
+
+  // Initialize pagination on page load
+  if (document.querySelectorAll('.question-row').length > 0) {
+    initializePagination();
+  }
+
+  // Exam select + reload
+  const examSelect = document.getElementById('exam-select');
+  const reloadBtn = document.getElementById('reload-btn');
+  reloadBtn.addEventListener('click', () => {
+    const id = examSelect.value;
+    reloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
+    window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(id);
+  });
+
+  // ---------------- Batch UI ----------------
+  const addRowBtn = document.getElementById('add-row');
+  const clearRowsBtn = document.getElementById('clear-rows');
+  const rowsDiv = document.getElementById('batch-rows');
+  const submitBtn = document.getElementById('batch-submit');
+
+  function makeRow() {
+    const idx = Date.now().toString(36).slice(-6);
+    const div = document.createElement('div');
+    div.className = 'batch-row';
+    div.dataset.idx = idx;
+    div.innerHTML = `
+      <div class="row g-3 align-items-center">
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Question Text</label>
+          <textarea class="form-control q-text" placeholder="Enter your question here..." rows="3"></textarea>
+        </div>
+        <div class="col-md-6">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label fw-bold">Option A</label>
+              <textarea class="form-control q-a" placeholder="Option A" rows="1"></textarea>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold">Option B</label>
+              <textarea class="form-control q-b" placeholder="Option B" rows="1"></textarea>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold">Option C</label>
+              <textarea class="form-control q-c" placeholder="Option C" rows="1"></textarea>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold">Option D</label>
+              <textarea class="form-control q-d" placeholder="Option D" rows="1"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="row g-3 align-items-center mt-3">
+        <div class="col-md-2">
+          <label class="form-label fw-bold">Correct Answer</label>
+          <input class="form-control q-corr" placeholder="A/B/C/D">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold">Type</label>
+          <select class="form-select q-type">
+            <option value="MCQ">MCQ</option>
+            <option value="MSQ">MSQ</option>
+            <option value="NUMERIC">NUMERIC</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">Image Path</label>
+          <input class="form-control q-img" placeholder="e.g. physics/ph-1.png">
+        </div>
+        <div class="col-md-1">
+          <label class="form-label fw-bold">Pos.</label>
+          <input class="form-control q-pos" placeholder="4" value="4">
+        </div>
+        <div class="col-md-1">
+          <label class="form-label fw-bold">Neg.</label>
+          <input class="form-control q-neg" placeholder="1" value="1">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold">Tolerance</label>
+          <input class="form-control q-tol" placeholder="For NUMERIC">
+        </div>
+        <div class="col-md-1">
+          <label class="form-label fw-bold">&nbsp;</label>
+          <button type="button" class="btn btn-danger w-100 remove-row">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+    `;
+    div.querySelector('.remove-row').addEventListener('click', () => div.remove());
+    return div;
+  }
+
+  addRowBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    rowsDiv.appendChild(makeRow());
+    // scroll the new row into view for usability
+    setTimeout(()=> {
+      const last = rowsDiv.querySelector('.batch-row:last-child');
+      if (last) last.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }, 50);
+  });
+
+  clearRowsBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!confirm('Clear all batch rows?')) return;
+    rowsDiv.innerHTML = '';
+  });
+
+  // Apply global marks/tolerance to rows of selected type
+  const applyGlobalBtn = document.getElementById('apply-global');
+  applyGlobalBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const selType = document.getElementById('global-type').value;
+    const pos = document.getElementById('global-pos').value.trim();
+    const neg = document.getElementById('global-neg').value.trim();
+    const tol = document.getElementById('global-tol').value.trim();
+
+    const rows = Array.from(rowsDiv.querySelectorAll('.batch-row'));
+    rows.forEach(r => {
+      const t = r.querySelector('.q-type').value;
+      if (t === selType) {
+        if (pos !== '') r.querySelector('.q-pos').value = pos;
+        if (neg !== '') r.querySelector('.q-neg').value = neg;
+        if (tol !== '') r.querySelector('.q-tol').value = tol;
+      }
+    });
+    applyGlobalBtn.innerHTML = '<i class="fas fa-check me-1"></i>Applied ✓';
+    setTimeout(()=> applyGlobalBtn.innerHTML = '<i class="fas fa-wand-magic-sparkles me-1"></i>Apply to Rows', 1500);
+  });
+
+  submitBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const exam_id = examSelect.value;
+    if (!exam_id) { alert('Pick an exam first'); return; }
+
+    const rows = Array.from(rowsDiv.querySelectorAll('.batch-row'));
+    if (rows.length === 0) { alert('No rows to add'); return; }
+
+    const payload = { exam_id: parseInt(exam_id,10), questions: [] };
+    for (const r of rows) {
+      const q = {
+        question_text: (r.querySelector('.q-text')?.value || '').trim(),
+        option_a: (r.querySelector('.q-a')?.value || '').trim(),
+        option_b: (r.querySelector('.q-b')?.value || '').trim(),
+        option_c: (r.querySelector('.q-c')?.value || '').trim(),
+        option_d: (r.querySelector('.q-d')?.value || '').trim(),
+        correct_answer: (r.querySelector('.q-corr')?.value || '').trim(),
+        question_type: (r.querySelector('.q-type')?.value || 'MCQ'),
+        image_path: (r.querySelector('.q-img')?.value || '').trim(),
+        positive_marks: (r.querySelector('.q-pos')?.value || '4').toString(),
+        negative_marks: (r.querySelector('.q-neg')?.value || '1').toString(),
+        tolerance: (r.querySelector('.q-tol')?.value || '').toString()
+      };
+      // require at least question_text or at least one option to avoid blank rows
+      if (!q.question_text && !q.option_a && !q.option_b && !q.option_c && !q.option_d) continue;
+      payload.questions.push(q);
+    }
+
+    if (payload.questions.length === 0) { alert('No valid question rows'); return; }
+
+    submitBtn.disabled = true;
+    const previousText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding Questions...';
+    try {
+      const resp = await fetch("{{ url_for('admin.questions_batch_add') }}", {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (!data.success) {
+        alert('Batch add failed: ' + (data.message || 'Unknown'));
+      } else {
+        alert(`Successfully added ${data.added} question(s)! Reloading page...`);
+        window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(exam_id);
+      }
+    } catch (err) {
+      alert('Unexpected error: ' + err);
+      console.error(err);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = previousText;
+    }
+  });
+
+  // ---------------- Multi-delete & selection ----------------
+  const selectAll = document.getElementById('select-all');
+  const deleteSelectedBtn = document.getElementById('delete-selected');
+  const clearSelectionBtn = document.getElementById('select-none');
+
+  selectAll.addEventListener('change', (e) => {
+    const checked = selectAll.checked;
+    // Only check visible checkboxes
+    const visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox')).filter(cb => {
+      return cb.closest('tr').style.display !== 'none';
+    });
+    visibleCheckboxes.forEach(cb => cb.checked = checked);
+  });
+
+  clearSelectionBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    selectAll.checked = false;
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+  });
+
+  deleteSelectedBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const checked = Array.from(document.querySelectorAll('.row-checkbox:checked'));
+    if (checked.length === 0) { alert('No questions selected'); return; }
+
+    if (!confirm(`Delete ${checked.length} selected question(s)? This action cannot be undone.`)) return;
+
+    const ids = checked.map(cb => parseInt(cb.dataset.id,10));
+    try {
+      deleteSelectedBtn.disabled = true;
+      deleteSelectedBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Deleting...';
+      const resp = await fetch("{{ url_for('admin.delete_multiple_questions') }}", {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ ids })
+      });
+      const data = await resp.json();
+      if (!data.success) {
+        alert('Delete failed: ' + (data.message || 'Unknown'));
+      } else {
+        alert(`Successfully deleted ${data.deleted} question(s)! Reloading page...`);
+        window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(examSelect.value);
+      }
+    } catch (err) {
+      alert('Unexpected error: ' + err);
+      console.error(err);
+    } finally {
+      deleteSelectedBtn.disabled = false;
+      deleteSelectedBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Delete Selected';
+    }
+  });
+
+  // ---------------- Apply on listing ----------------
+  const applyListBtn = document.getElementById('apply-list');
+  applyListBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const exam_id = document.getElementById('exam-select').value;
+    if (!exam_id) { alert('Pick an exam first'); return; }
+
+    const qtype = document.getElementById('list-type').value;
+    const pos = document.getElementById('list-pos').value.trim();
+    const neg = document.getElementById('list-neg').value.trim();
+    const tol = document.getElementById('list-tol').value; // allow empty to skip
+
+    if (!qtype) { alert('Pick a question type'); return; }
+    if (pos === '' && neg === '' && tol === '') {
+      if (!confirm('You did not provide any values. Do you want to continue (no changes will be applied)?')) return;
+    }
+
+    if (!confirm(`Apply changes to all ${qtype} questions for this exam?`)) return;
+
+    applyListBtn.disabled = true;
+    const prev = applyListBtn.innerHTML;
+    applyListBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Applying...';
+
+    try {
+      const payload = {
+        exam_id: parseInt(exam_id, 10),
+        question_type: qtype,
+        positive_marks: pos === '' ? null : pos,
+        negative_marks: neg === '' ? null : neg,
+        tolerance: tol === '' ? null : tol
+      };
+
+      const resp = await fetch("{{ url_for('admin.questions_bulk_update') }}", {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (!data.success) {
+        alert('Update failed: ' + (data.message || 'Unknown'));
+      } else {
+        alert(`Successfully updated ${data.updated} question(s)! Reloading page...`);
+        window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(exam_id);
+      }
+    } catch (err) {
+      alert('Unexpected error: ' + err);
+      console.error(err);
+    } finally {
+      applyListBtn.disabled = false;
+      applyListBtn.innerHTML = prev;
+    }
+  });
+
+})();
+</script>
+<script>
+(function(){
+  const btn = document.getElementById('open-latex-editor');
+  if(!btn) return;
+
+  btn.addEventListener('click', () => {
+    // open side-by-side popup; adjust size if needed
+    const w = Math.max(Math.round(window.innerWidth * 0.6), 900);
+    const h = Math.max(Math.round(window.innerHeight * 0.75), 600);
+    const left = Math.round(window.screenX + (window.innerWidth - w) / 2);
+    const top = Math.round(window.screenY + (window.innerHeight - h) / 2);
+    window.open('/admin/latex_editor', 'latexEditor', `width=${w},height=${h},left=${left},top=${top},resizable=yes`);
+  });
+
+  // receive message from popup
+  window.addEventListener('message', function(ev){
+    try {
+      // IMPORTANT: check origin if your site uses different host. Here we accept same-origin only
+      if (ev.origin !== window.location.origin) return;
+      const data = ev.data || {};
+      if (data.type === 'latex-selected' && typeof data.latex === 'string') {
+        const latex = data.latex;
+
+        // Try best-effort to find the textarea/input to insert into:
+        const target = document.querySelector('textarea[name="latex_content"], textarea#latex_editor, textarea[name="question_text"], textarea#question_text, textarea');
+        if (target) {
+          // insert at cursor if focused; else append at end
+          try {
+            const s = target.selectionStart || target.value.length;
+            const e = target.selectionEnd || s;
+            target.value = target.value.slice(0,s) + latex + target.value.slice(e);
+            target.focus();
+            // move caret after inserted text
+            const pos = s + latex.length;
+            target.selectionStart = target.selectionEnd = pos;
+          } catch(err) {
+            // fallback: append
+            target.value = target.value + '\n' + latex;
+          }
+          // trigger input event so any listeners update preview/hidden fields
+          target.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          // fallback: try focused element
+          const active = document.activeElement;
+          if (active && (active.tagName === 'TEXTAREA' || (active.tagName==='INPUT' && active.type==='text'))) {
+            const s = active.selectionStart || active.value.length;
+            const e = active.selectionEnd || s;
+            active.value = active.value.slice(0,s)+latex+active.value.slice(e);
+            active.selectionStart = active.selectionEnd = s + latex.length;
+            active.dispatchEvent(new Event('input', { bubbles: true }));
+          } else {
+            alert('LaTeX received. No textarea found to paste into — paste manually:\n\n' + latex);
+          }
+        }
+      }
+    } catch(e) {
+      console.error('latex message handler error', e);
+    }
+  }, false);
+})();
+</script>
+<script>
+// Universal Mobile Enhancements
+(function() {
+    'use strict';
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initMobileEnhancements();
+    });
+
+    function initMobileEnhancements() {
+        if (window.innerWidth <= 768) {
+            makeTablesMobileResponsive();
+            enhanceFormsMobile();
+            improveButtonGroupsMobile();
+            addMobileSwipeSupport();
+            optimizeModalsMobile();
+            enhanceMobileNavigation();
+        }
+    }
+
+    // Make tables horizontally scrollable with better UX
+    function makeTablesMobileResponsive() {
+        const tables = document.querySelectorAll('.table');
+        tables.forEach(table => {
+            if (!table.closest('.table-responsive')) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'table-responsive';
+                wrapper.style.overflowX = 'auto';
+                wrapper.style.margin = '0 -15px';
+                wrapper.style.padding = '0 15px';
+                
+                table.parentNode.insertBefore(wrapper, table);
+                wrapper.appendChild(table);
+            }
+            
+            // Add mobile table indicators
+            const headerCells = table.querySelectorAll('thead th');
+            const bodyCells = table.querySelectorAll('tbody td');
+            
+            headerCells.forEach((header, index) => {
+                const headerText = header.textContent.trim();
+                const columnCells = table.querySelectorAll(`tbody tr td:nth-child(${index + 1})`);
+                
+                columnCells.forEach(cell => {
+                    cell.setAttribute('data-label', headerText);
+                });
+            });
+        });
+    }
+
+    // Enhance forms for mobile
+    function enhanceFormsMobile() {
+        const inputs = document.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            // Prevent zoom on iOS
+            if (input.type === 'email' || input.type === 'number' || input.type === 'tel') {
+                input.style.fontSize = '16px';
+            }
+            
+            // Add mobile-friendly focus effects
+            input.addEventListener('focus', function() {
+                this.style.transform = 'scale(1.02)';
+                this.style.transition = 'transform 0.2s ease';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+
+        // Convert button groups to vertical on mobile
+        const buttonGroups = document.querySelectorAll('.btn-group');
+        buttonGroups.forEach(group => {
+            group.style.flexDirection = 'column';
+            group.style.gap = '5px';
+        });
+    }
+
+    // Improve button groups for mobile
+    function improveButtonGroupsMobile() {
+        const actionButtons = document.querySelectorAll('.table .btn-group, .action-buttons');
+        actionButtons.forEach(group => {
+            const buttons = group.querySelectorAll('.btn');
+            if (buttons.length > 2) {
+                // Create dropdown for many buttons
+                const dropdown = createMobileDropdown(buttons);
+                group.appendChild(dropdown);
+                
+                // Hide original buttons
+                buttons.forEach(btn => btn.style.display = 'none');
+            }
+        });
+    }
+
+    function createMobileDropdown(buttons) {
+        const dropdown = document.createElement('div');
+        dropdown.className = 'dropdown';
+        dropdown.innerHTML = `
+            <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-ellipsis-v"></i> Actions
+            </button>
+            <ul class="dropdown-menu">
+                ${Array.from(buttons).map(btn => `
+                    <li><a class="dropdown-item" href="#" onclick="this.closest('.dropdown').querySelector('button[onclick=\\'${btn.getAttribute('onclick')}\\']')?.click()">
+                        ${btn.innerHTML}
+                    </a></li>
+                `).join('')}
+            </ul>
+        `;
+        return dropdown;
+    }
+
+    // Add swipe support for dismissible elements
+    function addMobileSwipeSupport() {
+        const swipeElements = document.querySelectorAll('.alert-dismissible, .modal');
+        swipeElements.forEach(element => {
+            let startX = 0;
+            let startY = 0;
+
+            element.addEventListener('touchstart', function(e) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+
+            element.addEventListener('touchend', function(e) {
+                const endX = e.changedTouches[0].clientX;
+                const endY = e.changedTouches[0].clientY;
+                const diffX = startX - endX;
+                const diffY = startY - endY;
+
+                // Swipe right to dismiss alerts
+                if (Math.abs(diffX) > Math.abs(diffY) && diffX < -100 && element.classList.contains('alert')) {
+                    const closeBtn = element.querySelector('.btn-close');
+                    if (closeBtn) closeBtn.click();
+                }
+            }, { passive: true });
+        });
+    }
+
+    // Optimize modals for mobile
+    function optimizeModalsMobile() {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('shown.bs.modal', function() {
+                // Scroll to top when modal opens
+                modal.scrollTop = 0;
+                
+                // Focus first input
+                const firstInput = modal.querySelector('input, select, textarea');
+                if (firstInput) {
+                    setTimeout(() => firstInput.focus(), 300);
+                }
+            });
+        });
+    }
+
+    // Enhance mobile navigation
+    function enhanceMobileNavigation() {
+        // Add mobile-friendly pagination
+        const pagination = document.querySelector('.pagination');
+        if (pagination) {
+            pagination.style.flexWrap = 'wrap';
+            pagination.style.justifyContent = 'center';
+        }
+
+        // Enhance dropdowns
+        const dropdowns = document.querySelectorAll('.dropdown-toggle');
+        dropdowns.forEach(dropdown => {
+            dropdown.addEventListener('click', function() {
+                // Ensure dropdown is visible on mobile
+                setTimeout(() => {
+                    const menu = this.nextElementSibling;
+                    if (menu && menu.classList.contains('dropdown-menu')) {
+                        const rect = menu.getBoundingClientRect();
+                        if (rect.bottom > window.innerHeight) {
+                            menu.style.top = 'auto';
+                            menu.style.bottom = '100%';
+                        }
+                    }
+                }, 100);
+            });
+        });
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (window.innerWidth <= 768) {
+            initMobileEnhancements();
+        }
+    });
+
+    // Add mobile utility functions
+    window.MobileUtils = {
+        // Show full-screen loading
+        showMobileLoading: function() {
+            const loading = document.createElement('div');
+            loading.id = 'mobile-loading';
+            loading.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                            background: rgba(0,0,0,0.8); z-index: 9999; 
+                            display: flex; align-items: center; justify-content: center;">
+                    <div style="background: white; padding: 20px; border-radius: 10px; text-align: center;">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p style="margin-top: 10px; margin-bottom: 0;">Loading...</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loading);
+        },
+        
+        // Hide loading
+        hideMobileLoading: function() {
+            const loading = document.getElementById('mobile-loading');
+            if (loading) loading.remove();
+        },
+        
+        // Show mobile toast
+        showMobileToast: function(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; top: 20px; left: 20px; right: 20px; z-index: 9999;
+                background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
+                color: white; padding: 15px; border-radius: 10px; text-align: center;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3); transform: translateY(-100px);
+                transition: transform 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.style.transform = 'translateY(0)', 100);
+            setTimeout(() => {
+                toast.style.transform = 'translateY(-100px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    };
+
+    // Auto-enhance specific elements
+    setTimeout(() => {
+        // Make long text truncated with "..." on mobile
+        const longTexts = document.querySelectorAll('.text-truncate-mobile');
+        longTexts.forEach(text => {
+            if (text.textContent.length > 50) {
+                text.title = text.textContent;
+                text.textContent = text.textContent.substring(0, 47) + '...';
+            }
+        });
+
+        // Add mobile-friendly tooltips (convert to click)
+        const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltips.forEach(tooltip => {
+            const content = tooltip.getAttribute('title') || tooltip.getAttribute('data-bs-original-title');
+            tooltip.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.MobileUtils.showMobileToast(content, 'info');
+            });
+        });
+    }, 500);
+
+})();
+
+// Add CSS for mobile table labels
+const mobileTableCSS = `
+<style>
+@media (max-width: 768px) {
+    /* Stack table cells vertically with labels */
+    .table-responsive-stack .table,
+    .table-responsive-stack .table thead,
+    .table-responsive-stack .table tbody,
+    .table-responsive-stack .table th,
+    .table-responsive-stack .table td,
+    .table-responsive-stack .table tr {
+        display: block;
+    }
+    
+    .table-responsive-stack .table thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+    
+    .table-responsive-stack .table tr {
+        border: 1px solid #ccc;
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        background: white;
+    }
+    
+    .table-responsive-stack .table td {
+        border: none !important;
+        position: relative;
+        padding-left: 50% !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+    }
+    
+    .table-responsive-stack .table td:before {
+        content: attr(data-label) ": ";
+        position: absolute;
+        left: 6px;
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        font-weight: bold;
+        color: #333;
+    }
+}
+</style>
+`;
+
+
+document.head.insertAdjacentHTML('beforeend', mobileTableCSS);
+</script>
+{% endblock %}

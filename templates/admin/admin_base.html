@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.png') }}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - {% block title %}{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <style>
+    :root{
+      --brand1: #667eea;
+      --brand2: #764ba2;
+      --brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --success: #198754;
+      --sidebar-bg: linear-gradient(180deg, #0f1419 0%, #1a2332 100%);
+      --sidebar-text: #e9eef8;
+      --content-bg: linear-gradient(135deg, rgba(102,126,234,0.12), rgba(118,75,162,0.12));
+      --card-bg: #ffffff;
+      --text-primary: #2d3748;
+      --text-secondary: #4a5568;
+      --border-color: #e2e8f0;
+      --input-border: #cbd5e0;
+      --input-focus: #667eea;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+    
+    * {
+      transition: all 0.2s ease;
+    }
+    
+    body { 
+      background: var(--content-bg);
+      display: flex; 
+      flex-direction: column; 
+      min-height: 100vh;
+      color: var(--text-primary);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    
+    .sidebar { 
+      min-width: 280px; 
+      min-height: 100vh; 
+      background: var(--sidebar-bg);
+      color: var(--sidebar-text); 
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+    
+    .sidebar::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 1px;
+      height: 100%;
+      background: linear-gradient(180deg, transparent 0%, rgba(102, 126, 234, 0.3) 50%, transparent 100%);
+    }
+    
+    .sidebar h4 { color: var(--sidebar-text); }
+    
+    .sidebar .nav-link { 
+      color: var(--sidebar-text); 
+      border-radius: 10px;
+      margin: 4px 8px;
+      padding: 12px 16px;
+      font-weight: 500;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .sidebar .nav-link::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      transition: left 0.5s;
+    }
+    
+    .sidebar .nav-link:hover { 
+      color: #fff; 
+      text-decoration: none; 
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateX(4px);
+    }
+    
+    .sidebar .nav-link:hover::before {
+      left: 100%;
+    }
+    
+    .sidebar .nav-link.active { 
+      background: var(--brand-gradient);
+      border-radius: 10px; 
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      transform: translateX(4px);
+    }
+    
+    .sidebar .nav-link.publish { 
+      background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+      font-weight: 600; 
+      border-radius: 10px; 
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3);
+    }
+    
+    .content-wrap{ 
+      padding: 32px; 
+      flex: 1;
+      background: var(--content-bg);
+    }
+    
+    .brand-badge{ 
+      color: var(--brand1); 
+      font-weight: 700; 
+      letter-spacing: 0.5px;
+      font-size: 1.1rem;
+    }
+    
+    .alert { 
+      border-radius: 12px; 
+      box-shadow: var(--shadow);
+      border: none;
+      font-weight: 500;
+    }
+
+    /* Enhanced Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+      box-shadow: var(--shadow-hover);
+      transform: translateY(-2px);
+    }
+    
+    .card-header {
+      background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
+      border-bottom: 1px solid var(--border-color);
+      border-radius: 16px 16px 0 0 !important;
+      padding: 20px 24px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .card-body {
+      padding: 24px;
+    }
+
+    /* Enhanced Form Controls */
+    .form-control, .form-select {
+      border: 2px solid var(--input-border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      background: #fff;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+      border-color: var(--input-focus);
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+      outline: none;
+      background: #fff;
+    }
+    
+    .form-control::placeholder {
+      color: #a0aec0;
+      font-weight: 400;
+    }
+    
+    .form-label {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    /* Enhanced Buttons */
+    .btn {
+      border-radius: 10px;
+      padding: 12px 24px;
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 0; height: 0;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      transform: translate(-50%, -50%);
+    }
+    
+    .btn:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+    
+    .btn-primary {
+      background: var(--brand-gradient);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3);
+    }
+    
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(25, 135, 84, 0.4);
+    }
+    
+    .btn-warning {
+      background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+    }
+    
+    .btn-danger {
+      background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+    
+    .btn-outline-primary {
+      border: 2px solid var(--brand1);
+      color: var(--brand1);
+      background: transparent;
+    }
+    
+    .btn-outline-primary:hover {
+      background: var(--brand-gradient);
+      color: white;
+      transform: translateY(-2px);
+    }
+    
+    .btn-outline-secondary {
+      border: 2px solid var(--text-secondary);
+      color: var(--text-secondary);
+      background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+      background: var(--text-secondary);
+      color: white;
+      transform: translateY(-2px);
+    }
+    
+    .btn-sm {
+      padding: 8px 16px;
+      font-size: 12px;
+    }
+
+    /* Enhanced Tables */
+    .table {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    
+    .table thead th {
+      background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
+      border: none;
+      font-weight: 700;
+      color: var(--text-primary);
+      padding: 16px 20px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .table tbody td {
+      border: none;
+      border-bottom: 1px solid #f1f5f9;
+      padding: 16px 20px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    
+    .table tbody tr:hover {
+      background: linear-gradient(135deg, #f8faff 0%, rgba(102, 126, 234, 0.02) 100%);
+    }
+    
+    .table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Enhanced Modals */
+    .modal-content {
+      border-radius: 16px;
+      border: none;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    }
+    
+    .modal-header {
+      background: var(--brand-gradient);
+      color: white;
+      border-radius: 16px 16px 0 0;
+      border: none;
+      padding: 20px 24px;
+    }
+    
+    .modal-title {
+      font-weight: 700;
+      font-size: 18px;
+    }
+    
+    .btn-close {
+      filter: brightness(0) invert(1);
+    }
+    
+    .modal-body {
+      padding: 24px;
+    }
+    
+    .modal-footer {
+      border: none;
+      padding: 20px 24px;
+      background: #f8faff;
+      border-radius: 0 0 16px 16px;
+    }
+
+    /* Page Headers */
+    h1, h2, h3, h4, h5, h6 {
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+    
+    h2 {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+    
+    .page-header {
+      background: var(--brand-gradient);
+      color: white;
+      padding: 24px 32px;
+      margin: -32px -32px 32px -32px;
+      border-radius: 0 0 20px 20px;
+    }
+
+    /* Footer styling */
+    .professional-footer {
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      color: #ecf0f1;
+      padding: 2rem 0;
+      margin-top: auto;
+      position: relative;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .professional-footer::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--brand-gradient);
+    }
+    
+    .footer-content { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      flex-wrap: wrap; 
+      gap: 1.5rem;
+    }
+    
+    .footer-links { 
+      display: flex; 
+      gap: 2.5rem; 
+      flex-wrap: wrap; 
+    }
+    
+    .footer-links a { 
+      color: #ecf0f1; 
+      text-decoration: none; 
+      font-size: 0.95rem; 
+      font-weight: 500;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    .footer-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px; left: 0;
+      width: 0; height: 2px;
+      background: var(--brand1);
+      transition: width 0.3s ease;
+    }
+    
+    .footer-links a:hover { 
+      color: var(--brand1);
+      transform: translateY(-2px);
+    }
+    
+    .footer-links a:hover::after {
+      width: 100%;
+    }
+    
+    .footer-social { 
+      display: flex; 
+      gap: 1rem; 
+    }
+    
+    .footer-social a { 
+      width: 45px; 
+      height: 45px; 
+      background: rgba(102,126,234,0.2); 
+      border-radius: 50%; 
+      color: #ecf0f1; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      transition: all .3s ease;
+      font-size: 18px;
+    }
+    
+    .footer-social a:hover { 
+      background: var(--brand1);
+      transform: translateY(-4px) scale(1.1);
+      box-shadow: 0 8px 25px rgba(102,126,234,0.4);
+    }
+
+    /* Enhanced Checkboxes */
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--brand1);
+      cursor: pointer;
+    }
+
+    /* Text styling improvements */
+    .text-muted {
+      color: #718096 !important;
+      font-weight: 500;
+    }
+    
+    small, .small {
+      font-weight: 500;
+      color: #718096;
+    }
+    
+    /* Animation for loading states */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .loading {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* Mobile Toggle Button */
+    .mobile-menu-toggle {
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1001;
+      background: var(--brand-gradient);
+      border: none;
+      border-radius: 12px;
+      width: 50px;
+      height: 50px;
+      color: white;
+      font-size: 1.2rem;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .mobile-menu-toggle:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .mobile-menu-toggle:active {
+      transform: scale(0.95);
+    }
+
+    /* Mobile Overlay */
+    .mobile-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+      backdrop-filter: blur(4px);
+    }
+
+    .mobile-overlay.active {
+      display: block;
+    }
+    
+    /* Enhanced Mobile Responsive Styles */
+    @media (max-width: 768px) {
+      /* Show mobile menu toggle */
+      .mobile-menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Layout adjustments */
+      .d-flex {
+        flex-direction: column;
+      }
+
+      /* Sidebar mobile styles */
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 280px;
+        height: 100vh;
+        z-index: 1000;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+        border-radius: 0 15px 15px 0;
+      }
+
+      .sidebar.mobile-open {
+        left: 0;
+      }
+
+      /* Content adjustments */
+      .content-wrap {
+        padding: 80px 20px 20px 20px;
+        width: 100%;
+        min-height: calc(100vh - 80px);
+      }
+
+      /* Navigation improvements */
+      .sidebar .nav-link {
+        padding: 16px 20px;
+        font-size: 1rem;
+        border-radius: 12px;
+        margin: 6px 12px;
+        min-height: 50px;
+        display: flex;
+        align-items: center;
+      }
+
+      .sidebar .nav-link i {
+        width: 24px;
+        text-align: center;
+        margin-right: 12px;
+      }
+
+      /* Brand section mobile */
+      .sidebar .d-flex.align-items-center.mb-4 {
+        padding: 24px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 20px;
+      }
+
+      /* Form controls mobile optimization */
+      .form-control, .form-select {
+        padding: 16px 18px;
+        font-size: 16px; /* Prevents zoom on iOS */
+        border-radius: 12px;
+      }
+
+      /* Button improvements */
+      .btn {
+        padding: 14px 20px;
+        font-size: 1rem;
+        min-height: 48px;
+        border-radius: 12px;
+      }
+
+      /* Card improvements */
+      .card-body {
+        padding: 20px;
+      }
+
+      /* Table responsiveness */
+      .table {
+        font-size: 0.9rem;
+      }
+
+      .table thead th,
+      .table tbody td {
+        padding: 12px 16px;
+      }
+
+      /* Alert improvements */
+      .alert {
+        margin: 15px 0;
+        padding: 16px 20px;
+        border-radius: 12px;
+        font-size: 0.95rem;
+      }
+
+      /* Modal improvements */
+      .modal-dialog {
+        margin: 20px;
+        max-width: calc(100% - 40px);
+      }
+
+      .modal-content {
+        border-radius: 20px;
+      }
+
+      /* Footer adjustments */
+      .professional-footer {
+        padding: 1.5rem 0;
+      }
+
+      .footer-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+      }
+
+      .footer-links {
+        justify-content: center;
+        gap: 1.5rem;
+      }
+
+      .footer-social {
+        justify-content: center;
+      }
+    }
+
+    /* Extra small devices */
+    @media (max-width: 576px) {
+      .sidebar {
+        width: 100%;
+        left: -100%;
+        border-radius: 0;
+      }
+
+      .content-wrap {
+        padding: 70px 15px 15px 15px;
+      }
+
+      .mobile-menu-toggle {
+        width: 45px;
+        height: 45px;
+        top: 15px;
+        left: 15px;
+        font-size: 1.1rem;
+      }
+
+      .sidebar .nav-link {
+        padding: 18px 20px;
+        font-size: 1.05rem;
+        margin: 8px 15px;
+      }
+
+      .form-control, .form-select {
+        padding: 18px 16px;
+      }
+
+      .btn {
+        padding: 16px 18px;
+        min-height: 52px;
+      }
+
+      .card-header {
+        padding: 16px 18px;
+        font-size: 1rem;
+      }
+
+      .card-body {
+        padding: 18px;
+      }
+
+      .table {
+        font-size: 0.85rem;
+      }
+
+      .table thead th,
+      .table tbody td {
+        padding: 10px 12px;
+      }
+
+      /* Compact brand section for very small screens */
+      .sidebar .d-flex.align-items-center.mb-4 {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+      }
+
+      .sidebar .d-flex.align-items-center.mb-4 .bg-white {
+        margin-right: 0;
+        margin-bottom: 8px;
+      }
+
+      .brand-badge {
+        font-size: 1rem;
+      }
+    }
+
+    /* Landscape phone optimization */
+    @media (max-width: 768px) and (orientation: landscape) {
+      .content-wrap {
+        padding: 60px 20px 20px 20px;
+      }
+
+      .mobile-menu-toggle {
+        top: 15px;
+        left: 15px;
+      }
+    }
+
+    /* Focus states for accessibility */
+    @media (max-width: 768px) {
+      .mobile-menu-toggle:focus {
+        outline: 3px solid rgba(102, 126, 234, 0.3);
+        outline-offset: 2px;
+      }
+
+      .sidebar .nav-link:focus {
+        outline: 2px solid rgba(255, 255, 255, 0.3);
+        outline-offset: 2px;
+      }
+
+      /* Hide scrollbar but keep functionality */
+      .sidebar::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .sidebar::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .sidebar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+      }
+    }
+
+    /* Animation for menu toggle icon */
+    @keyframes menuToggle {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(180deg); }
+    }
+
+    .mobile-menu-toggle.active {
+      animation: menuToggle 0.3s ease;
+    }
+
+    /* Safe area insets for newer phones */
+    @supports (padding: max(0px)) {
+      @media (max-width: 768px) {
+        .mobile-menu-toggle {
+          top: max(20px, env(safe-area-inset-top));
+          left: max(20px, env(safe-area-inset-left));
+        }
+
+        .content-wrap {
+          padding-top: max(80px, calc(env(safe-area-inset-top) + 60px));
+          padding-left: max(20px, env(safe-area-inset-left));
+          padding-right: max(20px, env(safe-area-inset-right));
+        }
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="d-flex">
+  <!-- Sidebar -->
+  <div class="p-4 sidebar">
+    <div class="d-flex align-items-center mb-4">
+      <div class="bg-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 48px; height: 48px;">
+        <i class="fas fa-user-shield fa-lg" style="color: var(--brand1);"></i>
+      </div>
+      <div>
+        <div class="brand-badge">Admin Portal</div>
+        <small class="text-muted">Control Panel</small>
+      </div>
+    </div>
+    <hr style="border-color: rgba(255,255,255,0.1); margin: 0 -1rem 2rem -1rem;"/>
+
+<ul class="nav flex-column">
+  <li class="nav-item mb-2">
+    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.dashboard') %}active{% endif %}" href="{{ url_for('admin.dashboard') }}">
+      <i class="fas fa-home me-3"></i> Dashboard
+    </a>
+  </li>
+  <li class="nav-item mb-2">
+    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.exams') %}active{% endif %}" href="{{ url_for('admin.exams') }}">
+      <i class="fas fa-file-alt me-3"></i> Manage Exams
+    </a>
+  </li>
+  <li class="nav-item mb-2">
+    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.subjects') %}active{% endif %}" href="{{ url_for('admin.subjects') }}">
+      <i class="fas fa-book me-3"></i> Manage Subjects
+    </a>
+  </li>
+  <li class="nav-item mb-2">
+    <a class="nav-link {% if request.endpoint and (request.endpoint.startswith('admin.questions') or request.endpoint == 'admin.questions_index') %}active{% endif %}" href="{{ url_for('admin.questions_index') }}">
+      <i class="fas fa-question-circle me-3"></i> Manage Questions
+    </a>
+  </li>
+  <li class="nav-item mb-2">
+    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.upload_images') %}active{% endif %}" href="{{ url_for('admin.upload_images_page') }}">
+      <i class="fas fa-images me-3"></i> Upload Images
+    </a>
+  </li>
+  <li class="nav-item mb-2">
+    <button id="open-latex-editor-admin-base" class="nav-link w-100 text-start">
+      <span class="me-3">∫</span> Open LaTeX Editor
+    </button>
+  </li>
+  
+  <!-- NEW: Requests Management Section -->
+  <li class="nav-item mb-2">
+    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.requests') or request.endpoint.startswith('admin.new_requests') or request.endpoint.startswith('admin.requests_history') %}active{% endif %}" href="{{ url_for('admin.requests_dashboard') }}">
+      <i class="fas fa-user-plus me-3"></i> Users & Requests 
+      <span class="badge bg-dark ms-2" id="requestsBadge" style="font-size: 0.7rem;">0</span>
+    </a>
+  </li>
+  
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('admin.attempts') }}">
+      <i class="fas fa-list-ol me-2"></i> Manage Attempts
+    </a>
+  </li> 
+<li class="nav-item mb-2">
+  <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.users_analytics') %}active{% endif %}" href="{{ url_for('admin.users_analytics') }}">
+    <i class="fas fa-chart-line me-3"></i> Users Analytics
+  </a>
+</li>       
+  <li class="nav-item mb-4">
+    <a class="nav-link publish {% if request.endpoint and request.endpoint.startswith('admin.publish') %}active{% endif %}" href="{{ url_for('admin.publish') }}">
+      <i class="fas fa-bolt me-3"></i> Publish
+    </a>
+  </li>
+  <li class="nav-item mt-4">
+    <a class="nav-link text-danger" href="{{ url_for('admin.logout') }}" style="background: rgba(220, 53, 69, 0.1); border-radius: 10px;">
+      <i class="fas fa-sign-out-alt me-3"></i> Logout
+    </a>
+  </li>
+</ul>
+  </div>
+
+  <!-- Content -->
+  <div class="flex-grow-1 content-wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="professional-footer">
+  <div class="container">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <i class="fas fa-user-shield me-2"></i> 
+        <strong>AdminPortal</strong>
+      </div>
+      <div class="footer-links">
+        <a href="{{ url_for('privacy_policy') }}">Privacy Policy</a>
+        <a href="{{ url_for('terms_of_service') }}">Terms of Service</a>
+        <a href="{{ url_for('support') }}">Support</a>
+        <a href="{{ url_for('contact') }}">Contact</a>
+      </div>
+      <div class="d-flex align-items-center gap-4">
+        <p class="mb-0 fw-medium">&copy; 2025 ExamPortal Admin. All rights reserved.</p>
+        <div class="footer-social">
+          <a href="#" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+          <a href="#" title="Twitter"><i class="fab fa-twitter"></i></a>
+          <a href="#" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+          <a href="#" title="Instagram"><i class="fab fa-instagram"></i></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-dismiss only success alerts with login/logout messages
+    const alerts = document.querySelectorAll('.alert-success');
+    
+    alerts.forEach(function(alert) {
+        const alertText = alert.textContent.toLowerCase();
+        
+        // Check if it's login or logout success message
+        if (alertText.includes('login successful') || 
+            alertText.includes('logged out') || 
+            alertText.includes('logout')) {
+            
+            setTimeout(function() {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 500); // 0.5 seconds for login/logout
+        }
+    });
+
+    // Add loading animation to buttons on click
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            if (this.type === 'submit' && !this.disabled) {
+                this.classList.add('loading');
+                setTimeout(() => {
+                    this.classList.remove('loading');
+                }, 2000);
+            }
+        });
+    });
+});
+</script>
+
+<!-- LaTeX Editor Script -->
+<script>
+(function(){
+  const btn = document.getElementById('open-latex-editor-admin-base');
+  if(!btn) return;
+
+  btn.addEventListener('click', () => {
+    // open side-by-side popup; adjust size if needed
+    const w = Math.max(Math.round(window.innerWidth * 0.6), 900);
+    const h = Math.max(Math.round(window.innerHeight * 0.75), 600);
+    const left = Math.round(window.screenX + (window.innerWidth - w) / 2);
+    const top = Math.round(window.screenY + (window.innerHeight - h) / 2);
+    window.open('/admin/latex_editor', 'latexEditor', `width=${w},height=${h},left=${left},top=${top},resizable=yes`);
+  });
+
+  // receive message from popup
+  window.addEventListener('message', function(ev){
+    try {
+      // IMPORTANT: check origin if your site uses different host. Here we accept same-origin only
+      if (ev.origin !== window.location.origin) return;
+      const data = ev.data || {};
+      if (data.type === 'latex-selected' && typeof data.latex === 'string') {
+        const latex = data.latex;
+
+        // Try best-effort to find the textarea/input to insert into:
+        const target = document.querySelector('textarea[name="latex_content"], textarea#latex_editor, textarea[name="question_text"], textarea#question_text, textarea');
+        if (target) {
+          // insert at cursor if focused; else append at end
+          try {
+            const s = target.selectionStart || target.value.length;
+            const e = target.selectionEnd || s;
+            target.value = target.value.slice(0,s) + latex + target.value.slice(e);
+            target.focus();
+            // move caret after inserted text
+            const pos = s + latex.length;
+            target.selectionStart = target.selectionEnd = pos;
+          } catch(err) {
+            // fallback: append
+            target.value = target.value + '\n' + latex;
+          }
+          // trigger input event so any listeners update preview/hidden fields
+          target.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          // fallback: try focused element
+          const active = document.activeElement;
+          if (active && (active.tagName === 'TEXTAREA' || (active.tagName==='INPUT' && active.type==='text'))) {
+            const s = active.selectionStart || active.value.length;
+            const e = active.selectionEnd || s;
+            active.value = active.value.slice(0,s)+latex+active.value.slice(e);
+            active.selectionStart = active.selectionEnd = s + latex.length;
+            active.dispatchEvent(new Event('input', { bubbles: true }));
+          } else {
+            alert('LaTeX received. No textarea found to paste into — paste manually:\n\n' + latex);
+          }
+        }
+      }
+    } catch(e) {
+      console.error('latex message handler error', e);
+    }
+  }, false);
+})();
+</script>
+
+<!-- Requests Badge Script -->
+<script>
+// Auto-update requests badge
+document.addEventListener('DOMContentLoaded', function() {
+    function updateRequestsBadge() {
+        fetch('/admin/api/requests/stats')
+            .then(response => response.json())
+            .then(data => {
+                const badge = document.getElementById('requestsBadge');
+                if (badge) {
+                    badge.textContent = data.pending || 0;
+                    badge.style.display = (data.pending > 0) ? 'inline' : 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading requests stats:', error);
+            });
+    }
+
+    // Update on page load
+    updateRequestsBadge();
+
+    // Update every 30 seconds if on admin pages
+    if (window.location.pathname.startsWith('/admin/')) {
+        setInterval(updateRequestsBadge, 30000);
+    }
+});
+</script>
+
+<!-- Mobile Menu Functionality Script -->
+<script>
+// Mobile Menu Functionality
+(function() {
+    'use strict';
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeMobileMenu();
+    });
+
+    function initializeMobileMenu() {
+        createMobileElements();
+        setupEventListeners();
+        handleResize();
+    }
+
+    function createMobileElements() {
+        if (!document.querySelector('.mobile-menu-toggle')) {
+            const toggleButton = document.createElement('button');
+            toggleButton.className = 'mobile-menu-toggle';
+            toggleButton.innerHTML = '<i class="fas fa-bars"></i>';
+            toggleButton.setAttribute('aria-label', 'Toggle navigation menu');
+            toggleButton.setAttribute('aria-expanded', 'false');
+            document.body.appendChild(toggleButton);
+        }
+
+        if (!document.querySelector('.mobile-overlay')) {
+            const overlay = document.createElement('div');
+            overlay.className = 'mobile-overlay';
+            document.body.appendChild(overlay);
+        }
+    }
+
+    function setupEventListeners() {
+        const toggleButton = document.querySelector('.mobile-menu-toggle');
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.querySelector('.mobile-overlay');
+        const sidebarLinks = document.querySelectorAll('.sidebar .nav-link');
+
+        if (toggleButton && sidebar && overlay) {
+            toggleButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                toggleMobileMenu();
+            });
+
+            overlay.addEventListener('click', function() {
+                closeMobileMenu();
+            });
+
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    setTimeout(closeMobileMenu, 150);
+                });
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && sidebar.classList.contains('mobile-open')) {
+                    closeMobileMenu();
+                }
+            });
+
+            window.addEventListener('resize', handleResize);
+        }
+    }
+
+    function toggleMobileMenu() {
+        const sidebar = document.querySelector('.sidebar');
+        
+        if (sidebar.classList.contains('mobile-open')) {
+            closeMobileMenu();
+        } else {
+            openMobileMenu();
+        }
+    }
+
+    function openMobileMenu() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.querySelector('.mobile-overlay');
+        const toggleButton = document.querySelector('.mobile-menu-toggle');
+
+        sidebar.classList.add('mobile-open');
+        overlay.classList.add('active');
+        toggleButton.classList.add('active');
+        toggleButton.innerHTML = '<i class="fas fa-times"></i>';
+        toggleButton.setAttribute('aria-expanded', 'true');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileMenu() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.querySelector('.mobile-overlay');
+        const toggleButton = document.querySelector('.mobile-menu-toggle');
+
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('active');
+        toggleButton.classList.remove('active');
+        toggleButton.innerHTML = '<i class="fas fa-bars"></i>';
+        toggleButton.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+    }
+
+    function handleResize() {
+        const sidebar = document.querySelector('.sidebar');
+        const toggleButton = document.querySelector('.mobile-menu-toggle');
+
+        if (window.innerWidth > 768) {
+            if (sidebar && sidebar.classList.contains('mobile-open')) {
+                closeMobileMenu();
+            }
+            if (toggleButton) {
+                toggleButton.style.display = 'none';
+            }
+        } else {
+            if (toggleButton) {
+                toggleButton.style.display = 'flex';
+            }
+        }
+    }
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1252 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Upload Question Images{% endblock %}
+
+{% block content %}
+<style>
+  .page-header {
+    background: linear-gradient(135deg, #20c997 0%, #198754 100%);
+    color: white;
+    padding: 28px 32px;
+    margin: -32px -32px 32px -32px;
+    border-radius: 0 0 24px 24px;
+    box-shadow: 0 8px 32px rgba(32, 201, 151, 0.2);
+  }
+  
+  .page-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin: 0;
+  }
+  
+  .upload-card {
+    background: white;
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+  
+  .subject-selector {
+    background: linear-gradient(135deg, #f0fff4 0%, #dcfce7 100%);
+    border: 2px solid #bbf7d0;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .selector-title {
+    color: #166534;
+    font-weight: 800;
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+  }
+  
+  .form-select {
+    border: 2px solid #cbd5e0;
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    background: white;
+    color: #2d3748;
+    transition: all 0.3s ease;
+  }
+  
+  .form-select:focus {
+    border-color: #20c997;
+    box-shadow: 0 0 0 4px rgba(32, 201, 151, 0.1);
+    outline: none;
+  }
+  
+  .form-text {
+    background: rgba(32, 201, 151, 0.1);
+    color: #166534;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-weight: 500;
+    margin-top: 8px;
+  }
+  
+  .drop-zone {
+    border: 3px dashed #cbd5e0;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #f8faff 0%, #f0f9ff 100%);
+    padding: 48px 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .drop-zone::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(32, 201, 151, 0.05) 50%, transparent 70%);
+    animation: shimmer 3s ease-in-out infinite;
+  }
+  
+  @keyframes shimmer {
+    0%, 100% { transform: translateX(-100%); }
+    50% { transform: translateX(100%); }
+  }
+  
+  .drop-zone.dragover {
+    border-color: #20c997;
+    background: linear-gradient(135deg, #f0fff4 0%, #dcfce7 100%);
+    transform: scale(1.02);
+  }
+  
+  .drop-zone-content {
+    position: relative;
+    z-index: 2;
+  }
+  
+  .drop-icon {
+    font-size: 4rem;
+    color: #20c997;
+    margin-bottom: 20px;
+    display: block;
+  }
+  
+  .drop-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 8px;
+  }
+  
+  .drop-subtitle {
+    color: #6c757d;
+    font-weight: 500;
+    margin-bottom: 24px;
+  }
+  
+  .pick-files-btn {
+    background: linear-gradient(135deg, #20c997 0%, #198754 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 28px;
+    font-weight: 700;
+    font-size: 16px;
+    box-shadow: 0 4px 16px rgba(32, 201, 151, 0.3);
+    transition: all 0.3s ease;
+  }
+  
+  .pick-files-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(32, 201, 151, 0.4);
+  }
+  
+  .file-list {
+    background: linear-gradient(135deg, #f8faff 0%, #f0f9ff 100%);
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    margin: 24px 0;
+  }
+  
+  .file-item {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    transition: all 0.3s ease;
+  }
+  
+  .file-item:hover {
+    border-color: #20c997;
+    transform: translateX(4px);
+  }
+  
+  .file-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .file-name {
+    color: #2d3748;
+    font-weight: 600;
+    flex-grow: 1;
+  }
+  
+  .file-size {
+    color: #6c757d;
+    font-size: 12px;
+    margin-right: 12px;
+  }
+  
+  .remove-file-btn {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+  
+  .remove-file-btn:hover {
+    transform: scale(1.1);
+  }
+  
+  .upload-btn {
+    background: linear-gradient(135deg, #20c997 0%, #198754 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 16px 32px;
+    font-weight: 700;
+    font-size: 18px;
+    box-shadow: 0 6px 20px rgba(32, 201, 151, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .upload-btn:disabled {
+    opacity: 0.6;
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .upload-btn:not(:disabled):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(32, 201, 151, 0.4);
+  }
+  
+  .upload-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transition: all 0.4s ease;
+    transform: translate(-50%, -50%);
+  }
+  
+  .upload-btn:not(:disabled):hover::before {
+    width: 300px;
+    height: 300px;
+  }
+  
+  .warning-alert {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 2px solid #ffeb9c;
+    color: #856404;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+  }
+  
+  .uploader-section {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+  }
+  
+  .uploader-section.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+<style>
+/* Mobile Responsive Fixes for All Admin Pages */
+@media (max-width: 768px) {
+  /* Container and Layout Fixes */
+  .container, .container-fluid {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+
+  /* Page Headers */
+  .page-header, .header-content, .analytics-header, .main-container .page-header {
+    padding: 20px 15px !important;
+    margin: -20px -15px 20px -15px !important;
+    text-align: center;
+  }
+
+  .page-title, .analytics-header h1, h1, h2 {
+    font-size: 1.5rem !important;
+    margin-bottom: 10px !important;
+  }
+
+  .page-subtitle, .analytics-header p {
+    font-size: 0.9rem !important;
+  }
+
+  /* Cards and Panels */
+  .card, .main-container, .analytics-card, .stats-card, .exam-card {
+    margin-bottom: 20px !important;
+    border-radius: 12px !important;
+  }
+
+  .card-body, .card-content {
+    padding: 15px !important;
+  }
+
+  .card-header {
+    padding: 15px !important;
+    font-size: 1rem !important;
+  }
+
+  /* Tables - Make them horizontally scrollable */
+  .table-responsive {
+    margin: 0 -15px !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .table {
+    font-size: 0.85rem !important;
+    margin-bottom: 0 !important;
+  }
+
+  .table th, .table td {
+    padding: 8px 6px !important;
+    white-space: nowrap !important;
+    min-width: 80px !important;
+  }
+
+  .table th {
+    font-size: 0.75rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Action buttons in tables */
+  .btn-sm, .table .btn {
+    padding: 6px 10px !important;
+    font-size: 0.8rem !important;
+    margin: 2px !important;
+  }
+
+  /* Forms */
+  .form-control, .form-select, input, textarea, select {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 12px 15px !important;
+    border-radius: 8px !important;
+  }
+
+  .form-label, label {
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 5px !important;
+  }
+
+  .form-group, .mb-3, .mb-4 {
+    margin-bottom: 15px !important;
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 12px 20px !important;
+    font-size: 0.9rem !important;
+    border-radius: 8px !important;
+    margin: 5px 2px !important;
+    min-height: 44px !important;
+    display: inline-block;
+  }
+
+  .btn-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+  }
+
+  .btn-group .btn {
+    margin: 0 0 5px 0 !important;
+    width: 100% !important;
+  }
+
+  /* Modals */
+  .modal-dialog {
+    margin: 10px !important;
+    max-width: calc(100% - 20px) !important;
+  }
+
+  .modal-content {
+    border-radius: 15px !important;
+  }
+
+  .modal-header, .modal-body, .modal-footer {
+    padding: 15px !important;
+  }
+
+  .modal-title {
+    font-size: 1.1rem !important;
+  }
+
+  /* Stats and Analytics */
+  .stats-row, .stat-cards, .quick-stats {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+  }
+
+  .stat-card, .analytics-card, .stats-card {
+    margin-bottom: 15px !important;
+    padding: 15px !important;
+  }
+
+  .stat-value, .stat-number {
+    font-size: 1.8rem !important;
+  }
+
+  .stat-label {
+    font-size: 0.85rem !important;
+  }
+
+  /* Filters and Controls */
+  .controls-section, .filter-section, .tab-controls-container {
+    padding: 15px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .filter-row, .controls-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+  }
+
+  .filter-group, .control-group {
+    width: 100% !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* Tabs */
+  .nav-tabs, .nav-tabs-custom, .modern-tabs {
+    flex-direction: column !important;
+    border: none !important;
+  }
+
+  .nav-tab, .nav-link {
+    margin-bottom: 5px !important;
+    text-align: center !important;
+    padding: 12px 15px !important;
+  }
+
+  /* Grid Layouts */
+  .row {
+    margin-left: -10px !important;
+    margin-right: -10px !important;
+  }
+
+  .col, .col-md-6, .col-lg-4, .col-xl-3, [class*="col-"] {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    margin-bottom: 15px !important;
+  }
+
+  /* Specific Page Elements */
+  .exam-grid, .question-grid, .analytics-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+  }
+
+  .exam-card, .question-card, .attempt-card {
+    width: 100% !important;
+    margin-bottom: 15px !important;
+  }
+
+  /* Search and Filters */
+  .search-container, .filter-container {
+    padding: 15px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .search-input, input[type="search"] {
+    width: 100% !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* Action Bars */
+  .action-bar, .page-actions, .bulk-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 15px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .action-bar .btn, .page-actions .btn {
+    width: 100% !important;
+  }
+
+  /* Pagination */
+  .pagination {
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+    margin: 20px 0 !important;
+  }
+
+  .pagination .page-link {
+    padding: 8px 12px !important;
+    font-size: 0.85rem !important;
+    margin: 2px !important;
+  }
+
+  /* Alerts */
+  .alert {
+    margin: 10px 0 !important;
+    padding: 12px 15px !important;
+    font-size: 0.9rem !important;
+    border-radius: 8px !important;
+  }
+
+  /* Breadcrumbs */
+  .breadcrumb {
+    padding: 10px 15px !important;
+    margin-bottom: 15px !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Progress Bars */
+  .progress {
+    height: 8px !important;
+    margin: 10px 0 !important;
+  }
+
+  /* Badges and Labels */
+  .badge {
+    font-size: 0.7rem !important;
+    padding: 4px 8px !important;
+  }
+
+  /* Tooltips - Disable on mobile */
+  .tooltip {
+    display: none !important;
+  }
+
+  /* Dropdown Menus */
+  .dropdown-menu {
+    position: static !important;
+    display: block !important;
+    float: none !important;
+    width: 100% !important;
+    margin-top: 5px !important;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* Charts and Graphs */
+  .chart-container, .graph-container {
+    overflow-x: auto !important;
+    margin: 0 -15px !important;
+    padding: 0 15px !important;
+  }
+
+  /* File Upload Areas */
+  .upload-area, .file-drop-zone {
+    padding: 20px 15px !important;
+    margin: 15px 0 !important;
+    text-align: center !important;
+  }
+
+  /* Status Indicators */
+  .status-indicator, .badge-status {
+    font-size: 0.75rem !important;
+    padding: 3px 8px !important;
+  }
+
+  /* List Views */
+  .list-group-item {
+    padding: 12px 15px !important;
+    border-radius: 8px !important;
+    margin-bottom: 5px !important;
+  }
+
+  /* Media Objects */
+  .media, .d-flex.align-items-center {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 10px !important;
+  }
+
+  /* Utility Classes Override */
+  .text-nowrap {
+    white-space: normal !important;
+  }
+
+  .d-none.d-md-block {
+    display: none !important;
+  }
+
+  .d-md-flex {
+    display: block !important;
+  }
+
+  /* Hide desktop-only elements */
+  .desktop-only, .d-none.d-lg-block, .d-none.d-xl-block {
+    display: none !important;
+  }
+
+  /* Show mobile-only elements */
+  .mobile-only {
+    display: block !important;
+  }
+
+  /* Fix overflow issues */
+  .overflow-auto {
+    overflow-x: auto !important;
+  }
+
+  /* Center align content */
+  .text-center-mobile {
+    text-align: center !important;
+  }
+
+  /* Full width mobile buttons */
+  .btn-mobile-full {
+    width: 100% !important;
+    margin-bottom: 10px !important;
+  }
+}
+
+/* Extra Small Devices (320px and below) */
+@media (max-width: 575px) {
+  .container, .container-fluid {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .page-title, h1 {
+    font-size: 1.3rem !important;
+  }
+
+  .card-body {
+    padding: 12px !important;
+  }
+
+  .btn {
+    padding: 10px 15px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .table th, .table td {
+    padding: 6px 4px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .form-control, input, select, textarea {
+    padding: 10px 12px !important;
+  }
+
+  .modal-dialog {
+    margin: 5px !important;
+    max-width: calc(100% - 10px) !important;
+  }
+}
+
+/* Landscape Orientation Adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .page-header {
+    padding: 15px !important;
+  }
+
+  .card-body {
+    padding: 15px !important;
+  }
+
+  .modal-dialog {
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* High DPI Screens */
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2) {
+  .btn {
+    border-width: 0.5px !important;
+  }
+
+  .table {
+    border-width: 0.5px !important;
+  }
+}
+
+/* Print Styles for Mobile */
+@media print {
+  .mobile-menu-toggle, .sidebar {
+    display: none !important;
+  }
+
+  .content-wrap {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+/* Accessibility Improvements */
+@media (max-width: 768px) {
+  /* Focus states */
+  .btn:focus, .form-control:focus, .form-select:focus {
+    outline: 3px solid rgba(102, 126, 234, 0.3) !important;
+    outline-offset: 2px !important;
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .btn {
+      border: 2px solid !important;
+    }
+    
+    .card {
+      border: 2px solid #333 !important;
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+}
+</style>
+<div class="page-header">
+  <div class="d-flex justify-content-between align-items-center">
+    <h1 class="page-title">
+      <i class="fas fa-images me-3"></i>Upload Question Images
+    </h1>
+  </div>
+</div>
+
+{% if load_error %}
+  <div class="warning-alert">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-exclamation-triangle me-3 fa-lg"></i>
+      <div>
+        <strong>Loading Issue:</strong> {{ load_error }}<br>
+        <small>If you just added a new subject, go to <strong>Publish</strong> and try again.</small>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+<div class="upload-card">
+  <div class="card-body p-4">
+    <!-- Subject Selection -->
+    <div class="subject-selector">
+      <form id="select-subject-form" onsubmit="return false;">
+        <h5 class="selector-title">
+          <i class="fas fa-folder me-2"></i>Choose Subject Folder
+        </h5>
+        <div class="row g-3 align-items-end">
+          <div class="col-md-8">
+            <select class="form-select" id="subject_folder_id" name="subject_folder_id" required>
+              <option value="" disabled selected>-- Select a subject folder --</option>
+              {% for subj in subjects %}
+                <option value="{{ subj.folder_id }}">{{ subj.name }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+              <i class="fas fa-info-circle me-1"></i>
+              If the subject isn't listed, add it in <strong>Subjects</strong> and then click <strong>Publish</strong>.
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Upload Section -->
+    <div id="uploader-section" class="uploader-section">
+      <h5 class="mb-3" style="color: #2d3748; font-weight: 700;">
+        <i class="fas fa-cloud-upload-alt me-2" style="color: #20c997;"></i>Upload Images
+      </h5>
+
+      <div id="drop-zone" class="drop-zone">
+        <div class="drop-zone-content">
+          <i class="fas fa-cloud-upload-alt drop-icon"></i>
+          <div class="drop-title">Drag & Drop Images Here</div>
+          <div class="drop-subtitle">or click below to browse files</div>
+          <button type="button" id="pick-files" class="pick-files-btn">
+            <i class="fas fa-folder-open me-2"></i>Choose Files
+          </button>
+          <input type="file" id="file-input" accept="image/*" multiple hidden>
+          <div class="mt-3">
+            <small class="text-muted">Supported formats: JPG, PNG, GIF, SVG • Max size: 10MB per file</small>
+          </div>
+        </div>
+      </div>
+
+      <div id="file-list" class="d-none"></div>
+
+      <div class="text-center mt-4">
+        <button id="upload-btn" class="upload-btn" disabled>
+          <i class="fas fa-rocket me-2"></i>Upload Images
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const selectEl = document.getElementById('subject_folder_id');
+  const section = document.getElementById('uploader-section');
+  const dropZone = document.getElementById('drop-zone');
+  const pickBtn = document.getElementById('pick-files');
+  const fileInput = document.getElementById('file-input');
+  const fileListDiv = document.getElementById('file-list');
+  const uploadBtn = document.getElementById('upload-btn');
+  let selectedFiles = [];
+
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  function refreshFileList() {
+    if (selectedFiles.length === 0) {
+      fileListDiv.classList.add('d-none');
+      uploadBtn.disabled = true;
+      return;
+    }
+
+    fileListDiv.classList.remove('d-none');
+    fileListDiv.innerHTML = `
+      <h6 class="mb-3" style="color: #2d3748; font-weight: 700;">
+        <i class="fas fa-list me-2" style="color: #20c997;"></i>Selected Files (${selectedFiles.length})
+      </h6>
+      <div class="file-list">
+        ${selectedFiles.map((file, index) => `
+          <div class="file-item">
+            <div class="d-flex align-items-center flex-grow-1">
+              <i class="fas fa-image me-2" style="color: #20c997;"></i>
+              <span class="file-name">${file.name}</span>
+            </div>
+            <span class="file-size">${formatFileSize(file.size)}</span>
+            <button class="remove-file-btn" onclick="removeFile(${index})">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    uploadBtn.disabled = false;
+  }
+
+  window.removeFile = function(index) {
+    selectedFiles.splice(index, 1);
+    refreshFileList();
+  };
+
+  function addFiles(files) {
+    for (const file of files) {
+      if (file && file.type.startsWith('image/')) {
+        // Check file size (10MB limit)
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+          continue;
+        }
+        selectedFiles.push(file);
+      }
+    }
+    refreshFileList();
+  }
+
+  selectEl.addEventListener('change', () => {
+    if (selectEl.value) {
+      section.classList.add('show');
+    }
+  });
+
+  pickBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => addFiles(e.target.files));
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+
+  dropZone.addEventListener('dragleave', (e) => {
+    if (!dropZone.contains(e.relatedTarget)) {
+      dropZone.classList.remove('dragover');
+    }
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    addFiles(e.dataTransfer.files);
+  });
+
+  uploadBtn.addEventListener('click', async () => {
+    const folderId = selectEl.value;
+    if (!folderId || selectedFiles.length === 0) return;
+
+    const data = new FormData();
+    data.append('subject_folder_id', folderId);
+    selectedFiles.forEach(file => data.append('images', file, file.name));
+
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+
+    try {
+      const resp = await fetch('{{ url_for("admin.upload_images_page") }}', {
+        method: 'POST',
+        body: data
+      });
+
+      let result = null;
+      const text = await resp.text();
+      try {
+        result = JSON.parse(text);
+      } catch {
+        alert('Unexpected error: ' + text.slice(0, 300));
+        return;
+      }
+
+      if (!result.success) {
+        alert('Upload failed: ' + (result.message || 'Unknown error'));
+      } else if (result.failed && result.failed.length > 0) {
+        const msg = [
+          `✅ Uploaded: ${result.uploaded || 0} images`,
+          `❌ Errors: ${result.failed.length}`,
+          '',
+          'Failed uploads:',
+          ...result.failed.map(e => `• ${e.filename}: ${e.error}`)
+        ].join('\n');
+        alert(msg);
+      } else {
+        alert(`🎉 Successfully uploaded ${result.uploaded || 0} images!`);
+      }
+
+      selectedFiles = [];
+      refreshFileList();
+    } catch (err) {
+      alert('Unexpected error: ' + err);
+    } finally {
+      uploadBtn.disabled = false;
+      uploadBtn.innerHTML = '<i class="fas fa-rocket me-2"></i>Upload Images';
+    }
+  });
+})();
+</script>
+<script>
+// Universal Mobile Enhancements
+(function() {
+    'use strict';
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initMobileEnhancements();
+    });
+
+    function initMobileEnhancements() {
+        if (window.innerWidth <= 768) {
+            makeTablesMobileResponsive();
+            enhanceFormsMobile();
+            improveButtonGroupsMobile();
+            addMobileSwipeSupport();
+            optimizeModalsMobile();
+            enhanceMobileNavigation();
+        }
+    }
+
+    // Make tables horizontally scrollable with better UX
+    function makeTablesMobileResponsive() {
+        const tables = document.querySelectorAll('.table');
+        tables.forEach(table => {
+            if (!table.closest('.table-responsive')) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'table-responsive';
+                wrapper.style.overflowX = 'auto';
+                wrapper.style.margin = '0 -15px';
+                wrapper.style.padding = '0 15px';
+                
+                table.parentNode.insertBefore(wrapper, table);
+                wrapper.appendChild(table);
+            }
+            
+            // Add mobile table indicators
+            const headerCells = table.querySelectorAll('thead th');
+            const bodyCells = table.querySelectorAll('tbody td');
+            
+            headerCells.forEach((header, index) => {
+                const headerText = header.textContent.trim();
+                const columnCells = table.querySelectorAll(`tbody tr td:nth-child(${index + 1})`);
+                
+                columnCells.forEach(cell => {
+                    cell.setAttribute('data-label', headerText);
+                });
+            });
+        });
+    }
+
+    // Enhance forms for mobile
+    function enhanceFormsMobile() {
+        const inputs = document.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            // Prevent zoom on iOS
+            if (input.type === 'email' || input.type === 'number' || input.type === 'tel') {
+                input.style.fontSize = '16px';
+            }
+            
+            // Add mobile-friendly focus effects
+            input.addEventListener('focus', function() {
+                this.style.transform = 'scale(1.02)';
+                this.style.transition = 'transform 0.2s ease';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+
+        // Convert button groups to vertical on mobile
+        const buttonGroups = document.querySelectorAll('.btn-group');
+        buttonGroups.forEach(group => {
+            group.style.flexDirection = 'column';
+            group.style.gap = '5px';
+        });
+    }
+
+    // Improve button groups for mobile
+    function improveButtonGroupsMobile() {
+        const actionButtons = document.querySelectorAll('.table .btn-group, .action-buttons');
+        actionButtons.forEach(group => {
+            const buttons = group.querySelectorAll('.btn');
+            if (buttons.length > 2) {
+                // Create dropdown for many buttons
+                const dropdown = createMobileDropdown(buttons);
+                group.appendChild(dropdown);
+                
+                // Hide original buttons
+                buttons.forEach(btn => btn.style.display = 'none');
+            }
+        });
+    }
+
+    function createMobileDropdown(buttons) {
+        const dropdown = document.createElement('div');
+        dropdown.className = 'dropdown';
+        dropdown.innerHTML = `
+            <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-ellipsis-v"></i> Actions
+            </button>
+            <ul class="dropdown-menu">
+                ${Array.from(buttons).map(btn => `
+                    <li><a class="dropdown-item" href="#" onclick="this.closest('.dropdown').querySelector('button[onclick=\\'${btn.getAttribute('onclick')}\\']')?.click()">
+                        ${btn.innerHTML}
+                    </a></li>
+                `).join('')}
+            </ul>
+        `;
+        return dropdown;
+    }
+
+    // Add swipe support for dismissible elements
+    function addMobileSwipeSupport() {
+        const swipeElements = document.querySelectorAll('.alert-dismissible, .modal');
+        swipeElements.forEach(element => {
+            let startX = 0;
+            let startY = 0;
+
+            element.addEventListener('touchstart', function(e) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+
+            element.addEventListener('touchend', function(e) {
+                const endX = e.changedTouches[0].clientX;
+                const endY = e.changedTouches[0].clientY;
+                const diffX = startX - endX;
+                const diffY = startY - endY;
+
+                // Swipe right to dismiss alerts
+                if (Math.abs(diffX) > Math.abs(diffY) && diffX < -100 && element.classList.contains('alert')) {
+                    const closeBtn = element.querySelector('.btn-close');
+                    if (closeBtn) closeBtn.click();
+                }
+            }, { passive: true });
+        });
+    }
+
+    // Optimize modals for mobile
+    function optimizeModalsMobile() {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('shown.bs.modal', function() {
+                // Scroll to top when modal opens
+                modal.scrollTop = 0;
+                
+                // Focus first input
+                const firstInput = modal.querySelector('input, select, textarea');
+                if (firstInput) {
+                    setTimeout(() => firstInput.focus(), 300);
+                }
+            });
+        });
+    }
+
+    // Enhance mobile navigation
+    function enhanceMobileNavigation() {
+        // Add mobile-friendly pagination
+        const pagination = document.querySelector('.pagination');
+        if (pagination) {
+            pagination.style.flexWrap = 'wrap';
+            pagination.style.justifyContent = 'center';
+        }
+
+        // Enhance dropdowns
+        const dropdowns = document.querySelectorAll('.dropdown-toggle');
+        dropdowns.forEach(dropdown => {
+            dropdown.addEventListener('click', function() {
+                // Ensure dropdown is visible on mobile
+                setTimeout(() => {
+                    const menu = this.nextElementSibling;
+                    if (menu && menu.classList.contains('dropdown-menu')) {
+                        const rect = menu.getBoundingClientRect();
+                        if (rect.bottom > window.innerHeight) {
+                            menu.style.top = 'auto';
+                            menu.style.bottom = '100%';
+                        }
+                    }
+                }, 100);
+            });
+        });
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (window.innerWidth <= 768) {
+            initMobileEnhancements();
+        }
+    });
+
+    // Add mobile utility functions
+    window.MobileUtils = {
+        // Show full-screen loading
+        showMobileLoading: function() {
+            const loading = document.createElement('div');
+            loading.id = 'mobile-loading';
+            loading.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                            background: rgba(0,0,0,0.8); z-index: 9999; 
+                            display: flex; align-items: center; justify-content: center;">
+                    <div style="background: white; padding: 20px; border-radius: 10px; text-align: center;">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p style="margin-top: 10px; margin-bottom: 0;">Loading...</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loading);
+        },
+        
+        // Hide loading
+        hideMobileLoading: function() {
+            const loading = document.getElementById('mobile-loading');
+            if (loading) loading.remove();
+        },
+        
+        // Show mobile toast
+        showMobileToast: function(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; top: 20px; left: 20px; right: 20px; z-index: 9999;
+                background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
+                color: white; padding: 15px; border-radius: 10px; text-align: center;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3); transform: translateY(-100px);
+                transition: transform 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.style.transform = 'translateY(0)', 100);
+            setTimeout(() => {
+                toast.style.transform = 'translateY(-100px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    };
+
+    // Auto-enhance specific elements
+    setTimeout(() => {
+        // Make long text truncated with "..." on mobile
+        const longTexts = document.querySelectorAll('.text-truncate-mobile');
+        longTexts.forEach(text => {
+            if (text.textContent.length > 50) {
+                text.title = text.textContent;
+                text.textContent = text.textContent.substring(0, 47) + '...';
+            }
+        });
+
+        // Add mobile-friendly tooltips (convert to click)
+        const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltips.forEach(tooltip => {
+            const content = tooltip.getAttribute('title') || tooltip.getAttribute('data-bs-original-title');
+            tooltip.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.MobileUtils.showMobileToast(content, 'info');
+            });
+        });
+    }, 500);
+
+})();
+
+// Add CSS for mobile table labels
+const mobileTableCSS = `
+<style>
+@media (max-width: 768px) {
+    /* Stack table cells vertically with labels */
+    .table-responsive-stack .table,
+    .table-responsive-stack .table thead,
+    .table-responsive-stack .table tbody,
+    .table-responsive-stack .table th,
+    .table-responsive-stack .table td,
+    .table-responsive-stack .table tr {
+        display: block;
+    }
+    
+    .table-responsive-stack .table thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+    
+    .table-responsive-stack .table tr {
+        border: 1px solid #ccc;
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        background: white;
+    }
+    
+    .table-responsive-stack .table td {
+        border: none !important;
+        position: relative;
+        padding-left: 50% !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+    }
+    
+    .table-responsive-stack .table td:before {
+        content: attr(data-label) ": ";
+        position: absolute;
+        left: 6px;
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        font-weight: bold;
+        color: #333;
+    }
+}
+</style>
+`;
+
+
+document.head.insertAdjacentHTML('beforeend', mobileTableCSS);
+</script>
+{% endblock %}
