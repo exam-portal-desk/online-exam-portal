@@ -1087,48 +1087,61 @@ class ExamPortal {
     }
   }
 
-  renderQuestion(question) {
-    const questionContent = document.getElementById('questionContent');
-    const qid = String(question.id);
-    const selectedAnswer = this.answers[qid];
+renderQuestion(question) {
+  const questionContent = document.getElementById('questionContent');
+  const qid = String(question.id);
+  const selectedAnswer = this.answers[qid];
+  
+  // Enhanced text processing for line breaks and LaTeX
+  const processText = (text) => {
+    if (!text) return '';
     
-    let questionHtml = `
-      <div class="d-flex justify-content-between align-items-start mb-4">
-        <div class="flex-grow-1">
-          <h5 class="mb-2">
-            <span class="badge bg-primary me-2">Q${this.currentIndex + 1}</span>
-            ${question.question_text || ''}
-          </h5>
-        </div>
-        <div class="text-end">
-          <span class="badge ${this.getQuestionTypeBadgeClass(question.question_type)} fs-6">
-            ${this.getQuestionTypeDisplay(question.question_type)}
-          </span>
-          <div class="mt-2">
-            <small class="text-muted">
-              <i class="fas fa-plus text-success"></i>
-              <span class="text-success">${question.positive_marks || 1}</span>
-              ${question.negative_marks ? `<i class="fas fa-minus text-danger ms-2"></i><span class="text-danger">${question.negative_marks}</span>` : '<i class="fas fa-shield-alt text-warning ms-2"></i> <span class="text-warning">No negative</span>'}
-            </small>
-          </div>
+    // Convert newlines to <br> tags for proper display
+    text = String(text)
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/\n/g, '<br>');
+    
+    return text;
+  };
+  
+  let questionHtml = `
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div class="flex-grow-1">
+        <h5 class="mb-2">
+          <span class="badge bg-primary me-2">Q${this.currentIndex + 1}</span>
+          ${processText(question.question_text) || ''}
+        </h5>
+      </div>
+      <div class="text-end">
+        <span class="badge ${this.getQuestionTypeBadgeClass(question.question_type)} fs-6">
+          ${this.getQuestionTypeDisplay(question.question_type)}
+        </span>
+        <div class="mt-2">
+          <small class="text-muted">
+            <i class="fas fa-plus text-success"></i>
+            <span class="text-success">${question.positive_marks || 1}</span>
+            ${question.negative_marks ? `<i class="fas fa-minus text-danger ms-2"></i><span class="text-danger">${question.negative_marks}</span>` : '<i class="fas fa-shield-alt text-warning ms-2"></i> <span class="text-warning">No negative</span>'}
+          </small>
         </div>
       </div>
-    `;
+    </div>
+  `;
 
-    if (question.has_image && question.image_url) {
-      questionHtml += this.renderQuestionImage(question);
-    }
-
-    questionHtml += `<div class="mt-4">${this.renderQuestionOptions(question, selectedAnswer)}</div>`;
-    questionHtml += this.renderNavigationButtons();
-
-    questionContent.innerHTML = questionHtml;
-    this.attachQuestionEventListeners(question);
-    
-    if (question.question_type === 'NUMERIC') {
-      this.initializeNumericKeypad(selectedAnswer);
-    }
+  if (question.has_image && question.image_url) {
+    questionHtml += this.renderQuestionImage(question);
   }
+
+  questionHtml += `<div class="mt-4">${this.renderQuestionOptions(question, selectedAnswer, processText)}</div>`;
+  questionHtml += this.renderNavigationButtons();
+
+  questionContent.innerHTML = questionHtml;
+  this.attachQuestionEventListeners(question);
+  
+  if (question.question_type === 'NUMERIC') {
+    this.initializeNumericKeypad(selectedAnswer);
+  }
+}
 
   getQuestionTypeBadgeClass(type) {
     switch (type) {
@@ -1190,86 +1203,97 @@ class ExamPortal {
     `;
   }
 
-  renderQuestionOptions(question, selectedAnswer) {
-    const qtype = question.question_type || 'MCQ';
-    
-    if (qtype === 'MCQ') {
-      return this.renderMCQOptions(question, selectedAnswer);
-    } else if (qtype === 'MSQ') {
-      return this.renderMSQOptions(question, selectedAnswer);
-    } else if (qtype === 'NUMERIC') {
-      return this.renderNumericOptions(question, selectedAnswer);
+renderQuestionOptions(question, selectedAnswer, processText = null) {
+  const qtype = question.question_type || 'MCQ';
+  
+  // Default processText function if not provided
+  if (!processText) {
+    processText = (text) => {
+      if (!text) return '';
+      return String(text)
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/\n/g, '<br>');
+    };
+  }
+  
+  if (qtype === 'MCQ') {
+    return this.renderMCQOptions(question, selectedAnswer, processText);
+  } else if (qtype === 'MSQ') {
+    return this.renderMSQOptions(question, selectedAnswer, processText);
+  } else if (qtype === 'NUMERIC') {
+    return this.renderNumericOptions(question, selectedAnswer);
+  }
+  
+  return '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Unknown question type</div>';
+}
+
+renderMCQOptions(question, selectedAnswer, processText) {
+  const options = [
+    { id: 'A', text: question.option_a },
+    { id: 'B', text: question.option_b },
+    { id: 'C', text: question.option_c },
+    { id: 'D', text: question.option_d }
+  ];
+
+  let html = '';
+  options.forEach(opt => {
+    if (opt.text && opt.text !== 'nan' && String(opt.text).trim() !== '' && opt.text !== 'None') {
+      const isSelected = selectedAnswer === opt.id;
+      html += `
+        <div class="option-container mcq-option mb-3 ${isSelected ? 'selected' : ''}" 
+             data-option-id="${opt.id}">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="answer" value="${opt.id}" 
+                   id="opt${opt.id}" ${isSelected ? 'checked' : ''}>
+            <label class="form-check-label w-100" for="opt${opt.id}">
+              <strong>${opt.id}.</strong> ${processText(opt.text)}
+            </label>
+          </div>
+        </div>
+      `;
     }
-    
-    return '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Unknown question type</div>';
-  }
+  });
 
-  renderMCQOptions(question, selectedAnswer) {
-    const options = [
-      { id: 'A', text: question.option_a },
-      { id: 'B', text: question.option_b },
-      { id: 'C', text: question.option_c },
-      { id: 'D', text: question.option_d }
-    ];
+  return html;
+}
 
-    let html = '';
-    options.forEach(opt => {
-      if (opt.text && opt.text !== 'nan' && String(opt.text).trim() !== '' && opt.text !== 'None') {
-        const isSelected = selectedAnswer === opt.id;
-        html += `
-          <div class="option-container mcq-option mb-3 ${isSelected ? 'selected' : ''}" 
-               data-option-id="${opt.id}">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="answer" value="${opt.id}" 
-                     id="opt${opt.id}" ${isSelected ? 'checked' : ''}>
-              <label class="form-check-label w-100" for="opt${opt.id}">
-                <strong>${opt.id}.</strong> ${opt.text}
-              </label>
-            </div>
+renderMSQOptions(question, selectedAnswer, processText) {
+  const options = [
+    { id: 'A', text: question.option_a },
+    { id: 'B', text: question.option_b },
+    { id: 'C', text: question.option_c },
+    { id: 'D', text: question.option_d }
+  ];
+
+  const selectedOptions = Array.isArray(selectedAnswer) ? selectedAnswer : [];
+
+  let html = `
+    <div class="alert alert-info mb-4" id="msq-alert">
+      <i class="fas fa-info-circle"></i> <strong>Multiple Select Question:</strong> Select ALL correct options.
+    </div>
+  `;
+
+  options.forEach(opt => {
+    if (opt.text && opt.text !== 'nan' && String(opt.text).trim() !== '' && opt.text !== 'None') {
+      const isSelected = selectedOptions.includes(opt.id);
+      html += `
+        <div class="option-container msq-option mb-3 ${isSelected ? 'selected-msq' : ''}" 
+             data-option-id="${opt.id}">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="answer" value="${opt.id}" 
+                   id="optMSQ${opt.id}" ${isSelected ? 'checked' : ''}>
+            <label class="form-check-label w-100" for="optMSQ${opt.id}">
+              <strong>${opt.id}.</strong> ${processText(opt.text)}
+            </label>
           </div>
-        `;
-      }
-    });
+        </div>
+      `;
+    }
+  });
 
-    return html;
-  }
-
-  renderMSQOptions(question, selectedAnswer) {
-    const options = [
-      { id: 'A', text: question.option_a },
-      { id: 'B', text: question.option_b },
-      { id: 'C', text: question.option_c },
-      { id: 'D', text: question.option_d }
-    ];
-
-    const selectedOptions = Array.isArray(selectedAnswer) ? selectedAnswer : [];
-
-    let html = `
-      <div class="alert alert-info mb-4" id="msq-alert">
-        <i class="fas fa-info-circle"></i> <strong>Multiple Select Question:</strong> Select ALL correct options.
-      </div>
-    `;
-
-    options.forEach(opt => {
-      if (opt.text && opt.text !== 'nan' && String(opt.text).trim() !== '' && opt.text !== 'None') {
-        const isSelected = selectedOptions.includes(opt.id);
-        html += `
-          <div class="option-container msq-option mb-3 ${isSelected ? 'selected-msq' : ''}" 
-               data-option-id="${opt.id}">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="answer" value="${opt.id}" 
-                     id="optMSQ${opt.id}" ${isSelected ? 'checked' : ''}>
-              <label class="form-check-label w-100" for="optMSQ${opt.id}">
-                <strong>${opt.id}.</strong> ${opt.text}
-              </label>
-            </div>
-          </div>
-        `;
-      }
-    });
-
-    return html;
-  }
+  return html;
+}
 
   renderNumericOptions(question, selectedAnswer) {
     return `
