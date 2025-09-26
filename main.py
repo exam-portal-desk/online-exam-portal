@@ -3557,19 +3557,50 @@ def sanitize_for_display(s):
 
 
 
+@app.route('/api/sync-exam-answers/<int:exam_id>', methods=['POST'])
+@require_user_role
+def sync_exam_answers(exam_id):
+    """Sync exam answers from SPA to server session"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+        answers = data.get('answers', {})
+        marked_for_review = data.get('markedForReview', [])
+
+        # Update server session
+        session['exam_answers'] = answers
+        session['marked_for_review'] = marked_for_review
+        session.modified = True
+
+        return jsonify({
+            'success': True,
+            'message': 'Answers synced successfully',
+            'answers_count': len(answers),
+            'review_count': len(marked_for_review)
+        })
+
+    except Exception as e:
+        print(f"Error syncing answers: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error syncing answers'
+        }), 500
+
+
 @app.route('/exam/<int:exam_id>')
 @require_user_role
 def exam_page(exam_id):
     user_id = session.get('user_id')
     
     try:
-        print(f"Loading exam page for exam_id: {exam_id}, user_id: {user_id}")
+        print(f"Loading SPA exam page for exam_id: {exam_id}, user_id: {user_id}")
 
-        # First check if this is a resume case by checking for active attempt
+        # Check for active attempt
         active_attempt = get_active_attempt(user_id, exam_id)
         if active_attempt:
             print(f"Found active attempt: {active_attempt}")
-            # Set session data for resume
             session['latest_attempt_id'] = int(active_attempt.get('id', 0))
             session['exam_start_time'] = active_attempt.get('start_time')
             if 'exam_answers' not in session:
@@ -3578,7 +3609,7 @@ def exam_page(exam_id):
                 session['marked_for_review'] = []
             session.modified = True
 
-        # Try to get cached data
+        # Get cached exam data
         cached_data = get_cached_exam_data(exam_id)
         if not cached_data:
             print(f"No cached data found, preloading for exam {exam_id}")
@@ -3624,7 +3655,6 @@ def exam_page(exam_id):
                 remaining_seconds = max(0, duration_secs - int(elapsed))
                 print(f"Resume: calculated remaining time: {remaining_seconds}s")
                 
-                # Check if time expired
                 if remaining_seconds <= 0:
                     print("Exam time expired - auto submitting")
                     try:
@@ -3641,28 +3671,13 @@ def exam_page(exam_id):
                 duration_secs = int(float(exam_data.get('duration', 60)) * 60)
                 remaining_seconds = duration_secs
         else:
-            # No active attempt data - this might be a new start
             duration_secs = int(float(exam_data.get('duration', 60)) * 60)
             remaining_seconds = duration_secs
             is_fresh_start = True
 
-        # Get question index from URL parameter
-        try:
-            q_index = int(request.args.get('q', 0) or 0)
-            q_index = max(0, min(q_index, len(questions) - 1))
-        except (ValueError, TypeError):
-            q_index = 0
-
-        # Get current question
-        current_question = dict(questions[q_index]) if q_index < len(questions) else {}
-        
-        # Sanitize question text for display
-        current_question['question_text'] = sanitize_for_display(current_question.get('question_text', ''))
-        for opt in ['option_a', 'option_b', 'option_c', 'option_d']:
-            current_question[opt] = sanitize_for_display(current_question.get(opt, ''))
-
-        # Get selected answer
-        selected_answer = session.get('exam_answers', {}).get(str(current_question.get('id')))
+        # Start from first question for SPA
+        current_index = 0
+        selected_answer = session.get('exam_answers', {}).get(str(questions[0].get('id'))) if questions else None
 
         # Build question palette
         palette = {}
@@ -3674,17 +3689,14 @@ def exam_page(exam_id):
                 palette[i] = 'answered'
             else:
                 palette[i] = 'not-visited'
-        
-        if palette.get(q_index) == 'not-visited':
-            palette[q_index] = 'visited'
 
-        print(f"Successfully loaded exam page: {len(questions)} questions, remaining: {remaining_seconds}s")
+        print(f"Successfully loaded SPA exam page: {len(questions)} questions, remaining: {remaining_seconds}s")
 
         return render_template(
             'exam_page.html',
             exam=exam_data,
-            question=current_question,
-            current_index=q_index,
+            question=questions[0] if questions else {},
+            current_index=current_index,
             selected_answer=selected_answer,
             total_questions=len(questions),
             palette=palette,
@@ -3703,131 +3715,14 @@ def exam_page(exam_id):
         import traceback
         traceback.print_exc()
         flash("Error loading exam page.", "error")
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard'))        
 
 
 
-@app.route('/exam/<int:exam_id>/navigate', methods=['POST'])
-@require_user_role
-def navigate_exam(exam_id):
-    """PERFORMANCE OPTIMIZED: Navigation without DB calls"""
-    try:
-        action = request.form.get('action')
-        current_index = int(request.form.get('current_index', 0))
-        question_id = request.form.get('question_id')
-
-        print(f"⚡ Fast Navigation: action={action}, current_index={current_index}")
-
-        # Initialize session data if not exists
-        if 'exam_answers' not in session:
-            session['exam_answers'] = {}
-        if 'marked_for_review' not in session:
-            session['marked_for_review'] = []
-
-        # Get question info from cached data (NO DB CALLS)
-        cached_data = get_cached_exam_data(exam_id)
-        if not cached_data:
-            flash("Exam session expired. Please restart the exam.", "error")
-            return redirect(url_for('dashboard'))
-
-        question_info = None
-        for q in cached_data['questions']:
-            if str(q['id']) == str(question_id):
-                question_info = q
-                break
-
-        if question_info:
-            question_type = question_info.get('question_type', 'MCQ')
-
-            # Handle clear action first
-            if action == 'clear':
-                if question_id and question_id in session['exam_answers']:
-                    del session['exam_answers'][question_id]
-                if question_id and question_id in session['marked_for_review']:
-                    session['marked_for_review'].remove(question_id)
-                session.modified = True
-                return redirect(url_for('exam_page', exam_id=exam_id, q=current_index))
-
-            # Get answer based on question type
-            if question_type == 'MCQ':
-                answer = request.form.get('answer')
-            elif question_type == 'MSQ':
-                answer = request.form.getlist('answer')
-            elif question_type == 'NUMERIC':
-                answer = request.form.get('numeric_answer')
-            else:
-                answer = request.form.get('answer')
-
-            # Save answer if provided
-            if answer and question_id:
-                if question_type == 'MSQ' and isinstance(answer, list) and len(answer) > 0:
-                    session['exam_answers'][question_id] = answer
-                elif question_type == 'NUMERIC' and str(answer).strip():
-                    session['exam_answers'][question_id] = str(answer).strip()
-                elif question_type == 'MCQ' and str(answer).strip():
-                    session['exam_answers'][question_id] = str(answer).strip()
-
-                # Remove from review if answered
-                if question_id in session['marked_for_review']:
-                    session['marked_for_review'].remove(question_id)
-
-                session.modified = True
-                print(f"⚡ Saved answer for question {question_id}: {answer}")
-
-        # Handle navigation (NO DB CALLS)
-        if action == 'prev':
-            new_index = max(0, current_index - 1)
-        elif action == 'next':
-            new_index = min(len(cached_data['questions']) - 1, current_index + 1)
-        elif action == 'review':
-            if question_id and question_id not in session['marked_for_review']:
-                session['marked_for_review'].append(question_id)
-                session.modified = True
-            new_index = min(len(cached_data['questions']) - 1, current_index + 1)
-        elif action == 'submit':
-            # FIXED: Redirect to confirmation page instead of direct submission
-            return redirect(url_for('submit_exam', exam_id=exam_id))
-        else:
-            new_index = current_index
-
-        return redirect(url_for('exam_page', exam_id=exam_id, q=new_index))
-
-    except Exception as e:
-        print(f"Error in navigation: {e}")
-        flash("Navigation error. Please try again.", "error")
-        return redirect(url_for('exam_page', exam_id=exam_id, q=0))
 
 
-@app.route('/exam/<int:exam_id>/clear-answer', methods=['POST'])
-@require_user_role
-def clear_answer(exam_id):
-    """AJAX endpoint for clearing question answers - FIXED"""
-    try:
-        question_id = request.json.get('question_id')
 
-        if 'exam_answers' not in session:
-            session['exam_answers'] = {}
-        if 'marked_for_review' not in session:
-            session['marked_for_review'] = []
 
-        if question_id and question_id in session['exam_answers']:
-            del session['exam_answers'][question_id]
-
-        if question_id and question_id in session['marked_for_review']:
-            session['marked_for_review'].remove(question_id)
-
-        session.modified = True
-
-        return jsonify({
-            'success': True,
-            'message': 'Selection cleared successfully'
-        })
-    except Exception as e:
-        print(f"Error clearing answer: {e}")
-        return jsonify({
-            'success': False,
-            'message': 'Error clearing selection'
-        }), 500
 
 
 @app.route('/submit-exam/<int:exam_id>', methods=['GET', 'POST'])
