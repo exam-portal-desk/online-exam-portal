@@ -96,7 +96,6 @@ body { color: var(--muted-light); }
 .image-loaded { opacity:0; transition: opacity .45s ease-in-out; border-radius:10px; box-shadow: 0 8px 30px rgba(0,0,0,0.35); }
 .image-loaded.show { opacity:1; }
 
-/* IMPROVED OPTION SELECTION - BUTTERY SMOOTH */
 .option-container { 
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
   border-left: 4px solid transparent; 
@@ -133,7 +132,6 @@ body { color: var(--muted-light); }
   transform: translateX(4px);
 }
 
-/* Enhanced MSQ option interactions */
 .msq-option {
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -155,7 +153,6 @@ body { color: var(--muted-light); }
   pointer-events: none;
 }
 
-/* Enhanced form controls */
 .form-check-input {
   transform: scale(1.2);
   margin-right: 12px;
@@ -422,7 +419,6 @@ body { color: var(--muted-light); }
   font-weight: 700;
 }
 
-/* FIXED: No negative marking visibility - changed to warning yellow */
 .question-card .text-muted .text-warning {
   color: var(--warning) !important;
   text-shadow: 0 0 4px rgba(251,191,36,0.8), 0 0 8px rgba(251,191,36,0.6);
@@ -495,6 +491,125 @@ html, body {
   color: #fff;
   text-decoration: none;
   overflow: visible;
+}
+
+.submit-confirmation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 20000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.submit-confirmation-card {
+  background: linear-gradient(135deg, #1f2937, #111827);
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 600px;
+  width: 90%;
+  color: #fff;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7);
+  text-align: center;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.submit-confirmation-card h3 {
+  color: #22c55e;
+  margin-bottom: 20px;
+  font-weight: 800;
+}
+
+.submit-confirmation-card .fa-paper-plane {
+  color: #22c55e;
+  text-shadow: 0 6px 28px rgba(34,197,94,0.28), 0 0 40px rgba(34,197,94,0.14);
+  margin-bottom: 20px;
+}
+
+.submit-confirmation-stats {
+  background: linear-gradient(180deg, rgba(34,197,94,0.06), rgba(34,197,94,0.03));
+  border: 1px solid rgba(34,197,94,0.12);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.submit-progress-section {
+  display: none;
+  margin: 20px 0;
+}
+
+.submit-progress-bar {
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px;
+  overflow: hidden;
+  height: 28px;
+  margin: 10px 0;
+}
+
+.submit-progress-fill {
+  background: linear-gradient(90deg, #22c55e, #2dd4bf 40%, #16a34a);
+  background-size: 200% 100%;
+  animation: pulseGradient 3s linear infinite;
+  height: 100%;
+  width: 0%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #04281a;
+  font-weight: 800;
+  transition: width 0.3s ease;
+}
+
+@keyframes pulseGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.submit-confirmation-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 25px;
+}
+
+.submit-btn-confirm {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border: none;
+  color: white;
+  font-weight: 800;
+  border-radius: 12px;
+  padding: 12px 28px;
+  box-shadow: 0 12px 40px rgba(34,197,94,0.18);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.submit-btn-confirm:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 26px 60px rgba(34,197,94,0.26);
+}
+
+.submit-btn-back {
+  background: linear-gradient(180deg, rgba(99,102,241,0.06), rgba(139,92,246,0.03));
+  border: 1px solid rgba(99,102,241,0.18);
+  color: #c7b3ff;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 12px 22px;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.submit-btn-back:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 50px rgba(99,102,241,0.12);
+  color: white;
 }
 
 @media (max-width: 768px) {
@@ -609,7 +724,7 @@ html, body {
     gap: 15px !important;
   }
 
-  body .question-card .bg-light .d-flex > div:last-child {
+  body .question-body .question-card .bg-light .d-flex > div:last-child {
     width: 100% !important;
   }
 
@@ -701,6 +816,22 @@ html, body {
     padding-left: 10px !important;
     padding-right: 10px !important;
   }
+
+  body .submit-confirmation-card {
+    padding: 25px !important;
+    max-width: 95% !important;
+  }
+
+  body .submit-confirmation-buttons {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  body .submit-btn-confirm,
+  body .submit-btn-back {
+    width: 100% !important;
+    padding: 12px !important;
+  }
 }
 
 @media (max-width: 575px) {
@@ -762,6 +893,36 @@ html, body {
   body .row {
     align-items: flex-start !important;
   }
+}
+#submitProgressText {
+  color: #bbf7d0 !important; 
+  font-weight: 600;
+  text-shadow: 0 0 8px rgba(34,197,94,0.9),
+               0 0 16px rgba(34,197,94,0.6),
+               0 0 22px rgba(34,197,94,0.5);
+}
+
+#submitProgressDetails {
+  color: #d1fae5 !important; 
+  font-weight: 500;
+  text-shadow: 0 0 6px rgba(16,185,129,0.8),
+               0 0 14px rgba(16,185,129,0.5);
+}
+
+#submitProgressLog {
+  color: #86efac !important;
+  font-weight: 500;
+}
+
+#submitProgressLog div {
+  color: #86efac !important;
+  text-shadow: 0 0 4px rgba(34,197,94,0.7);
+  margin-bottom: 2px;
+}
+
+.submit-confirmation-card .mt-3 small {
+  color: #86efac !important;
+  text-shadow: 0 0 4px rgba(34,197,94,0.5);
 }
 </style>
 
@@ -873,6 +1034,78 @@ html, body {
   </div>
 </div>
 
+<!-- Submit Confirmation Overlay -->
+<div class="submit-confirmation-overlay" id="submitConfirmationOverlay">
+  <div class="submit-confirmation-card">
+    <i class="fas fa-paper-plane fa-4x mb-3"></i>
+    <h3><i class="fas fa-exclamation-triangle me-2"></i> Confirm Exam Submission</h3>
+    <p class="mb-4">Are you sure you want to submit your exam? Once submitted, you cannot return to answer or modify any questions.</p>
+    
+    <div class="submit-confirmation-stats">
+      <h6 class="fw-bold mb-2"><i class="fas fa-chart-bar me-2"></i> Your Progress Summary:</h6>
+      <div class="row text-center">
+        <div class="col-3">
+          <div class="fw-bold" id="confirmAnsweredCount">0</div>
+          <div class="small">Answered</div>
+        </div>
+        <div class="col-3">
+          <div class="fw-bold" id="confirmReviewCount">0</div>
+          <div class="small">Review</div>
+        </div>
+        <div class="col-3">
+          <div class="fw-bold" id="confirmVisitedCount">0</div>
+          <div class="small">Visited</div>
+        </div>
+        <div class="col-3">
+          <div class="fw-bold" id="confirmNotVisitedCount">0</div>
+          <div class="small">Not Visited</div>
+        </div>
+      </div>
+      
+      <div class="mt-3 p-3" style="background: rgba(34,197,94,0.1); border-radius: 8px;">
+        <h6 class="fw-bold mb-2"><i class="fas fa-info-circle me-2"></i> Important Notes:</h6>
+        <ul class="mb-0 small" style="margin-left: 18px;">
+          <li>Your answers have been automatically saved</li>
+          <li>You can view detailed results after submission</li>
+          <li>Your response analysis will be available for review</li>
+          <li>This action cannot be undone</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="submit-progress-section" id="submitProgressSection">
+      <div class="d-flex align-items-center mb-2">
+        <i class="fas fa-cog fa-spin text-success me-2"></i>
+        <div>
+          <div id="submitProgressText" style="font-weight:800; color:#22c55e">Processing your submission...</div>
+          <div id="submitProgressDetails" class="small text-muted">Initializing submission process...</div>
+        </div>
+      </div>
+
+      <div class="submit-progress-bar">
+        <div id="submitProgressFill" class="submit-progress-fill">
+          <span id="submitProgressPercent">0%</span>
+        </div>
+      </div>
+
+      <div id="submitProgressLog" class="small text-muted" style="min-height:20px;"></div>
+    </div>
+
+    <div class="submit-confirmation-buttons" id="submitConfirmationButtons">
+      <button class="submit-btn-confirm" onclick="examPortal.confirmSubmission()">
+        <i class="fas fa-check me-2"></i> Yes, Submit Exam
+      </button>
+      <button class="submit-btn-back" onclick="examPortal.cancelSubmission()">
+        <i class="fas fa-arrow-left me-2"></i> Go Back to Exam
+      </button>
+    </div>
+
+    <div class="mt-3">
+      <small style="color: #9ca3af;"><i class="fas fa-clock me-1"></i> Take your time - there's no rush to submit until you're ready.</small>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-xl">
     <div class="modal-content">
@@ -891,7 +1124,6 @@ html, body {
 </div>
 
 <script>
-// SPA Exam Portal with Enhanced UX
 class ExamPortal {
   constructor() {
     this.examId = {{ exam.id }};
@@ -908,28 +1140,555 @@ class ExamPortal {
     this.activeAttempt = {{ active_attempt | tojson if active_attempt else 'null' }};
     this.isFreshStart = {{ 'true' if is_fresh_start else 'false' }};
     this.isNavigating = false;
-    
+    this.fullscreenWarnings = 0;
+    this.maxWarnings = 2;
+    this.isFullscreenEnabled = false;
+    this.visibilityViolations = 0;
+    this.maxVisibilityViolations = 3;
+    this.fullscreenCheckInterval = null;
+    this.isSubmitting = false;
+    this.submissionInProgress = false;
     this.init();
   }
 
-  init() {
-    this.loadSessionData();
-    this.initializePalette();
-    this.loadQuestion(this.currentIndex);
-    this.startTimer();
-    this.attachEventListeners();
-    this.updateMetricsCounts();
+init() {
+  this.loadSessionData();
+  this.initializePalette();
+  this.loadQuestion(this.currentIndex);
+  this.attachEventListeners();
+  this.updateMetricsCounts();
+  // Don't start timer immediately - wait for fullscreen
+  this.initializeFullscreen();
+}
+
+async initializeFullscreen() {
+  console.log('Initializing fullscreen mode...');
+  this.showFullscreenInitModal();
+}
+
+showFullscreenInitModal() {
+  const modal = document.createElement('div');
+  modal.id = 'fullscreenInitModal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 20001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+  `;
+  
+  modal.innerHTML = `
+    <div style="
+      background: linear-gradient(135deg, #1f2937, #111827);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 90%;
+      color: #fff;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7);
+      text-align: center;
+      border: 2px solid rgba(34, 197, 94, 0.3);
+    ">
+      <i class="fas fa-expand-arrows-alt fa-4x mb-3" style="color: #22c55e;"></i>
+      <h3 style="color: #22c55e; margin-bottom: 20px; font-weight: 800;">
+        Secure Exam Mode Required
+      </h3>
+      <p style="margin-bottom: 25px; font-size: 1.1rem; line-height: 1.6;">
+        For security and integrity, this exam must be taken in fullscreen mode. 
+        This prevents switching to other applications during the exam.
+      </p>
+      
+      <div style="background: linear-gradient(180deg, rgba(34,197,94,0.06), rgba(34,197,94,0.03)); 
+                  border: 1px solid rgba(34,197,94,0.12); border-radius: 12px; 
+                  padding: 20px; margin: 20px 0; text-align: left;">
+        <h6 style="font-weight: 700; margin-bottom: 15px; color: #22c55e;">
+          <i class="fas fa-shield-check me-2"></i>Security Features:
+        </h6>
+        <ul style="margin: 0; padding-left: 20px;">
+          <li>Prevents tab switching during exam</li>
+          <li>Disables keyboard shortcuts</li>
+          <li>Monitors exam window focus</li>
+          <li>Auto-submit on security violations</li>
+        </ul>
+      </div>
+      
+      <p style="margin-bottom: 30px; color: #fbbf24; font-weight: 600;">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Security monitoring will begin after entering fullscreen mode
+      </p>
+      
+      <button id="enterFullscreenBtn" style="
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        border: none;
+        color: white;
+        font-weight: 800;
+        border-radius: 12px;
+        padding: 15px 30px;
+        font-size: 1.1rem;
+        box-shadow: 0 12px 40px rgba(34,197,94,0.18);
+        transition: transform .18s ease, box-shadow .18s ease;
+        cursor: pointer;
+      ">
+        <i class="fas fa-play me-2"></i> Enter Secure Mode & Start Exam
+      </button>
+      
+      <div style="margin-top: 20px;">
+        <small style="color: #9ca3af;">
+          <i class="fas fa-info-circle me-1"></i>
+          Click the button above to enable fullscreen and begin your exam
+        </small>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  const enterBtn = modal.querySelector('#enterFullscreenBtn');
+  enterBtn.addEventListener('click', async () => {
+    await this.actuallyEnterFullscreen();
+    this.removeFullscreenInitModal();
+    this.setupFullscreenMonitoring();
+    this.setupVisibilityMonitoring();
+    this.preventTabSwitching();
+    this.startFullscreenMonitoring();
+  });
+  
+  enterBtn.addEventListener('mouseenter', () => {
+    enterBtn.style.transform = 'translateY(-3px)';
+    enterBtn.style.boxShadow = '0 26px 60px rgba(34,197,94,0.26)';
+  });
+  
+  enterBtn.addEventListener('mouseleave', () => {
+    enterBtn.style.transform = '';
+    enterBtn.style.boxShadow = '0 12px 40px rgba(34,197,94,0.18)';
+  });
+}
+
+
+startExamAfterFullscreen() {
+  this.startTimer();
+  console.log('Exam started with timer running');
+}
+
+removeFullscreenInitModal() {
+  const modal = document.getElementById('fullscreenInitModal');
+  if (modal && modal.parentNode) {
+    modal.parentNode.removeChild(modal);
+  }
+}
+
+async actuallyEnterFullscreen() {
+  try {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      await elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) {
+      await elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) {
+      await elem.msRequestFullscreen();
+    } else if (elem.mozRequestFullScreen) {
+      await elem.mozRequestFullScreen();
+    }
+    console.log('Fullscreen request sent');
+setTimeout(() => {
+  this.checkFullscreenStatus();
+  this.startExamAfterFullscreen(); // Start timer after fullscreen
+}, 500);
+  } catch (error) {
+    console.warn('Fullscreen request failed:', error);
+    this.showFullscreenError();
+  }
+}
+
+  async enterFullscreen() {
+    try {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        await elem.requestFullscreen();
+      } else if (elem.webkitRequestFullscreen) {
+        await elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        await elem.msRequestFullscreen();
+      } else if (elem.mozRequestFullScreen) {
+        await elem.mozRequestFullScreen();
+      }
+      console.log('Fullscreen request sent');
+      setTimeout(() => {
+        this.checkFullscreenStatus();
+      }, 500);
+    } catch (error) {
+      console.warn('Fullscreen request failed:', error);
+      this.showFullscreenError();
+    }
+  }
+
+  checkFullscreenStatus() {
+    const isFullscreen = !!(
+      document.fullscreenElement || 
+      document.webkitFullscreenElement || 
+      document.mozFullScreenElement || 
+      document.msFullscreenElement
+    );
+    console.log('Fullscreen status:', isFullscreen);
+    if (isFullscreen) {
+      this.isFullscreenEnabled = true;
+      this.showFullscreenStatus(true);
+      console.log('Fullscreen mode activated successfully');
+    } else {
+      this.isFullscreenEnabled = false;
+      this.showFullscreenStatus(false);
+      console.log('Fullscreen mode not active');
+      if (!this.isSubmitting) {
+        this.handleFullscreenExit();
+      }
+    }
+  }
+
+  startFullscreenMonitoring() {
+    this.fullscreenCheckInterval = setInterval(() => {
+      if (!this.isSubmitting) {
+        this.checkFullscreenStatus();
+      }
+    }, 2000);
+  }
+
+  setupFullscreenMonitoring() {
+    const fullscreenEvents = [
+      'fullscreenchange', 
+      'webkitfullscreenchange', 
+      'mozfullscreenchange', 
+      'MSFullscreenChange'
+    ];
+    fullscreenEvents.forEach(event => {
+      document.addEventListener(event, () => {
+        console.log('Fullscreen event detected:', event);
+        setTimeout(() => this.checkFullscreenStatus(), 100);
+      });
+    });
+  }
+
+  setupVisibilityMonitoring() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && !this.isSubmitting) {
+        console.log('Tab hidden detected');
+        this.handleTabSwitch();
+      }
+    });
+
+    window.addEventListener('blur', () => {
+      if (!this.isSubmitting) {
+        console.log('Window blur detected');
+        this.handleWindowBlur();
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      if (!this.isFullscreenEnabled && !this.isSubmitting) {
+        console.log('Window focus - attempting fullscreen');
+        this.enterFullscreen();
+      }
+    });
+  }
+
+  preventTabSwitching() {
+    document.addEventListener('keydown', (e) => {
+      const blockedKeys = ['F11', 'Escape'];
+      const blockedCombinations = [
+        (e.altKey && e.key === 'Tab'),
+        (e.ctrlKey && e.key === 'Tab'),
+        (e.ctrlKey && e.shiftKey && e.key === 'Tab'),
+        (e.metaKey && e.key === 'Tab'),
+        (e.altKey && e.key === 'F4'),
+        (e.ctrlKey && e.key === 'w'),
+        (e.ctrlKey && e.key === 'n'),
+        (e.ctrlKey && e.key === 't'),
+        (e.metaKey && e.key === 'w'),
+        (e.metaKey && e.key === 'n'),
+        (e.metaKey && e.key === 't')
+      ];
+      if (blockedKeys.includes(e.key) || blockedCombinations.some(combo => combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.showSecurityWarning('Keyboard shortcuts are disabled during the exam!');
+        return false;
+      }
+    });
+
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.showSecurityWarning('Right-click is disabled during the exam!');
+      return false;
+    });
+  }
+
+  handleFullscreenExit() {
+    this.fullscreenWarnings++;
+    this.isFullscreenEnabled = false;
+    this.showFullscreenStatus(false);
+    console.log(`Fullscreen exit detected. Warning ${this.fullscreenWarnings}/${this.maxWarnings}`);
+    if (this.fullscreenWarnings >= this.maxWarnings) {
+      this.handleSecurityViolation('Multiple fullscreen exits detected');
+    } else {
+      this.showFullscreenRestorePrompt();
+    }
+  }
+
+  handleTabSwitch() {
+    this.visibilityViolations++;
+    console.log(`Tab switch detected. Violation ${this.visibilityViolations}/${this.maxVisibilityViolations}`);
+    if (this.visibilityViolations >= this.maxVisibilityViolations) {
+      this.handleSecurityViolation('Multiple tab switching attempts detected');
+    } else {
+      this.showSecurityWarning(`Tab switching detected! Warning ${this.visibilityViolations}/${this.maxVisibilityViolations}`);
+    }
+  }
+
+  handleWindowBlur() {
+    console.log('Window blur detected');
+    this.showSecurityWarning('Focus lost from exam window!');
+  }
+
+  handleSecurityViolation(reason) {
+    console.log('Security violation:', reason);
+    this.saveCurrentAnswer();
+    this.isSubmitting = true;
+    if (this.fullscreenCheckInterval) {
+      clearInterval(this.fullscreenCheckInterval);
+    }
+    const shouldSubmit = confirm(`Security violation: ${reason}\n\nYour exam will be submitted automatically for security reasons. Click OK to continue.`);
+    this.forceSubmitExam(reason);
+  }
+
+showFullscreenStatus(isFullscreen) {
+  let statusEl = document.getElementById('fullscreenStatus');
+  if (!statusEl) {
+    statusEl = document.createElement('div');
+    statusEl.id = 'fullscreenStatus';
+    statusEl.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      pointer-events: none;
+    `;
+    document.body.appendChild(statusEl);
+  }
+  if (isFullscreen) {
+    statusEl.innerHTML = '<i class="fas fa-shield-check"></i> Secure Mode Active';
+    statusEl.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+    statusEl.style.color = '#fff';
+    statusEl.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+  } else {
+    statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Security Alert';
+    statusEl.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
+    statusEl.style.color = '#fff';
+    statusEl.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+  }
+}
+
+  showFullscreenRestorePrompt() {
+    this.closeSecurityModal();
+    const modal = this.createSecurityModal(
+      'Security Alert - Return to Fullscreen',
+      `<div class="text-center">
+        <i class="fas fa-expand-arrows-alt fa-3x text-warning mb-3"></i>
+        <h5>Fullscreen Mode Required</h5>
+        <p>You must return to fullscreen mode to continue your exam securely.</p>
+        <p class="small text-muted">Warning ${this.fullscreenWarnings} of ${this.maxWarnings}</p>
+        <p class="small text-danger">Exam will be auto-submitted after ${this.maxWarnings} warnings!</p>
+      </div>`,
+      [
+        {
+          text: 'Return to Fullscreen Now',
+          class: 'btn-success btn-lg',
+          action: () => {
+            this.enterFullscreen();
+            this.closeSecurityModal();
+          }
+        }
+      ]
+    );
+  }
+
+  showFullscreenError() {
+    this.showSecurityWarning('Fullscreen mode is required for this exam. Please allow fullscreen access when prompted.');
+  }
+
+  showSecurityWarning(message) {
+    const existingWarning = document.getElementById('securityWarning');
+    if (existingWarning) {
+      existingWarning.remove();
+    }
+    const warningEl = document.createElement('div');
+    warningEl.id = 'securityWarning';
+    warningEl.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10001;
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border: 2px solid #f59e0b;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      color: #92400e;
+      animation: fadeInScale 0.3s ease-out;
+    `;
+    warningEl.innerHTML = `
+      <i class="fas fa-exclamation-triangle fa-2x mb-2" style="color: #f59e0b;"></i>
+      <div style="font-weight: 600; margin-bottom: 8px;">Security Warning</div>
+      <div>${message}</div>
+    `;
+    document.body.appendChild(warningEl);
+    setTimeout(() => {
+      if (warningEl && warningEl.parentNode) {
+        warningEl.style.animation = 'fadeOutScale 0.3s ease-in';
+        setTimeout(() => {
+          if (warningEl.parentNode) {
+            warningEl.parentNode.removeChild(warningEl);
+          }
+        }, 300);
+      }
+    }, 4000);
+  }
+
+  createSecurityModal(title, content, buttons) {
+    const modal = document.createElement('div');
+    modal.id = 'securityModal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 10002;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.3s ease-out;
+    `;
+    modal.innerHTML = `
+      <div style="
+        background: linear-gradient(135deg, #1f2937, #111827);
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+        color: #fff;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        animation: slideInUp 0.3s ease-out;
+      ">
+        <h4 style="margin-bottom: 20px; text-align: center; color: #fbbf24;">
+          <i class="fas fa-shield-exclamation"></i> ${title}
+        </h4>
+        <div style="margin-bottom: 25px;">
+          ${content}
+        </div>
+        <div style="text-align: center; display: flex; gap: 10px; justify-content: center;">
+          ${buttons.map((btn, index) => 
+            `<button type="button" class="btn ${btn.class}" data-button-index="${index}">
+              ${btn.text}
+            </button>`
+          ).join('')}
+        </div>
+      </div>
+    `;
+    buttons.forEach((btn, index) => {
+      if (btn.action) {
+        const buttonEl = modal.querySelector(`[data-button-index="${index}"]`);
+        if (buttonEl) {
+          buttonEl.addEventListener('click', btn.action);
+        }
+      }
+    });
+    document.body.appendChild(modal);
+    return modal;
+  }
+
+  closeSecurityModal() {
+    const modal = document.getElementById('securityModal');
+    if (modal && modal.parentNode) {
+      modal.style.animation = 'fadeOut 0.3s ease-in';
+      setTimeout(() => {
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal);
+        }
+      }, 300);
+    }
+  }
+
+  forceSubmitExam(reason) {
+    this.saveCurrentAnswer();
+    this.isSubmitting = true;
+    this.isNavigating = true;
+    if (this.fullscreenCheckInterval) {
+      clearInterval(this.fullscreenCheckInterval);
+    }
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+    }
+    console.warn('Force submitting exam due to:', reason);
+    this.syncAnswersToServer().then(() => {
+      this.performActualSubmission();
+    }).catch(error => {
+      console.error('Error syncing answers:', error);
+      this.performActualSubmission();
+    });
+  }
+
+  addAnimationStyles() {
+    if (!document.getElementById('examSecurityStyles')) {
+      const style = document.createElement('style');
+      style.id = 'examSecurityStyles';
+      style.textContent = `
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+          to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes fadeOutScale {
+          from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          to { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+        @keyframes slideInUp {
+          from { transform: translateY(30px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `;
+document.head.appendChild(style);
+    }
   }
 
   loadSessionData() {
     try {
       const savedAnswers = sessionStorage.getItem(`exam_${this.examId}_answers`);
       const savedReview = sessionStorage.getItem(`exam_${this.examId}_review`);
-      
       if (savedAnswers) {
         this.answers = JSON.parse(savedAnswers);
       }
-      
       if (savedReview) {
         this.markedForReview = JSON.parse(savedReview);
       }
@@ -950,7 +1709,6 @@ class ExamPortal {
   initializePalette() {
     for (let i = 0; i < this.totalQuestions; i++) {
       const qid = String(this.questions[i].id);
-      
       if (this.markedForReview.includes(qid)) {
         this.palette[i] = 'review';
       } else if (this.answers[qid]) {
@@ -959,29 +1717,24 @@ class ExamPortal {
         this.palette[i] = 'not-visited';
       }
     }
-    
     if (this.palette[this.currentIndex] === 'not-visited') {
       this.palette[this.currentIndex] = 'visited';
     }
-    
     this.renderPalette();
   }
 
   renderPalette() {
     const paletteContainer = document.getElementById('questionPalette');
     paletteContainer.innerHTML = '';
-
     for (let i = 0; i < this.totalQuestions; i++) {
       const q = this.questions[i];
       const status = this.palette[i] || 'not-visited';
       const qtype = q.question_type || 'MCQ';
-      
       const link = document.createElement('div');
       link.className = `palette-link ${status}`;
       if (i === this.currentIndex) {
         link.classList.add('current');
       }
-      
       link.setAttribute('data-question-index', i);
       link.setAttribute('title', `Question ${i + 1} - ${qtype}${q.has_image ? ' (Has Image)' : ''}`);
       link.style.position = 'relative';
@@ -989,20 +1742,15 @@ class ExamPortal {
       link.style.alignItems = 'center';
       link.style.justifyContent = 'center';
       link.textContent = i + 1;
-      
-      // Add image indicator
       if (q.has_image) {
         const imageIcon = document.createElement('i');
         imageIcon.className = 'fas fa-image position-absolute';
         imageIcon.style.cssText = 'font-size: 8px; top: 2px; right: 2px; color: #fff; text-shadow: 0 0 2px rgba(0,0,0,0.8);';
         link.appendChild(imageIcon);
       }
-      
-      // Add question type indicator
       const typeIndicator = document.createElement('div');
       typeIndicator.className = 'position-absolute';
       typeIndicator.style.cssText = 'bottom: 1px; left: 50%; transform: translateX(-50%); font-size: 6px; line-height: 1;';
-      
       let typeSymbol = '';
       let typeColor = '';
       if (qtype === 'MCQ') {
@@ -1018,13 +1766,11 @@ class ExamPortal {
         typeSymbol = '?';
         typeColor = '#6c757d';
       }
-      
       const typeSpan = document.createElement('span');
       typeSpan.style.cssText = `color: ${typeColor}; font-weight: 900;`;
       typeSpan.textContent = typeSymbol;
       typeIndicator.appendChild(typeSpan);
       link.appendChild(typeIndicator);
-      
       link.addEventListener('click', () => this.navigateToQuestion(i));
       paletteContainer.appendChild(link);
     }
@@ -1032,7 +1778,6 @@ class ExamPortal {
 
   navigateToQuestion(index) {
     if (index < 0 || index >= this.totalQuestions) return;
-    
     this.saveCurrentAnswer();
     this.currentIndex = index;
     this.loadQuestion(index);
@@ -1060,88 +1805,71 @@ class ExamPortal {
   loadQuestion(index) {
     const question = this.questions[index];
     if (!question) return;
-
     const questionCard = document.getElementById('questionCard');
     questionCard.classList.add('loading');
-
-    // Reduced loading time for smooth experience
     setTimeout(() => {
       this.renderQuestion(question);
       questionCard.classList.remove('loading');
-      
       if (this.palette[index] === 'not-visited') {
         this.palette[index] = 'visited';
         this.renderPalette();
         this.updateMetricsCounts();
       }
-      
-      // Render LaTeX after content loads
       this.renderMathJax();
     }, 50);
   }
 
   renderMathJax() {
-    // Render LaTeX/MathJax content
     if (window.MathJax) {
       MathJax.typesetPromise().catch((err) => console.log('MathJax error:', err));
     }
   }
 
-renderQuestion(question) {
-  const questionContent = document.getElementById('questionContent');
-  const qid = String(question.id);
-  const selectedAnswer = this.answers[qid];
-  
-  // Enhanced text processing for line breaks and LaTeX
-  const processText = (text) => {
-    if (!text) return '';
-    
-    // Convert newlines to <br> tags for proper display
-    text = String(text)
-      .replace(/\r\n/g, '\n')
-      .replace(/\r/g, '\n')
-      .replace(/\n/g, '<br>');
-    
-    return text;
-  };
-  
-  let questionHtml = `
-    <div class="d-flex justify-content-between align-items-start mb-4">
-      <div class="flex-grow-1">
-        <h5 class="mb-2">
-          <span class="badge bg-primary me-2">Q${this.currentIndex + 1}</span>
-          ${processText(question.question_text) || ''}
-        </h5>
-      </div>
-      <div class="text-end">
-        <span class="badge ${this.getQuestionTypeBadgeClass(question.question_type)} fs-6">
-          ${this.getQuestionTypeDisplay(question.question_type)}
-        </span>
-        <div class="mt-2">
-          <small class="text-muted">
-            <i class="fas fa-plus text-success"></i>
-            <span class="text-success">${question.positive_marks || 1}</span>
-            ${question.negative_marks ? `<i class="fas fa-minus text-danger ms-2"></i><span class="text-danger">${question.negative_marks}</span>` : '<i class="fas fa-shield-alt text-warning ms-2"></i> <span class="text-warning">No negative</span>'}
-          </small>
+  renderQuestion(question) {
+    const questionContent = document.getElementById('questionContent');
+    const qid = String(question.id);
+    const selectedAnswer = this.answers[qid];
+    const processText = (text) => {
+      if (!text) return '';
+      text = String(text)
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/\n/g, '<br>');
+      return text;
+    };
+    let questionHtml = `
+      <div class="d-flex justify-content-between align-items-start mb-4">
+        <div class="flex-grow-1">
+          <h5 class="mb-2">
+            <span class="badge bg-primary me-2">Q${this.currentIndex + 1}</span>
+            ${processText(question.question_text) || ''}
+          </h5>
+        </div>
+        <div class="text-end">
+          <span class="badge ${this.getQuestionTypeBadgeClass(question.question_type)} fs-6">
+            ${this.getQuestionTypeDisplay(question.question_type)}
+          </span>
+          <div class="mt-2">
+            <small class="text-muted">
+              <i class="fas fa-plus text-success"></i>
+              <span class="text-success">${question.positive_marks || 1}</span>
+              ${question.negative_marks ? `<i class="fas fa-minus text-danger ms-2"></i><span class="text-danger">${question.negative_marks}</span>` : '<i class="fas fa-shield-alt text-warning ms-2"></i> <span class="text-warning">No negative</span>'}
+            </small>
+          </div>
         </div>
       </div>
-    </div>
-  `;
-
-  if (question.has_image && question.image_url) {
-    questionHtml += this.renderQuestionImage(question);
+    `;
+    if (question.has_image && question.image_url) {
+      questionHtml += this.renderQuestionImage(question);
+    }
+    questionHtml += `<div class="mt-4">${this.renderQuestionOptions(question, selectedAnswer, processText)}</div>`;
+    questionHtml += this.renderNavigationButtons();
+    questionContent.innerHTML = questionHtml;
+    this.attachQuestionEventListeners(question);
+    if (question.question_type === 'NUMERIC') {
+      this.initializeNumericKeypad(selectedAnswer);
+    }
   }
-
-  questionHtml += `<div class="mt-4">${this.renderQuestionOptions(question, selectedAnswer, processText)}</div>`;
-  questionHtml += this.renderNavigationButtons();
-
-  questionContent.innerHTML = questionHtml;
-  this.attachQuestionEventListeners(question);
-  
-  if (question.question_type === 'NUMERIC') {
-    this.initializeNumericKeypad(selectedAnswer);
-  }
-}
 
   getQuestionTypeBadgeClass(type) {
     switch (type) {
@@ -1171,7 +1899,6 @@ renderQuestion(question) {
               <div class="loading-spinner mb-3"></div>
               <div class="text-muted">Loading question image...</div>
             </div>
-
             <div id="imageError${imageIndex}" class="image-error text-center" style="display:none;">
               <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
               <div><strong>Image Loading Failed</strong></div>
@@ -1185,7 +1912,6 @@ renderQuestion(question) {
                 </a>
               </div>
             </div>
-
             <div id="imageContainer${imageIndex}" class="text-center" style="display:none;">
               <img id="questionImage${imageIndex}" src="${question.image_url}" alt="Question ${imageIndex + 1} Image"
                    class="img-fluid image-loaded" style="max-width:100%; max-height:520px; cursor:pointer;"
@@ -1203,97 +1929,87 @@ renderQuestion(question) {
     `;
   }
 
-renderQuestionOptions(question, selectedAnswer, processText = null) {
-  const qtype = question.question_type || 'MCQ';
-  
-  // Default processText function if not provided
-  if (!processText) {
-    processText = (text) => {
-      if (!text) return '';
-      return String(text)
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n')
-        .replace(/\n/g, '<br>');
-    };
-  }
-  
-  if (qtype === 'MCQ') {
-    return this.renderMCQOptions(question, selectedAnswer, processText);
-  } else if (qtype === 'MSQ') {
-    return this.renderMSQOptions(question, selectedAnswer, processText);
-  } else if (qtype === 'NUMERIC') {
-    return this.renderNumericOptions(question, selectedAnswer);
-  }
-  
-  return '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Unknown question type</div>';
-}
-
-renderMCQOptions(question, selectedAnswer, processText) {
-  const options = [
-    { id: 'A', text: question.option_a },
-    { id: 'B', text: question.option_b },
-    { id: 'C', text: question.option_c },
-    { id: 'D', text: question.option_d }
-  ];
-
-  let html = '';
-  options.forEach(opt => {
-    if (opt.text && opt.text !== 'nan' && String(opt.text).trim() !== '' && opt.text !== 'None') {
-      const isSelected = selectedAnswer === opt.id;
-      html += `
-        <div class="option-container mcq-option mb-3 ${isSelected ? 'selected' : ''}" 
-             data-option-id="${opt.id}">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="answer" value="${opt.id}" 
-                   id="opt${opt.id}" ${isSelected ? 'checked' : ''}>
-            <label class="form-check-label w-100" for="opt${opt.id}">
-              <strong>${opt.id}.</strong> ${processText(opt.text)}
-            </label>
-          </div>
-        </div>
-      `;
+  renderQuestionOptions(question, selectedAnswer, processText = null) {
+    const qtype = question.question_type || 'MCQ';
+    if (!processText) {
+      processText = (text) => {
+        if (!text) return '';
+        return String(text)
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n')
+          .replace(/\n/g, '<br>');
+      };
     }
-  });
-
-  return html;
-}
-
-renderMSQOptions(question, selectedAnswer, processText) {
-  const options = [
-    { id: 'A', text: question.option_a },
-    { id: 'B', text: question.option_b },
-    { id: 'C', text: question.option_c },
-    { id: 'D', text: question.option_d }
-  ];
-
-  const selectedOptions = Array.isArray(selectedAnswer) ? selectedAnswer : [];
-
-  let html = `
-    <div class="alert alert-info mb-4" id="msq-alert">
-      <i class="fas fa-info-circle"></i> <strong>Multiple Select Question:</strong> Select ALL correct options.
-    </div>
-  `;
-
-  options.forEach(opt => {
-    if (opt.text && opt.text !== 'nan' && String(opt.text).trim() !== '' && opt.text !== 'None') {
-      const isSelected = selectedOptions.includes(opt.id);
-      html += `
-        <div class="option-container msq-option mb-3 ${isSelected ? 'selected-msq' : ''}" 
-             data-option-id="${opt.id}">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="answer" value="${opt.id}" 
-                   id="optMSQ${opt.id}" ${isSelected ? 'checked' : ''}>
-            <label class="form-check-label w-100" for="optMSQ${opt.id}">
-              <strong>${opt.id}.</strong> ${processText(opt.text)}
-            </label>
-          </div>
-        </div>
-      `;
+    if (qtype === 'MCQ') {
+      return this.renderMCQOptions(question, selectedAnswer, processText);
+    } else if (qtype === 'MSQ') {
+      return this.renderMSQOptions(question, selectedAnswer, processText);
+    } else if (qtype === 'NUMERIC') {
+      return this.renderNumericOptions(question, selectedAnswer);
     }
-  });
+    return '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Unknown question type</div>';
+  }
 
-  return html;
-}
+  renderMCQOptions(question, selectedAnswer, processText) {
+    const options = [
+      { id: 'A', text: question.option_a },
+      { id: 'B', text: question.option_b },
+      { id: 'C', text: question.option_c },
+      { id: 'D', text: question.option_d }
+    ];
+    let html = '';
+    options.forEach(opt => {
+      if (opt.text && opt.text !== 'nan' && String(opt.text).trim() !== '' && opt.text !== 'None') {
+        const isSelected = selectedAnswer === opt.id;
+        html += `
+          <div class="option-container mcq-option mb-3 ${isSelected ? 'selected' : ''}" 
+               data-option-id="${opt.id}">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="answer" value="${opt.id}" 
+                     id="opt${opt.id}" ${isSelected ? 'checked' : ''}>
+              <label class="form-check-label w-100" for="opt${opt.id}">
+                <strong>${opt.id}.</strong> ${processText(opt.text)}
+              </label>
+            </div>
+          </div>
+        `;
+      }
+    });
+    return html;
+  }
+
+  renderMSQOptions(question, selectedAnswer, processText) {
+    const options = [
+      { id: 'A', text: question.option_a },
+      { id: 'B', text: question.option_b },
+      { id: 'C', text: question.option_c },
+      { id: 'D', text: question.option_d }
+    ];
+    const selectedOptions = Array.isArray(selectedAnswer) ? selectedAnswer : [];
+    let html = `
+      <div class="alert alert-info mb-4" id="msq-alert">
+        <i class="fas fa-info-circle"></i> <strong>Multiple Select Question:</strong> Select ALL correct options.
+      </div>
+    `;
+    options.forEach(opt => {
+      if (opt.text && opt.text !== 'nan' && String(opt.text).trim() !== '' && opt.text !== 'None') {
+        const isSelected = selectedOptions.includes(opt.id);
+        html += `
+          <div class="option-container msq-option mb-3 ${isSelected ? 'selected-msq' : ''}" 
+               data-option-id="${opt.id}">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="answer" value="${opt.id}" 
+                     id="optMSQ${opt.id}" ${isSelected ? 'checked' : ''}>
+              <label class="form-check-label w-100" for="optMSQ${opt.id}">
+                <strong>${opt.id}.</strong> ${processText(opt.text)}
+              </label>
+            </div>
+          </div>
+        `;
+      }
+    });
+    return html;
+  }
 
   renderNumericOptions(question, selectedAnswer) {
     return `
@@ -1301,7 +2017,6 @@ renderMSQOptions(question, selectedAnswer, processText) {
         <i class="fas fa-calculator"></i> <strong>Numerical Answer:</strong> Enter using keypad
         ${question.tolerance ? `<br><small>Tolerance: ±${question.tolerance}</small>` : ''}
       </div>
-
       <div class="numeric-answer-section">
         <div class="mb-3">
           <label class="form-label"><strong><i class="fas fa-hashtag me-2"></i>Your Answer:</strong></label>
@@ -1311,7 +2026,6 @@ renderMSQOptions(question, selectedAnswer, processText) {
           </div>
           <input type="hidden" name="numeric_answer" id="numericAnswer" value="${selectedAnswer || ''}">
         </div>
-
         <div class="row g-3">
           <div class="col-md-6">
             <div class="numeric-keypad">
@@ -1320,17 +2034,14 @@ renderMSQOptions(question, selectedAnswer, processText) {
                 <button type="button" class="keypad-btn sign" onclick="examPortal.toggleSign()"><i class="fas fa-plus-minus"></i></button>
                 <button type="button" class="keypad-btn number" onclick="examPortal.addDigit('0')">0</button>
                 <button type="button" class="keypad-btn backspace" onclick="examPortal.backspace()"><i class="fas fa-backspace"></i></button>
-
                 <button type="button" class="keypad-btn number" onclick="examPortal.addDigit('1')">1</button>
                 <button type="button" class="keypad-btn number" onclick="examPortal.addDigit('2')">2</button>
                 <button type="button" class="keypad-btn number" onclick="examPortal.addDigit('3')">3</button>
                 <button type="button" class="keypad-btn decimal" onclick="examPortal.addDecimal()"><i class="fas fa-circle" style="font-size:0.5rem"></i></button>
-
                 <button type="button" class="keypad-btn number" onclick="examPortal.addDigit('4')">4</button>
                 <button type="button" class="keypad-btn number" onclick="examPortal.addDigit('5')">5</button>
                 <button type="button" class="keypad-btn number" onclick="examPortal.addDigit('6')">6</button>
                 <div></div>
-
                 <button type="button" class="keypad-btn number" onclick="examPortal.addDigit('7')">7</button>
                 <button type="button" class="keypad-btn number" onclick="examPortal.addDigit('8')">8</button>
                 <button type="button" class="keypad-btn number" onclick="examPortal.addDigit('9')">9</button>
@@ -1339,7 +2050,6 @@ renderMSQOptions(question, selectedAnswer, processText) {
               <div class="text-center mt-2"><small class="text-muted">Use keypad only</small></div>
             </div>
           </div>
-
           <div class="col-md-6">
             <div class="card keypad-guide-card p-3">
               <h6 class="mb-2"><i class="fas fa-keyboard"></i> Keypad Guide</h6>
@@ -1368,7 +2078,6 @@ renderMSQOptions(question, selectedAnswer, processText) {
           <i class="fas fa-times-circle"></i> Clear Selection
         </button>
       </div>
-
       <div class="d-flex justify-content-between align-items-center mt-4 p-3 bg-light rounded">
         <div>
           <button type="button" class="btn btn-outline-secondary exam-navigation-btn" 
@@ -1376,15 +2085,12 @@ renderMSQOptions(question, selectedAnswer, processText) {
             <i class="fas fa-chevron-left"></i> Previous
           </button>
         </div>
-
         <div class="d-flex gap-2">
           <button type="button" class="btn btn-warning exam-navigation-btn" onclick="examPortal.markForReview()">
             <i class="fas fa-flag"></i> Mark for Review
           </button>
-
           ${this.currentIndex < this.totalQuestions - 1 ? 
             '<button type="button" class="btn btn-primary exam-navigation-btn" onclick="examPortal.navigateNext()">Save & Next <i class="fas fa-chevron-right"></i></button>' : ''}
-
           <button type="button" class="btn btn-success exam-navigation-btn" onclick="examPortal.submitExam()">
             <i class="fas fa-paper-plane"></i> Submit Exam
           </button>
@@ -1394,14 +2100,10 @@ renderMSQOptions(question, selectedAnswer, processText) {
   }
 
   attachQuestionEventListeners(question) {
-    // ENHANCED: Better event handling for smooth option selection
     setTimeout(() => {
-      // MCQ options
       document.querySelectorAll('.mcq-option').forEach(container => {
         const radio = container.querySelector('input[type="radio"]');
         const label = container.querySelector('label');
-        
-        // Multiple event listeners for better responsiveness
         [container, radio, label].forEach(element => {
           if (element) {
             element.addEventListener('click', (e) => {
@@ -1412,39 +2114,28 @@ renderMSQOptions(question, selectedAnswer, processText) {
         });
       });
 
-      // MSQ options
-// MSQ options - Enhanced smooth interaction
-document.querySelectorAll('.msq-option').forEach(container => {
-  const checkbox = container.querySelector('input[type="checkbox"]');
-  const label = container.querySelector('label');
-  
-  // Remove any existing listeners
-  container.replaceWith(container.cloneNode(true));
-  const newContainer = document.querySelector(`[data-option-id="${container.dataset.optionId}"].msq-option`);
-  
-  if (newContainer) {
-    newContainer.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.selectMSQOption(newContainer.dataset.optionId);
-    });
-    
-    // Add hover feedback
-    newContainer.addEventListener('mouseenter', (e) => {
-      if (!newContainer.classList.contains('selected-msq')) {
-        newContainer.style.transform = 'translateX(2px)';
-      }
-    });
-    
-    newContainer.addEventListener('mouseleave', (e) => {
-      if (!newContainer.classList.contains('selected-msq')) {
-        newContainer.style.transform = '';
-      }
-    });
-  }
-});
+      document.querySelectorAll('.msq-option').forEach(container => {
+        container.replaceWith(container.cloneNode(true));
+        const newContainer = document.querySelector(`[data-option-id="${container.dataset.optionId}"].msq-option`);
+        if (newContainer) {
+          newContainer.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.selectMSQOption(newContainer.dataset.optionId);
+          });
+          newContainer.addEventListener('mouseenter', (e) => {
+            if (!newContainer.classList.contains('selected-msq')) {
+              newContainer.style.transform = 'translateX(2px)';
+            }
+          });
+          newContainer.addEventListener('mouseleave', (e) => {
+            if (!newContainer.classList.contains('selected-msq')) {
+              newContainer.style.transform = '';
+            }
+          });
+        }
+      });
 
-      // Prevent keyboard input for numeric questions
       if (question.question_type === 'NUMERIC') {
         document.addEventListener('keydown', this.preventKeyboardInput);
       } else {
@@ -1462,89 +2153,71 @@ document.querySelectorAll('.msq-option').forEach(container => {
   }
 
   attachEventListeners() {
+    this.addAnimationStyles();
     window.addEventListener('beforeunload', (e) => {
-      if (!this.isNavigating) {
+      if (!this.isNavigating && !this.isSubmitting) {
         e.preventDefault();
         e.returnValue = 'Are you sure you want to leave? Your progress may be lost.';
       }
     });
-
-    // Prevent context menu
-    document.addEventListener('contextmenu', (e) => e.preventDefault());
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.showSecurityWarning('Right-click is disabled during the exam!');
+      return false;
+    });
   }
 
-  // ENHANCED MCQ Methods with instant feedback
   selectMCQOption(optionId) {
     const qid = String(this.questions[this.currentIndex].id);
-    
-    // Clear all selections first
     document.querySelectorAll('.mcq-option').forEach(container => {
       container.classList.remove('selected');
       const radio = container.querySelector('input[type="radio"]');
       if (radio) radio.checked = false;
     });
-    
-    // Select the clicked option
     const targetContainer = document.querySelector(`[data-option-id="${optionId}"]`);
     const targetRadio = document.querySelector(`#opt${optionId}`);
-    
     if (targetContainer && targetRadio) {
       targetContainer.classList.add('selected');
       targetRadio.checked = true;
-      
       this.answers[qid] = optionId;
       this.saveSessionData();
       this.updatePaletteStatus('answered');
     }
   }
 
-selectMSQOption(optionId) {
+  selectMSQOption(optionId) {
     const qid = String(this.questions[this.currentIndex].id);
     let currentAnswers = this.answers[qid] || [];
-    
     if (!Array.isArray(currentAnswers)) {
       currentAnswers = [];
     }
-    
     const targetContainer = document.querySelector(`[data-option-id="${optionId}"].msq-option`);
     const targetCheckbox = document.querySelector(`#optMSQ${optionId}`);
-    
     if (targetContainer && targetCheckbox) {
       const isCurrentlySelected = currentAnswers.includes(optionId);
-      
-      // Smooth visual feedback
       targetContainer.style.transform = 'scale(0.98)';
       setTimeout(() => {
         if (targetContainer) targetContainer.style.transform = '';
       }, 150);
-      
       if (isCurrentlySelected) {
-        // Remove from selection with animation
         currentAnswers = currentAnswers.filter(id => id !== optionId);
         targetContainer.classList.remove('selected-msq');
         targetCheckbox.checked = false;
-        
-        // Brief highlight for deselection
         targetContainer.style.background = 'linear-gradient(90deg, rgba(239,68,68,0.1), rgba(239,68,68,0.06))';
         setTimeout(() => {
           if (targetContainer) targetContainer.style.background = '';
         }, 300);
       } else {
-        // Add to selection with animation
         currentAnswers.push(optionId);
         targetContainer.classList.add('selected-msq');
         targetCheckbox.checked = true;
-        
-        // Brief highlight for selection
         targetContainer.style.background = 'linear-gradient(90deg, rgba(34,197,94,0.15), rgba(34,197,94,0.08))';
         setTimeout(() => {
           if (targetContainer) targetContainer.style.background = '';
         }, 300);
       }
-      
       this.answers[qid] = currentAnswers;
       this.saveSessionData();
-      
       if (currentAnswers.length > 0) {
         this.updatePaletteStatus('answered');
       } else {
@@ -1553,7 +2226,6 @@ selectMSQOption(optionId) {
     }
   }
 
-  // Numeric Methods
   initializeNumericKeypad(selectedAnswer) {
     this.currentValue = selectedAnswer || '';
     this.hasDecimal = this.currentValue.includes('.');
@@ -1630,7 +2302,6 @@ selectMSQOption(optionId) {
     this.saveSessionData();
   }
 
-  // Navigation Methods
   navigatePrevious() {
     if (this.currentIndex > 0) {
       this.saveCurrentAnswer();
@@ -1649,7 +2320,6 @@ selectMSQOption(optionId) {
     const question = this.questions[this.currentIndex];
     const qid = String(question.id);
     const qtype = question.question_type || 'MCQ';
-
     if (qtype === 'MCQ') {
       const selected = document.querySelector('input[name="answer"]:checked');
       if (selected) {
@@ -1666,21 +2336,16 @@ selectMSQOption(optionId) {
         this.answers[qid] = this.currentValue.trim();
       }
     }
-
     this.saveSessionData();
   }
 
   markForReview() {
     const qid = String(this.questions[this.currentIndex].id);
-    
     if (!this.markedForReview.includes(qid)) {
       this.markedForReview.push(qid);
     }
-    
     this.saveSessionData();
     this.updatePaletteStatus('review');
-    
-    // Auto-navigate to next question
     if (this.currentIndex < this.totalQuestions - 1) {
       this.navigateNext();
     }
@@ -1688,35 +2353,24 @@ selectMSQOption(optionId) {
 
   clearSelection() {
     const qid = String(this.questions[this.currentIndex].id);
-    
-    // Remove from answers
     delete this.answers[qid];
-    
-    // Remove from review
     const reviewIndex = this.markedForReview.indexOf(qid);
     if (reviewIndex > -1) {
       this.markedForReview.splice(reviewIndex, 1);
     }
-    
     this.saveSessionData();
     this.updatePaletteStatus('visited');
-    
-    // Clear UI
-    document.querySelectorAll('input[name="answer"]').forEach(input => {
+document.querySelectorAll('input[name="answer"]').forEach(input => {
       input.checked = false;
     });
-    
     document.querySelectorAll('.option-container').forEach(container => {
       container.classList.remove('selected', 'selected-msq');
     });
-    
     if (this.questions[this.currentIndex].question_type === 'NUMERIC') {
       this.currentValue = '';
       this.hasDecimal = false;
       this.updateDisplay();
     }
-    
-    // Show feedback
     const btn = document.getElementById('clearSelectionBtn');
     if (btn) {
       const originalText = btn.innerHTML;
@@ -1737,31 +2391,26 @@ selectMSQOption(optionId) {
 
   updateMetricsCounts() {
     const counts = { answered: 0, review: 0, visited: 0, 'not-visited': 0 };
-    
     Object.values(this.palette).forEach(status => {
       counts[status] = (counts[status] || 0) + 1;
     });
-
     const elements = {
       'answeredCount': counts.answered,
       'reviewCount': counts.review,
       'visitedCount': counts.visited,
       'notVisitedCount': counts['not-visited']
     };
-
     Object.entries(elements).forEach(([id, count]) => {
       const element = document.getElementById(id);
       if (element) element.textContent = count;
     });
   }
 
-  // Image Methods
   handleImageLoad(questionIndex) {
     const loadingEl = document.getElementById(`imageLoading${questionIndex}`);
     const errorEl = document.getElementById(`imageError${questionIndex}`);
     const containerEl = document.getElementById(`imageContainer${questionIndex}`);
     const imageEl = document.getElementById(`questionImage${questionIndex}`);
-    
     if (loadingEl) loadingEl.style.display = 'none';
     if (errorEl) errorEl.style.display = 'none';
     if (containerEl) {
@@ -1774,7 +2423,6 @@ selectMSQOption(optionId) {
     const loadingEl = document.getElementById(`imageLoading${questionIndex}`);
     const errorEl = document.getElementById(`imageError${questionIndex}`);
     const containerEl = document.getElementById(`imageContainer${questionIndex}`);
-    
     if (loadingEl) loadingEl.style.display = 'none';
     if (containerEl) containerEl.style.display = 'none';
     if (errorEl) errorEl.style.display = 'block';
@@ -1785,11 +2433,9 @@ selectMSQOption(optionId) {
     const errorEl = document.getElementById(`imageError${questionIndex}`);
     const containerEl = document.getElementById(`imageContainer${questionIndex}`);
     const imageEl = document.getElementById(`questionImage${questionIndex}`);
-    
     if (errorEl) errorEl.style.display = 'none';
     if (containerEl) containerEl.style.display = 'none';
     if (loadingEl) loadingEl.style.display = 'block';
-    
     if (imageEl) {
       const originalSrc = imageEl.src;
       imageEl.src = originalSrc + (originalSrc.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
@@ -1802,17 +2448,14 @@ selectMSQOption(optionId) {
     new bootstrap.Modal(document.getElementById('imageModal')).show();
   }
 
-  // Timer Methods
   startTimer() {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
     }
-
     this.updateTimer();
     this.timerInterval = setInterval(() => {
       this.duration--;
       this.updateTimer();
-
       if (this.duration <= 0) {
         clearInterval(this.timerInterval);
         this.autoSubmitExam();
@@ -1823,14 +2466,11 @@ selectMSQOption(optionId) {
   updateTimer() {
     const timerEl = document.getElementById("timer");
     if (!timerEl) return;
-
     const mins = Math.floor(this.duration / 60);
     const secs = this.duration % 60;
     timerEl.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
-
     const parent = timerEl.parentElement;
     if (!parent) return;
-
     if (this.duration <= 0) {
       parent.style.background = 'linear-gradient(135deg,#dc3545 0%,#c82333 100%)';
       parent.style.color = '#fff';
@@ -1843,36 +2483,312 @@ selectMSQOption(optionId) {
     }
   }
 
-  // Submission Methods
   submitExam() {
-    if (!confirm('Are you sure you want to submit the exam? This action cannot be undone.')) {
-      return;
-    }
-    
+    if (this.submissionInProgress) return;
     this.saveCurrentAnswer();
-    this.isNavigating = true;
-    
-    // Save final answers to server
-    this.syncAnswersToServer().then(() => {
-      window.location.href = `/submit-exam/${this.examId}`;
-    }).catch(error => {
-      console.error('Error syncing answers:', error);
-      // Proceed anyway to prevent loss
-      window.location.href = `/submit-exam/${this.examId}`;
+    this.showSubmissionConfirmation();
+  }
+
+  showSubmissionConfirmation() {
+    const counts = { answered: 0, review: 0, visited: 0, 'not-visited': 0 };
+    Object.values(this.palette).forEach(status => {
+      counts[status] = (counts[status] || 0) + 1;
     });
+
+    document.getElementById('confirmAnsweredCount').textContent = counts.answered;
+    document.getElementById('confirmReviewCount').textContent = counts.review;
+    document.getElementById('confirmVisitedCount').textContent = counts.visited;
+    document.getElementById('confirmNotVisitedCount').textContent = counts['not-visited'];
+
+    document.getElementById('submitConfirmationOverlay').style.display = 'flex';
+  }
+
+  cancelSubmission() {
+    document.getElementById('submitConfirmationOverlay').style.display = 'none';
+  }
+
+
+
+emergencySyncAnswers() {
+  // Synchronous fallback for window close
+  try {
+    const data = JSON.stringify({
+      answers: this.answers,
+      markedForReview: this.markedForReview,
+      currentIndex: this.currentIndex,
+      timeRemaining: this.duration
+    });
+    
+    // Use sendBeacon for reliable transmission during page unload
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(`/api/emergency-sync-exam/${this.examId}`, data);
+    } else {
+      // Fallback for older browsers
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `/api/emergency-sync-exam/${this.examId}`, false);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(data);
+    }
+  } catch (error) {
+    console.error('Emergency sync failed:', error);
+  }
+}
+
+handlePageVisibilityChange() {
+  // Check if exam is still valid and resume if needed
+  if (!this.isFullscreenEnabled && !this.isSubmitting) {
+    console.log('Page visible again - checking fullscreen status');
+    this.showResumeModal();
+  }
+}
+
+showResumeModal() {
+  // Similar to initial fullscreen modal but for resume
+  const modal = document.createElement('div');
+  modal.id = 'resumeExamModal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 20001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+  `;
+  
+  modal.innerHTML = `
+    <div style="
+      background: linear-gradient(135deg, #1f2937, #111827);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 90%;
+      color: #fff;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7);
+      text-align: center;
+      border: 2px solid rgba(34, 197, 94, 0.3);
+    ">
+      <i class="fas fa-redo fa-4x mb-3" style="color: #fbbf24;"></i>
+      <h3 style="color: #fbbf24; margin-bottom: 20px; font-weight: 800;">
+        Resume Secure Exam
+      </h3>
+      <p style="margin-bottom: 25px; font-size: 1.1rem; line-height: 1.6;">
+        Your exam was interrupted but your progress has been saved. 
+        Click below to return to secure fullscreen mode and continue.
+      </p>
+      
+      <div style="background: linear-gradient(180deg, rgba(251,191,36,0.06), rgba(251,191,36,0.03)); 
+                  border: 1px solid rgba(251,191,36,0.12); border-radius: 12px; 
+                  padding: 20px; margin: 20px 0; text-align: left;">
+        <h6 style="font-weight: 700; margin-bottom: 15px; color: #fbbf24;">
+          <i class="fas fa-clock me-2"></i>Your Progress:
+        </h6>
+        <ul style="margin: 0; padding-left: 20px;">
+          <li>Time remaining: <span id="resumeTimeDisplay">${Math.floor(this.duration/60)}:${String(this.duration%60).padStart(2,'0')}</span></li>
+          <li>Current question: ${this.currentIndex + 1} of ${this.totalQuestions}</li>
+          <li>Answers saved: ${Object.keys(this.answers).length}</li>
+        </ul>
+      </div>
+      
+      <button id="resumeFullscreenBtn" style="
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        border: none;
+        color: #111;
+        font-weight: 800;
+        border-radius: 12px;
+        padding: 15px 30px;
+        font-size: 1.1rem;
+        box-shadow: 0 12px 40px rgba(251,191,36,0.18);
+        transition: transform .18s ease, box-shadow .18s ease;
+        cursor: pointer;
+      ">
+        <i class="fas fa-expand-arrows-alt me-2"></i> Resume in Fullscreen
+      </button>
+      
+      <div style="margin-top: 20px;">
+        <small style="color: #9ca3af;">
+          <i class="fas fa-info-circle me-1"></i>
+          Your timer will continue from where it left off
+        </small>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  const resumeBtn = modal.querySelector('#resumeFullscreenBtn');
+  resumeBtn.addEventListener('click', async () => {
+    await this.actuallyEnterFullscreen();
+    this.removeResumeModal();
+    this.setupFullscreenMonitoring();
+    this.setupVisibilityMonitoring();
+    this.preventTabSwitching();
+    this.startFullscreenMonitoring();
+  });
+}
+
+removeResumeModal() {
+  const modal = document.getElementById('resumeExamModal');
+  if (modal && modal.parentNode) {
+    modal.parentNode.removeChild(modal);
+  }
+}  
+
+
+
+
+  async confirmSubmission() {
+    if (this.submissionInProgress) return;
+    this.submissionInProgress = true;
+    this.isSubmitting = true;
+    this.isNavigating = true;
+
+    if (this.fullscreenCheckInterval) {
+      clearInterval(this.fullscreenCheckInterval);
+    }
+
+    document.getElementById('submitConfirmationButtons').style.display = 'none';
+    document.getElementById('submitProgressSection').style.display = 'block';
+
+    this.updateSubmissionProgress(2, 'Starting submission...', 'Preparing transfer', 'User confirmed submission');
+
+    const doneSignal = { done: false };
+    const simPromise = this.simulateSubmissionProgress(doneSignal);
+    const syncPromise = this.syncAnswersToServer();
+
+    try {
+      await syncPromise;
+      doneSignal.done = true;
+
+      this.updateSubmissionProgress(95, 'Finalizing submission...', 'Completing the submission process', 'Final sync complete');
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      this.updateSubmissionProgress(100, 'Submission completed!', 'Redirecting to results...', 'Submission successful');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      this.performActualSubmission();
+
+    } catch (error) {
+      console.error('Submission failed:', error);
+      doneSignal.done = true;
+      this.showSubmissionError(error.message || 'Submission failed. Please try again.');
+    }
+  }
+
+  async simulateSubmissionProgress(doneSignal) {
+    const phases = [
+      {p:6, text:'Loading exam data...', details:'Retrieving your answers and exam configuration', log:'Reading local answers'},
+      {p:18, text:'Validating responses...', details:'Checking answer format and completeness', log:'Validating formats'},
+      {p:30, text:'Processing questions...', details:'Analyzing your responses against correct answers', log:'Running evaluations'},
+      {p:50, text:'Calculating scores...', details:'Computing marks for each question', log:'Scoring attempt'},
+      {p:68, text:'Generating results...', details:'Creating your performance summary', log:'Formatting summary'},
+      {p:82, text:'Saving to database...', details:'Storing your results and responses', log:'Writing to storage'},
+      {p:90, text:'Creating response analysis...', details:'Preparing detailed answer breakdown', log:'Preparing analysis'}
+    ];
+
+    for (const phase of phases) {
+      if (doneSignal.done) break;
+      this.updateSubmissionProgress(phase.p, phase.text, phase.details, phase.log);
+      await new Promise(res => setTimeout(res, 400 + Math.random()*700));
+    }
+  }
+
+  updateSubmissionProgress(percent, text, details, logMsg) {
+    const progressFill = document.getElementById('submitProgressFill');
+    const progressPercent = document.getElementById('submitProgressPercent');
+    const progressText = document.getElementById('submitProgressText');
+    const progressDetails = document.getElementById('submitProgressDetails');
+    const progressLog = document.getElementById('submitProgressLog');
+
+    if (progressFill) {
+      progressFill.style.width = percent + '%';
+    }
+    if (progressPercent) progressPercent.textContent = percent + '%';
+    if (progressText && text) progressText.textContent = text;
+    if (progressDetails && details) progressDetails.textContent = details;
+    if (progressLog && logMsg) {
+      progressLog.innerHTML = `<div>• ${logMsg}</div>` + progressLog.innerHTML;
+    }
+  }
+
+  showSubmissionError(message) {
+    this.updateSubmissionProgress(0, 'Submission failed!', 'An error occurred. Please try again.', 'Error: ' + message);
+    
+    const progressFill = document.getElementById('submitProgressFill');
+    if (progressFill) {
+      progressFill.style.background = 'linear-gradient(90deg,#ef4444,#f97316)';
+    }
+
+    setTimeout(() => {
+      this.submissionInProgress = false;
+      this.isSubmitting = false;
+      this.isNavigating = false;
+      document.getElementById('submitProgressSection').style.display = 'none';
+      document.getElementById('submitConfirmationButtons').style.display = 'flex';
+      
+      const progressFill = document.getElementById('submitProgressFill');
+      if (progressFill) {
+        progressFill.style.background = 'linear-gradient(90deg, #22c55e, #2dd4bf 40%, #16a34a)';
+        progressFill.style.width = '0%';
+      }
+      document.getElementById('submitProgressPercent').textContent = '0%';
+      document.getElementById('submitProgressText').textContent = 'Processing your submission...';
+      document.getElementById('submitProgressDetails').textContent = 'Initializing submission process...';
+      document.getElementById('submitProgressLog').innerHTML = '';
+    }, 3000);
+  }
+
+  async performActualSubmission() {
+    try {
+      const response = await fetch(`/submit-exam/${this.examId}`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams()
+      });
+
+      if (response.redirected) {
+        window.location.href = response.url;
+        return;
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (response.ok) {
+        if (contentType.includes('application/json')) {
+          const json = await response.json();
+          if (json && json.success && json.redirect) {
+            window.location.href = json.redirect;
+            return;
+          }
+        }
+        window.location.href = `/result/${this.examId}`;
+      } else {
+        throw new Error(`Server returned ${response.status}`);
+      }
+
+    } catch (err) {
+      console.error('Actual submission failed:', err);
+      throw err;
+    }
   }
 
   autoSubmitExam() {
     this.saveCurrentAnswer();
+    this.isSubmitting = true;
     this.isNavigating = true;
-    
     alert('Time is up! Auto-submitting exam...');
-    
     this.syncAnswersToServer().then(() => {
-      window.location.href = `/submit-exam/${this.examId}`;
+      this.performActualSubmission();
     }).catch(error => {
       console.error('Error syncing answers:', error);
-      window.location.href = `/submit-exam/${this.examId}`;
+      this.performActualSubmission();
     });
   }
 
@@ -1888,11 +2804,9 @@ selectMSQOption(optionId) {
           markedForReview: this.markedForReview
         })
       });
-
       if (!response.ok) {
         throw new Error('Failed to sync answers');
       }
-
       return await response.json();
     } catch (error) {
       console.error('Sync error:', error);
@@ -1901,16 +2815,47 @@ selectMSQOption(optionId) {
   }
 }
 
-// Initialize the exam portal
 let examPortal;
 document.addEventListener('DOMContentLoaded', function() {
-  examPortal = new ExamPortal();
+  try {
+    examPortal = new ExamPortal();
+  } catch (error) {
+    console.error('Failed to initialize exam portal:', error);
+    alert('Failed to initialize secure exam mode. Please refresh the page.');
+  }
 });
 
-// Cleanup on page unload
+// Enhanced window close handling
+window.addEventListener('beforeunload', (e) => {
+  if (examPortal && !examPortal.isSubmitting && !examPortal.isNavigating) {
+    // Sync answers before closing
+    examPortal.saveCurrentAnswer();
+    examPortal.emergencySyncAnswers();
+    e.preventDefault();
+    e.returnValue = 'Your exam progress will be saved. Are you sure you want to leave?';
+  }
+});
+
 window.addEventListener('unload', function() {
-  if (examPortal && examPortal.timerInterval) {
-    clearInterval(examPortal.timerInterval);
+  if (examPortal) {
+    examPortal.isSubmitting = true;
+    examPortal.saveCurrentAnswer();
+    examPortal.emergencySyncAnswers();
+    
+    if (examPortal.timerInterval) {
+      clearInterval(examPortal.timerInterval);
+    }
+    if (examPortal.fullscreenCheckInterval) {
+      clearInterval(examPortal.fullscreenCheckInterval);
+    }
+  }
+});
+
+// Page visibility handling for better recovery
+document.addEventListener('visibilitychange', function() {
+  if (examPortal && !document.hidden && !examPortal.isSubmitting) {
+    // Page became visible again - check if we need to resume
+    examPortal.handlePageVisibilityChange();
   }
 });
 </script>
