@@ -3728,38 +3728,9 @@ def exam_page(exam_id):
 @app.route('/submit-exam/<int:exam_id>', methods=['GET', 'POST'])
 @require_user_role
 def submit_exam(exam_id):
-    # GET request: Show confirmation page
     if request.method == 'GET':
-        try:
-            # Get exam info for confirmation page
-            cached_data = get_cached_exam_data(exam_id)
-            if not cached_data:
-                exams_df = load_csv_with_cache('exams.csv')
-                exam_row = exams_df[exams_df['id'].astype(str) == str(exam_id)]
-                if exam_row.empty:
-                    flash("Exam not found.", "error")
-                    return redirect(url_for('dashboard'))
-                exam_info = exam_row.iloc[0].to_dict()
-            else:
-                exam_info = cached_data['exam_info']
-            
-            # Count answered/review questions
-            answers = session.get('exam_answers', {})
-            review = session.get('marked_for_review', [])
-            
-            stats = {
-                'answered': len(answers),
-                'marked_for_review': len(review),
-                'total': len(cached_data.get('questions', [])) if cached_data else 0
-            }
-            
-            return render_template('submit_confirm.html', exam=exam_info, stats=stats, exam_id=exam_id)
-            
-        except Exception as e:
-            print(f"Error loading submit confirmation: {e}")
-            return render_template('submit_confirm.html', exam={'name': 'Exam'}, stats={'answered': 0, 'marked_for_review': 0, 'total': 0}, exam_id=exam_id)
+        return redirect(url_for('exam_page', exam_id=exam_id))
     
-    # POST request: Process submission
     user_id = session.get('user_id')
     token = session.get('token')
     
@@ -3803,14 +3774,12 @@ def submit_exam(exam_id):
         total_score = 0.0
         max_possible_score = 0.0
 
-        # Calculate score using question-level marking
         for question in questions:
             question_id = str(question.get('id', ''))
             correct_answer = str(question.get('correct_answer', '')).strip()
             user_answer = answers.get(question_id)
             question_type = question.get('question_type', 'MCQ')
             
-            # Get marking from individual question
             try:
                 question_positive_marks = float(question.get('positive_marks', 1) or 1)
             except (ValueError, TypeError):
@@ -3821,10 +3790,8 @@ def submit_exam(exam_id):
             except (ValueError, TypeError):
                 question_negative_marks = 0.0
             
-            # Add to max possible score
             max_possible_score += question_positive_marks
             
-            # Check answer
             if not user_answer:
                 unanswered_questions += 1
             else:
@@ -3857,7 +3824,6 @@ def submit_exam(exam_id):
 
         total_score = max(0, total_score)
         
-        # Calculate time taken
         start_time_str = session.get('exam_start_time')
         time_taken_minutes = 0
         
@@ -3873,7 +3839,6 @@ def submit_exam(exam_id):
                 print(f"Error calculating time taken: {e}")
                 time_taken_minutes = 0
 
-        # Calculate percentage and grade
         percentage = round((total_score / max_possible_score) * 100, 2) if max_possible_score > 0 else 0.0
         
         def calculate_grade(p):
@@ -3892,7 +3857,6 @@ def submit_exam(exam_id):
         grade = calculate_grade(percentage)
         completed_at = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M:%S")
         
-        # Load existing results and responses
         results_df = safe_csv_load_with_recovery('results.csv')
         if results_df is None:
             results_df = pd.DataFrame()
@@ -3901,7 +3865,6 @@ def submit_exam(exam_id):
         if responses_df is None:
             responses_df = pd.DataFrame()
 
-        # Create new result record using ONLY existing columns
         new_result_id = 1 if results_df.empty else int(results_df['id'].max()) + 1
         
         new_result = {
@@ -3920,18 +3883,15 @@ def submit_exam(exam_id):
             "completed_at": completed_at
         }
 
-        # Add result to DataFrame
         new_result_df = pd.DataFrame([new_result])
         results_df = pd.concat([results_df, new_result_df], ignore_index=True)
 
-        # Create response records using ONLY existing CSV columns
         for question in questions:
             question_id = str(question.get('id', ''))
             user_answer = answers.get(question_id, '')
             correct_answer = str(question.get('correct_answer', ''))
             question_type = question.get('question_type', 'MCQ')
             
-            # Get question-level marks
             try:
                 q_positive = float(question.get('positive_marks', 1) or 1)
             except (ValueError, TypeError):
@@ -3942,7 +3902,6 @@ def submit_exam(exam_id):
             except (ValueError, TypeError):
                 q_negative = 0.0
             
-            # Determine if correct
             is_correct = False
             if user_answer:
                 if question_type == 'MCQ':
@@ -3965,7 +3924,6 @@ def submit_exam(exam_id):
             
             response_id = 1 if responses_df.empty else int(responses_df['id'].max()) + 1
             
-            # Use ONLY existing CSV columns: id, result_id, exam_id, question_id, given_answer, correct_answer, is_correct, marks_obtained, question_type, is_attempted
             response_record = {
                 "id": response_id,
                 "result_id": new_result_id,
@@ -3981,7 +3939,6 @@ def submit_exam(exam_id):
             
             responses_df = pd.concat([responses_df, pd.DataFrame([response_record])], ignore_index=True)
 
-        # Save results and responses
         try:
             persist_results_df(results_df)
             persist_responses_df(responses_df)
@@ -3991,7 +3948,6 @@ def submit_exam(exam_id):
             flash("Critical error saving results. Please contact support immediately.", "error")
             return redirect(url_for('exam_page', exam_id=exam_id))
 
-        # Update session and attempt status
         try:
             session['latest_result_id'] = int(new_result_id)
         except Exception as e:
@@ -4049,6 +4005,45 @@ def submit_exam(exam_id):
             return render_template('error.html', error_code=500, error_message="Critical system error"), 500
 
 
+
+@app.route('/api/emergency-sync-exam/<int:exam_id>', methods=['POST'])
+@require_user_role
+def emergency_sync_exam(exam_id):
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        # Update session with latest data
+        session['exam_answers'] = data.get('answers', {})
+        session['marked_for_review'] = data.get('markedForReview', [])
+        
+        # Update remaining time if provided
+        if 'timeRemaining' in data:
+            # Get exam duration from cached data
+            cached_data = get_cached_exam_data(exam_id)
+            if cached_data and 'exam_info' in cached_data:
+                exam_duration_minutes = int(float(cached_data['exam_info'].get('duration', 60)))
+                elapsed_time = (exam_duration_minutes * 60) - data['timeRemaining']
+                new_start_time = pd.Timestamp.now(tz="UTC") - pd.Timedelta(seconds=elapsed_time)
+                session['exam_start_time'] = new_start_time.isoformat()
+        
+        # Ensure attempt remains active
+        active_attempt = get_active_attempt(user_id, exam_id)
+        if active_attempt and active_attempt['status'] != 'completed':
+            # Keep attempt alive
+            print(f"Emergency sync for user {user_id}, exam {exam_id} - keeping attempt active")
+        
+        # Mark session as modified to ensure persistence
+        session.modified = True
+        
+        return jsonify({'success': True, 'message': 'Emergency sync completed'})
+        
+    except Exception as e:
+        print(f"Emergency sync error: {e}")
+        return jsonify({'error': 'Emergency sync failed'}), 500
 
 
 
