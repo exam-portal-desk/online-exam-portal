@@ -11,6 +11,7 @@ jsonpointer==3.0.0
 
 langchain==0.2.16
 langchain-community==0.2.16
+langchain-core==0.2.41
 langchain-google-genai==1.0.10
 langgraph==0.2.35
 langgraph-checkpoint==2.0.6
