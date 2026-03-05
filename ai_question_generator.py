@@ -301,14 +301,14 @@ class AIQuestionGenerator:
 
         # Initialize embeddings for RAG
         self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004",
+            model="embedding-001",
             google_api_key=self.api_key
         )
 
         # Text splitter for chunking
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1500,
-            chunk_overlap=200,
+            chunk_size=1000,
+            chunk_overlap=150,
             length_function=len
         )
 
@@ -343,6 +343,10 @@ class AIQuestionGenerator:
     def create_vectorstore(self, chunks: List) -> FAISS:
         """Create temporary FAISS vector store"""
         try:
+            chunks = chunks[:20]
+    
+            if not chunks:
+                raise Exception("No chunks generated from PDF")
             vectorstore = FAISS.from_documents(chunks, self.embeddings)
             return vectorstore
         except Exception as e:
@@ -573,3 +577,4 @@ def generate_questions(
     except Exception as e:
 
         raise Exception(f"Question generation failed: {str(e)}")
+
