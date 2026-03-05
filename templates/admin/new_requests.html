@@ -14,16 +14,17 @@
     <div class="table-responsive">
       <table class="table requests-table mb-0">
         <thead>
-          <tr>
-            <th>Request ID</th>
-            <th>Username</th>
-            <th>Email</th>
-            <th>Current Access</th>
-            <th>Requested Access</th>
-            <th>Request Date</th>
-            <th>Status</th>
-            <th style="width: 160px;">Actions</th>
-          </tr>
+<tr>
+    <th>Request ID</th>
+    <th>Username</th>
+    <th>Email</th>
+    <th>Current Access</th>
+    <th>Requested Access</th>
+    <th>Request Date</th>
+    <th style="min-width: 200px;">User Reason</th>
+    <th>Status</th>
+    <th style="width: 160px;">Actions</th>
+</tr>
         </thead>
         <tbody>
           {% for request in requests %}
@@ -67,6 +68,15 @@
             <td>
               <small class="text-muted">{{ request.request_date }}</small>
             </td>
+<td>
+    <div style="max-width: 250px; word-wrap: break-word; line-height: 1.4;">
+        {% if request.reason %}
+            <span class="text-dark">{{ request.reason }}</span>
+        {% else %}
+            <span class="text-muted fst-italic">No reason provided</span>
+        {% endif %}
+    </div>
+</td>            
             <td>
               <span class="status-badge status-{{ request.status|lower }}">
                 {{ request.status|title }}

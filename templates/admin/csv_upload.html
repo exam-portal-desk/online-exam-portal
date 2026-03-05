@@ -1,0 +1,696 @@
+{# ═══════════════════════════════════════════════════════════════════════════
+   csv_upload.html  —  Jinja2 partial (NO extends / block)
+   Location : templates/admin/csv_upload.html
+   Usage    : {% include 'admin/csv_upload.html' %} on any page
+   Trigger  : call openCSVUploaderModal() from any button / link
+   Route    : POST /admin/questions/import-csv  (already in admin.py)
+   ═══════════════════════════════════════════════════════════════════════════ #}
+
+<!-- ── CSV Uploader Modal ─────────────────────────────────────────────────── -->
+<div class="modal fade" id="csvUploaderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content" style="background:#f0f4ff;">
+
+            <!-- Header -->
+            <div class="modal-header" style="
+                background: linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+                border: none; padding: 1.25rem 1.75rem;">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width:44px;height:44px;background:rgba(255,255,255,0.2);
+                                border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-file-csv" style="color:white;font-size:1.3rem;"></i>
+                    </div>
+                    <div>
+                        <h4 class="modal-title fw-bold text-white mb-0">CSV Upload &amp; Editor</h4>
+                        <small style="color:rgba(255,255,255,0.75);">Parse → Preview → Edit → Save to Database</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body p-4">
+
+                <!-- ── Step 1: Upload ──────────────────────────────────────── -->
+                <div id="csvStep1">
+                    <div class="row justify-content-center">
+                        <div class="col-lg-7">
+                            <div class="card shadow-sm border-0 rounded-4">
+                                <div class="card-body p-4">
+
+                                    <h5 class="fw-bold mb-1">Upload your CSV file</h5>
+                                    <p class="text-muted small mb-4">
+                                        Required columns:
+                                        <code>exam_id, question_text, option_a–d, correct_answer,
+                                        question_type, image_path, positive_marks, negative_marks, tolerance</code>
+                                    </p>
+
+                                    <!-- Drop zone -->
+                                    <div id="csvDropZone"
+                                         onclick="document.getElementById('csvFileInput').click()"
+                                         ondragover="csvDragOver(event)"
+                                         ondragleave="csvDragLeave(event)"
+                                         ondrop="csvDrop(event)"
+                                         style="border:2px dashed #c7d2fe;border-radius:16px;
+                                                padding:2.5rem;text-align:center;cursor:pointer;
+                                                background:#f8faff;transition:all .2s;">
+                                        <i class="fas fa-cloud-upload-alt"
+                                           style="font-size:2.5rem;color:#667eea;margin-bottom:.75rem;display:block;"></i>
+                                        <div class="fw-semibold" style="color:#374151;">
+                                            Drop CSV here or <span style="color:#667eea;">browse</span>
+                                        </div>
+                                        <div class="text-muted small mt-1" id="csvFileName">No file selected</div>
+                                    </div>
+                                    <input type="file" id="csvFileInput" accept=".csv"
+                                           style="display:none;" onchange="csvFileSelected(this)">
+
+                                    <!-- Divider -->
+                                    <div class="d-flex align-items-center gap-2 my-4">
+                                        <hr style="flex:1;"><span class="text-muted small">or</span><hr style="flex:1;">
+                                    </div>
+
+                                    <!-- Sample download -->
+                                    <div class="d-flex align-items-center justify-content-between
+                                                p-3 rounded-3" style="background:#f1f5f9;">
+                                        <div>
+                                            <div class="fw-semibold small">Need a template?</div>
+                                            <div class="text-muted" style="font-size:.8rem;">
+                                                Download a pre-filled sample CSV
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary"
+                                                onclick="csvDownloadSample()">
+                                            <i class="fas fa-download me-1"></i>Sample CSV
+                                        </button>
+                                    </div>
+
+                                    <!-- Parse button -->
+                                    <button class="btn btn-primary btn-lg w-100 mt-4 rounded-3"
+                                            onclick="csvParse()">
+                                        <i class="fas fa-table me-2"></i>Parse &amp; Preview
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- /Step1 -->
+
+                <!-- ── Step 2: Preview / Edit ──────────────────────────────── -->
+                <div id="csvStep2" style="display:none;">
+
+                    <!-- Toolbar -->
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill"
+                                    onclick="csvBackToUpload()">
+                                <i class="fas fa-arrow-left me-1"></i>Back
+                            </button>
+                            <span class="fw-bold" style="font-size:1.05rem;">
+                                <i class="fas fa-list-ol text-primary me-2"></i>
+                                <span id="csvQCount">0</span> questions
+                            </span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary rounded-pill"
+                                    onclick="csvExport()">
+                                <i class="fas fa-download me-1"></i>Export CSV
+                            </button>
+                            <button class="btn btn-sm btn-success rounded-pill"
+                                    onclick="csvConfirmSave()">
+                                <i class="fas fa-database me-1"></i>Save to Database
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Cards -->
+                    <div id="csvCardList"></div>
+                </div><!-- /Step2 -->
+
+            </div><!-- /modal-body -->
+        </div>
+    </div>
+</div>
+
+<!-- ── Confirm Save Modal ─────────────────────────────────────────────────── -->
+<div class="modal fade" id="csvConfirmModal" tabindex="-1" aria-hidden="true" style="z-index:10060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Confirm Save</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2 pb-0">
+                <div class="alert alert-warning rounded-3 d-flex align-items-center gap-3">
+                    <i class="fas fa-exclamation-triangle fa-lg"></i>
+                    <span>
+                        Save <strong id="csvConfirmCount">0</strong> questions to the database?
+                        This action cannot be undone.
+                    </span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-2">
+                <button type="button" class="btn btn-secondary rounded-pill"
+                        data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success rounded-pill"
+                        onclick="csvSaveToDB()">
+                    <i class="fas fa-database me-2"></i>Yes, Save All
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── CSV Uploader Styles ────────────────────────────────────────────────── -->
+<style>
+    /* Question card inside CSV modal */
+    .csv-q-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-left: 4px solid #667eea;
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: .85rem;
+        transition: box-shadow .2s;
+    }
+    .csv-q-card:hover { box-shadow: 0 4px 20px rgba(102,126,234,.12); }
+
+    /* Rendered LaTeX option box */
+    .csv-rend-opt {
+        background: #f8faff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        overflow-x: hidden;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    /* LaTeX content wrapper — KEY: forces vertical wrap, not horizontal expand */
+    .csv-latex {
+        display: block;
+        width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 2;
+    }
+
+    /* Force each MathJax equation to its own line inside csv modal */
+    #csvUploaderModal mjx-container {
+        display: block !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        max-width: 100% !important;
+        margin: 2px 0 !important;
+        text-align: left !important;
+    }
+
+    /* Drop zone hover state */
+    #csvDropZone.drag-over {
+        border-color: #667eea;
+        background: #eef2ff;
+    }
+
+    /* Type badges */
+    .csv-badge-mcq     { background:rgba(25,135,84,.1);   color:#198754; }
+    .csv-badge-msq     { background:rgba(255,193,7,.12);  color:#b45309; }
+    .csv-badge-numeric { background:rgba(102,126,234,.1); color:#667eea; }
+
+    .csv-latex mjx-container{
+display:block !important;
+margin:6px 0 !important;
+overflow-x:auto !important;
+overflow-y:hidden !important;
+max-width:100% !important;
+white-space:normal !important;
+}
+
+.csv-latex mjx-container[jax="CHTML"]{
+display:block !important;
+text-align:left !important;
+}
+
+.csv-latex mjx-math{
+white-space:normal !important;
+}
+</style>
+
+<!-- ── CSV Uploader Script ────────────────────────────────────────────────── -->
+<script>
+(function() {   // IIFE — keeps all vars scoped, no globals conflict
+
+    let _csvRows   = [];           // parsed question objects
+    let _csvConfirm = null;        // bootstrap modal instance
+
+    // ── Init confirm modal lazily ──────────────────────────────────────────
+    function getConfirmModal() {
+        if (!_csvConfirm) _csvConfirm = new bootstrap.Modal(document.getElementById('csvConfirmModal'));
+        return _csvConfirm;
+    }
+
+    // ── Drag-and-drop handlers (exposed globally for inline onXxx) ─────────
+    window.csvDragOver = function(e) {
+        e.preventDefault();
+        document.getElementById('csvDropZone').classList.add('drag-over');
+    };
+    window.csvDragLeave = function(e) {
+        document.getElementById('csvDropZone').classList.remove('drag-over');
+    };
+window.csvDrop=function(e){
+
+e.preventDefault()
+
+document.getElementById('csvDropZone').classList.remove('drag-over')
+
+const file=e.dataTransfer.files[0]
+
+if(file && file.name.endsWith('.csv')){
+
+const input=document.getElementById('csvFileInput')
+
+const dt=new DataTransfer()
+
+dt.items.add(file)
+
+input.files=dt.files
+
+_handleFile(file)
+
+}else{
+
+alert('Please drop a .csv file')
+
+}
+
+    };
+
+    // File input change
+    window.csvFileSelected = function(input) {
+        const file = input.files[0];
+        if (file) _handleFile(file);
+    };
+
+    function _handleFile(file) {
+        document.getElementById('csvFileName').textContent = file.name;
+    }
+
+    // ── Sample CSV download ────────────────────────────────────────────────
+    window.csvDownloadSample = function() {
+        const header = 'exam_id,question_text,option_a,option_b,option_c,option_d,correct_answer,question_type,image_path,positive_marks,negative_marks,tolerance';
+        const row1   = '1,"$\\\\large\\\\text{A particle moves with velocity }v$","$\\\\large\\\\text{10 m/s}$","$\\\\large\\\\text{20 m/s}$","$\\\\large\\\\text{30 m/s}$","$\\\\large\\\\text{40 m/s}$",B,MCQ,,4,1,0';
+        const row2   = '1,"$\\\\large\\\\text{Numeric: What is } 2+2?$","","","","",4,NUMERIC,,3,0,0.01';
+        const csv    = [header, row1, row2].join('\n');
+        _download(new Blob([csv], {type:'text/csv'}), 'sample_questions.csv');
+    };
+
+    // ── Parse CSV ─────────────────────────────────────────────────────────
+    window.csvParse = function() {
+        const input = document.getElementById('csvFileInput');
+        const file  = input.files[0];
+        if (!file) { alert('Please select or drop a CSV file first.'); return; }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const lines = e.target.result.split('\n').filter(l => l.trim());
+            if (lines.length < 2) { alert('CSV has no data rows.'); return; }
+
+            const headers = _parseRow(lines[0]);
+            _csvRows = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const vals = _parseRow(lines[i]);
+                if (vals.length !== headers.length) continue;
+                const q = {};
+                headers.forEach((h, idx) => { q[h.trim()] = vals[idx]; });
+                if (q.exam_id && q.question_text && q.correct_answer) _csvRows.push(q);
+            }
+
+            if (!_csvRows.length) { alert('No valid rows found. Check column headers.'); return; }
+
+            document.getElementById('csvStep1').style.display = 'none';
+            document.getElementById('csvStep2').style.display = 'block';
+            _renderCards();
+        };
+        reader.readAsText(file);
+    };
+
+    // ── Parse a single CSV row (handles quoted fields) ─────────────────────
+    function _parseRow(row) {
+        const res = []; let cur = ''; let inQ = false;
+        for (const ch of row) {
+            if (ch === '"') { inQ = !inQ; }
+            else if (ch === ',' && !inQ) { res.push(cur.trim()); cur = ''; }
+            else cur += ch;
+        }
+        res.push(cur.trim());
+        return res;
+    }
+
+    // ── Render all cards ───────────────────────────────────────────────────
+function _renderCards() {
+
+document.getElementById('csvQCount').textContent=_csvRows.length
+
+document.getElementById('csvCardList').innerHTML=
+_csvRows.map((q,i)=>_cardHTML(q,i)).join('')
+
+}
+
+    // ── Single card HTML ───────────────────────────────────────────────────
+    function _cardHTML(q, i) {
+        const isNum    = q.question_type === 'NUMERIC';
+        const badgeCls = q.question_type === 'MCQ' ? 'csv-badge-mcq'
+                       : q.question_type === 'MSQ' ? 'csv-badge-msq'
+                       : 'csv-badge-numeric';
+        const pm = q.positive_marks || 4;
+        const nm = q.negative_marks || 1;
+
+        /* Raw option codes */
+        const rawOpts = !isNum ? `
+            <div class="row g-2 mb-2">
+                <div class="col-6"><strong>A)</strong> <code style="display:block;background:#f8f9fa;padding:4px 8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">${_esc(q.option_a).replace(/\$/g,'&#36;')}</code></div>
+                <div class="col-6"><strong>B)</strong> <code style="display:block;background:#f8f9fa;padding:4px 8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">${_esc(q.option_b).replace(/\$/g,'&#36;')}</code></div>
+                <div class="col-6"><strong>C)</strong> <code style="display:block;background:#f8f9fa;padding:4px 8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">${_esc(q.option_c).replace(/\$/g,'&#36;')}</code></div>
+                <div class="col-6"><strong>D)</strong> <code style="display:block;background:#f8f9fa;padding:4px 8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">${_esc(q.option_d).replace(/\$/g,'&#36;')}</code></div>
+            </div>` : '';
+
+        /* Rendered LaTeX options */
+        const rendOpts = !isNum ? `
+            <div class="mt-2">
+                <div class="csv-rend-opt"><strong style="color:#28a745;">A)</strong> <span class="csv-latex" id="cropt-${i}-a">${q.option_a||''}</span></div>
+                <div class="csv-rend-opt"><strong style="color:#28a745;">B)</strong> <span class="csv-latex" id="cropt-${i}-b">${q.option_b||''}</span></div>
+                <div class="csv-rend-opt"><strong style="color:#28a745;">C)</strong> <span class="csv-latex" id="cropt-${i}-c">${q.option_c||''}</span></div>
+                <div class="csv-rend-opt"><strong style="color:#28a745;">D)</strong> <span class="csv-latex" id="cropt-${i}-d">${q.option_d||''}</span></div>
+            </div>` : '';
+
+        /* Edit inputs for options */
+        const editOpts = !isNum ? `
+            <div class="row g-2 mb-3">
+                <div class="col-6"><label class="form-label small">A:</label><input class="form-control form-control-sm" id="ceoa-${i}" value="${_esc(q.option_a||'')}"></div>
+                <div class="col-6"><label class="form-label small">B:</label><input class="form-control form-control-sm" id="ceob-${i}" value="${_esc(q.option_b||'')}"></div>
+                <div class="col-6"><label class="form-label small">C:</label><input class="form-control form-control-sm" id="ceoc-${i}" value="${_esc(q.option_c||'')}"></div>
+                <div class="col-6"><label class="form-label small">D:</label><input class="form-control form-control-sm" id="ceod-${i}" value="${_esc(q.option_d||'')}"></div>
+            </div>` : '';
+
+        return `
+        <div class="csv-q-card" id="ccard-${i}">
+            <!-- Top bar -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+
+<div class="d-flex align-items-center gap-2 flex-wrap">
+
+<span class="badge rounded-pill px-3 py-1 ${badgeCls}" style="font-size:.75rem;">${q.question_type}</span>
+
+<span class="badge bg-light text-dark">+${pm} / -${nm}</span>
+
+<small class="text-muted">Exam ID: ${q.exam_id}</small>
+
+<div class="d-flex align-items-center gap-1" style="background:#f1f5f9;border-radius:8px;padding:3px 10px;">
+<i class="fas fa-text-height" style="color:#667eea;font-size:0.75rem;"></i>
+<select class="form-select form-select-sm border-0 bg-transparent p-0"
+style="font-size:0.75rem;width:90px;cursor:pointer;"
+onchange="csvChangeSize(${i}, this.value)">
+<option value="\\small">Small</option>
+<option value="\\normalsize">Normal</option>
+<option value="\\large" selected>Large</option>
+<option value="\\Large">Larger</option>
+<option value="\\LARGE">X-Large</option>
+<option value="\\huge">Huge</option>
+<option value="\\Huge">Maximum</option>
+</select>
+</div>
+
+</div>
+
+<div class="btn-group btn-group-sm">
+
+<button class="btn btn-outline-primary" id="ctbtn-${i}" onclick="csvToggleView(${i})">
+<i class="fas fa-eye"></i> Rendered
+</button>
+
+<button class="btn btn-outline-warning" onclick="csvEditCard(${i})">
+<i class="fas fa-edit"></i> Edit
+</button>
+
+<button class="btn btn-outline-danger" onclick="csvDeleteCard(${i})">
+<i class="fas fa-trash"></i>
+</button>
+
+</div>
+
+</div>
+
+            <div class="fw-semibold text-primary mb-2" style="font-size:.85rem;">Question ${i + 1}</div>
+
+            <!-- RAW view (default) -->
+            <div id="craw-${i}">
+                <div class="mb-2">
+                    <strong class="small">Question:</strong>
+                    <code style="display:block;background:#f8f9fa;padding:8px 10px;border-radius:6px;white-space:pre-wrap;word-break:break-all;font-size:.8rem;">${_esc(q.question_text).replace(/\$/g,'&#36;')}</code>
+                </div>
+                ${rawOpts}
+            </div>
+
+            <!-- RENDERED view (hidden) -->
+            <div id="crend-${i}" style="display:none;background:#f8faff;border-radius:8px;padding:1rem;border:1px solid #e2e8f0;">
+                <strong class="small" style="color:#667eea;display:block;margin-bottom:6px;">Question:</strong>
+                <div class="csv-latex" id="crq-${i}">${q.question_text}</div>
+                ${rendOpts}
+            </div>
+
+            <!-- EDIT view (hidden) -->
+            <div id="cedit-${i}" style="display:none;">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Question Text:</label>
+                    <textarea class="form-control form-control-sm" id="ceq-${i}" rows="3">${_esc(q.question_text)}</textarea>
+                </div>
+                ${editOpts}
+<div class="row g-2 mb-3">
+
+<div class="col-4">
+<label class="form-label small">Correct Answer:</label>
+<input class="form-control form-control-sm" id="ceoa-ans-${i}" value="${_esc(q.correct_answer)}">
+</div>
+
+<div class="col-2">
+<label class="form-label small">+Marks:</label>
+<input type="number" step="0.5" class="form-control form-control-sm" id="cepm-${i}" value="${pm}">
+</div>
+
+<div class="col-2">
+<label class="form-label small">-Marks:</label>
+<input type="number" step="0.5" class="form-control form-control-sm" id="cenm-${i}" value="${nm}">
+</div>
+
+<div class="col-2">
+<label class="form-label small">Tolerance:</label>
+<input type="number" step="0.01" class="form-control form-control-sm" id="cetol-${i}" value="${q.tolerance||0}">
+</div>
+
+<div class="col-2">
+<label class="form-label small">Image Path:</label>
+<input class="form-control form-control-sm" id="ceimg-${i}" value="${_esc(q.image_path||'')}">
+</div>
+
+</div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-success rounded-pill" onclick="csvSaveEdit(${i})">
+                        <i class="fas fa-save me-1"></i>Save
+                    </button>
+                    <button class="btn btn-sm btn-secondary rounded-pill" onclick="csvCancelEdit(${i})">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Answer row -->
+            <div class="mt-3 text-success fw-semibold small">
+                <i class="fas fa-check-circle me-1"></i>Answer: <span id="cans-${i}">${q.correct_answer}</span>
+            </div>
+        </div>`;
+    }
+
+    // ── Toggle raw ↔ rendered ──────────────────────────────────────────────
+    window.csvToggleView = function(i) {
+        const raw  = document.getElementById(`craw-${i}`);
+        const rend = document.getElementById(`crend-${i}`);
+        const btn  = document.getElementById(`ctbtn-${i}`);
+        if (raw.style.display !== 'none') {
+            raw.style.display  = 'none';
+            rend.style.display = 'block';
+            btn.innerHTML = '<i class="fas fa-code"></i> Raw';
+            btn.className = 'btn btn-sm btn-primary';
+            if (window.MathJax) MathJax.typesetPromise([rend]).catch(console.warn);
+        } else {
+            raw.style.display  = 'block';
+            rend.style.display = 'none';
+            btn.innerHTML = '<i class="fas fa-eye"></i> Rendered';
+            btn.className = 'btn btn-sm btn-outline-primary';
+        }
+    };
+
+    // ── Edit / Save / Cancel / Delete ──────────────────────────────────────
+    window.csvEditCard = function(i) {
+        document.getElementById(`craw-${i}`).style.display  = 'none';
+        document.getElementById(`crend-${i}`).style.display = 'none';
+        document.getElementById(`cedit-${i}`).style.display = 'block';
+    };
+
+    window.csvCancelEdit = function(i) {
+        document.getElementById(`craw-${i}`).style.display  = 'block';
+        document.getElementById(`cedit-${i}`).style.display = 'none';
+    };
+
+    window.csvSaveEdit = function(i) {
+        const q = _csvRows[i];
+        q.question_text  = document.getElementById(`ceq-${i}`).value;
+        q.correct_answer = document.getElementById(`ceoa-ans-${i}`).value;
+        q.positive_marks = document.getElementById(`cepm-${i}`).value;
+        q.negative_marks = document.getElementById(`cenm-${i}`).value;
+        q.tolerance=document.getElementById(`cetol-${i}`).value
+        q.image_path=document.getElementById(`ceimg-${i}`).value        
+        if (q.question_type !== 'NUMERIC') {
+            q.option_a = document.getElementById(`ceoa-${i}`).value;
+            q.option_b = document.getElementById(`ceob-${i}`).value;
+            q.option_c = document.getElementById(`ceoc-${i}`).value;
+            q.option_d = document.getElementById(`ceod-${i}`).value;
+        }
+        _renderCards();
+    };
+
+    window.csvDeleteCard = function(i) {
+        if (!confirm('Delete this question?')) return;
+        _csvRows.splice(i, 1);
+        _renderCards();
+    };
+
+    // ── Back to upload ─────────────────────────────────────────────────────
+    window.csvBackToUpload = function() {
+        if (!confirm('Discard all changes and go back?')) return;
+        _csvRows = [];
+        document.getElementById('csvStep1').style.display = 'block';
+        document.getElementById('csvStep2').style.display = 'none';
+        document.getElementById('csvFileInput').value = '';
+        document.getElementById('csvFileName').textContent = 'No file selected';
+    };
+
+    // ── Export ─────────────────────────────────────────────────────────────
+    window.csvExport = function() {
+        if (!_csvRows.length) { alert('Nothing to export.'); return; }
+        const hdr  = 'exam_id,question_text,option_a,option_b,option_c,option_d,correct_answer,question_type,image_path,positive_marks,negative_marks,tolerance';
+        const rows = _csvRows.map(q =>
+[
+ q.exam_id,
+ `"${(q.question_text||'').replace(/"/g,'""')}"`,
+ `"${(q.option_a||'').replace(/"/g,'""')}"`,
+ `"${(q.option_b||'').replace(/"/g,'""')}"`,
+ `"${(q.option_c||'').replace(/"/g,'""')}"`,
+ `"${(q.option_d||'').replace(/"/g,'""')}"`,
+ `"${(q.correct_answer||'').replace(/"/g,'""')}"`,
+ `"${(q.question_type||'').replace(/"/g,'""')}"`,
+ `"${(q.image_path||'').replace(/"/g,'""')}"`,
+ q.positive_marks||4,
+ q.negative_marks||1,
+ q.tolerance||0
+].join(',')
+        ).join('\n');
+        _download(new Blob([hdr + '\n' + rows], {type:'text/csv'}), 'edited_questions.csv');
+    };
+
+    // ── Confirm save dialog ────────────────────────────────────────────────
+    window.csvConfirmSave = function() {
+        if (!_csvRows.length) { alert('No questions to save.'); return; }
+        document.getElementById('csvConfirmCount').textContent = _csvRows.length;
+        getConfirmModal().show();
+    };
+
+    // ── Actual DB save ─────────────────────────────────────────────────────
+    window.csvSaveToDB = async function() {
+        getConfirmModal().hide();
+
+        const hdr  = 'exam_id,question_text,option_a,option_b,option_c,option_d,correct_answer,question_type,image_path,positive_marks,negative_marks,tolerance';
+        const rows = _csvRows.map(q =>
+[
+ q.exam_id,
+ `"${(q.question_text||'').replace(/"/g,'""')}"`,
+ `"${(q.option_a||'').replace(/"/g,'""')}"`,
+ `"${(q.option_b||'').replace(/"/g,'""')}"`,
+ `"${(q.option_c||'').replace(/"/g,'""')}"`,
+ `"${(q.option_d||'').replace(/"/g,'""')}"`,
+ `"${(q.correct_answer||'').replace(/"/g,'""')}"`,
+ `"${(q.question_type||'').replace(/"/g,'""')}"`,
+ `"${(q.image_path||'').replace(/"/g,'""')}"`,
+ q.positive_marks||4,
+ q.negative_marks||1,
+ q.tolerance||0
+].join(',')
+        ).join('\n');
+
+        const fd = new FormData();
+        fd.append('csv_file', new Blob([hdr + '\n' + rows], {type:'text/csv'}), 'questions.csv');
+
+        try {
+            // Route already exists in admin.py: POST /admin/questions/import-csv
+            const res  = await fetch('/admin/questions/import-csv', {method:'POST', body: fd});
+            const data = await res.json();
+            if (data.success) {
+                alert(`✅ Saved!\n\nInserted : ${data.inserted}\nSkipped  : ${data.skipped}`);
+                bootstrap.Modal.getInstance(document.getElementById('csvUploaderModal'))?.hide();
+                location.reload();
+            } else {
+                alert('❌ ' + data.message);
+            }
+        } catch (err) {
+            alert('❌ Server error: ' + err.message);
+        }
+    };
+
+    // ── LaTeX size — exact same logic as ai_command_centre ─────────────────
+    function _applyLatexSize(text, sizeCmd) {
+        if (!text) return text;
+        let inner = text.trim();
+        if (inner.startsWith('$$') && inner.endsWith('$$')) inner = inner.slice(2,-2).trim();
+        else if (inner.startsWith('$') && inner.endsWith('$')) inner = inner.slice(1,-1).trim();
+        inner = inner.replace(/^\\(small|normalsize|large|Large|LARGE|huge|Huge)\s*/, '').trim();
+        return '$' + sizeCmd + ' ' + inner + ' $';
+    }
+
+window.csvChangeSize=function(i,size){
+
+let q=_csvRows[i]
+
+q.question_text=_applyLatexSize(q.question_text,size)
+
+if(q.question_type!=='NUMERIC'){
+q.option_a=_applyLatexSize(q.option_a,size)
+q.option_b=_applyLatexSize(q.option_b,size)
+q.option_c=_applyLatexSize(q.option_c,size)
+q.option_d=_applyLatexSize(q.option_d,size)
+}
+
+_renderCards()
+
+}
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function _esc(t) {
+        const d = document.createElement('div');
+        d.textContent = t || '';
+        return d.innerHTML;
+    }
+
+    function _download(blob, name) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(a.href);
+        document.body.removeChild(a);
+    }
+
+})(); 
+
+
+</script>

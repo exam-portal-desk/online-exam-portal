@@ -10,22 +10,28 @@
 
   <!-- MathJax Configuration - FIXED -->
   <script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$'], ['\\(', '\\)']],
-      displayMath: [['$$','$$'], ['\\[','\\]']],
-      processEscapes: true,
-      processEnvironments: true
-    },
-    options: { 
-      skipHtmlTags: ['script','noscript','style','textarea','pre','code'],
-      ignoreHtmlClass: 'tex2jax_ignore',
-      processHtmlClass: 'tex2jax_process|math-content'
-    },
-    startup: {
-      typeset: false
-    }
-  };
+window.MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+    displayMath: [['$$','$$'], ['\\[','\\]']],
+    processEscapes: true,
+    processEnvironments: true
+  },
+  chtml: {
+    linebreaks: { automatic: true, width: "container" }
+  },
+  svg: {
+    linebreaks: { automatic: true, width: "container" }
+  },
+  options: { 
+    skipHtmlTags: ['script','noscript','style','textarea','pre','code'],
+    ignoreHtmlClass: 'tex2jax_ignore',
+    processHtmlClass: 'tex2jax_process|math-content'
+  },
+  startup: {
+    typeset: false
+  }
+};
   </script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
 
@@ -129,6 +135,21 @@
       .filter-section, .actions-section { display:none !important; }
       .question-card { page-break-inside: avoid; break-inside: avoid; }
     }
+
+    /* MathJax long equation wrapping */
+
+.math-content mjx-container {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+.math-content mjx-container[display="true"] {
+  display: block !important;
+}
+
+.math-content mjx-math {
+  white-space: normal !important;
+}
   </style>
 </head>
 <body>

@@ -91,25 +91,21 @@
                 {% endif %}
               </div>
             </td>
-            <td>
-              {% if request.reason %}
-                <div class="reason-cell" title="{{ request.reason }}">
-                  {% if request.status == 'completed' %}
-                    <span class="text-success">
-                      <i class="fas fa-check-circle me-1"></i>
-                      {{ request.reason[:50] }}{% if request.reason|length > 50 %}...{% endif %}
-                    </span>
-                  {% else %}
-                    <span class="text-danger">
-                      <i class="fas fa-exclamation-circle me-1"></i>
-                      {{ request.reason[:50] }}{% if request.reason|length > 50 %}...{% endif %}
-                    </span>
-                  {% endif %}
-                </div>
-              {% else %}
-                <span class="text-muted">-</span>
-              {% endif %}
-            </td>
+<td style="min-width: 250px;">
+    {% if request.reason %}
+        <div style="
+            max-width: 300px; 
+            word-wrap: break-word; 
+            white-space: pre-wrap; 
+            line-height: 1.6;
+            font-size: 0.9rem;
+        ">
+            {{ request.reason }}
+        </div>
+    {% else %}
+        <span class="text-muted fst-italic">-</span>
+    {% endif %}
+</td>
           </tr>
           {% endfor %}
         </tbody>

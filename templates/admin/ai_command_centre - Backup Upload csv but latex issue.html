@@ -1,0 +1,934 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}AI Command Centre{% endblock %}
+
+{% block content %}
+<!-- MathJax for LaTeX Rendering -->
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$']],
+        packages: {'[+]': ['newcommand']}
+    },
+    chtml: {
+        scale: 1,
+        displayAlign: 'left',
+        displayIndent: '0',
+        linebreaks: { automatic: true, width: "container" }
+    },
+    svg: {
+        linebreaks: { automatic: true, width: "container" }
+    },
+    options: {
+        skipHtmlTags: ['script','noscript','style','textarea','pre']
+    },
+    startup: {
+        typeset: false
+    }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+<style>
+    .ai-page-header {
+        background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow);
+    }
+
+    .ai-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem;
+        height: 100%;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ai-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 4px;
+        background: var(--brand-gradient);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+
+    .ai-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: var(--brand1); }
+    .ai-card:hover::before { transform: scaleX(1); }
+
+    .mode-icon {
+        width: 80px; height: 80px;
+        background: var(--brand-gradient);
+        border-radius: 20px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 2.5rem; color: white;
+        margin-bottom: 1.5rem;
+    }
+
+    .ai-card-title { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.75rem; }
+    .ai-card-desc  { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .ai-card-action { color: var(--brand1); font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; }
+
+    .status-badge {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: rgba(25,135,84,0.1); border: 1px solid rgba(25,135,84,0.3);
+        border-radius: 50px; color: var(--success); font-size: 0.85rem; font-weight: 600;
+    }
+
+    .status-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite; }
+
+    @keyframes pulse {
+        0%,100% { opacity:1; transform:scale(1); }
+        50%      { opacity:0.5; transform:scale(1.2); }
+    }
+
+    .preview-section {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem; margin-top: 2rem;
+    }
+
+    .question-preview-card {
+        background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--brand1);
+        border-radius: 12px;
+        padding: 1.5rem; margin-bottom: 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .question-preview-card:hover { box-shadow: var(--shadow); transform: translateX(4px); }
+
+    /* ── BUG FIX: Single #loadingOverlay rule — display:none MUST be here ── */
+    #loadingOverlay {
+        display: none;                        /* ← CRITICAL: was missing from 2nd duplicate rule */
+        position: fixed; inset: 0;
+        background: rgba(8,12,30,0.93);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #loadingOverlay::before {
+        content: ''; position: absolute; inset: 0;
+        background-image:
+            radial-gradient(1px 1px at 15% 25%, rgba(99,102,241,0.6) 0%, transparent 100%),
+            radial-gradient(1px 1px at 45% 70%, rgba(168,85,247,0.5) 0%, transparent 100%),
+            radial-gradient(1px 1px at 75% 40%, rgba(56,239,125,0.4) 0%, transparent 100%),
+            radial-gradient(1px 1px at 85% 80%, rgba(99,102,241,0.5) 0%, transparent 100%),
+            radial-gradient(1px 1px at 30% 55%, rgba(168,85,247,0.3) 0%, transparent 100%),
+            radial-gradient(1px 1px at 60% 15%, rgba(56,239,125,0.4) 0%, transparent 100%);
+        background-size: 400px 400px;
+        animation: starfieldBg 10s linear infinite;
+        pointer-events: none; z-index: 0;
+    }
+
+    @keyframes starfieldBg { 0%{background-position:0 0} 100%{background-position:400px 400px} }
+
+    .loading-card {
+        position: relative; z-index: 1;
+        background: linear-gradient(145deg, rgba(17,24,54,0.97) 0%, rgba(30,16,56,0.97) 100%);
+        border: 1px solid rgba(99,102,241,0.28); border-radius: 28px;
+        padding: 3rem 3.5rem; text-align: center; max-width: 460px; width: 90%;
+        box-shadow: 0 0 0 1px rgba(168,85,247,0.08), 0 40px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);
+        animation: cardEntry 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; overflow: hidden;
+    }
+
+    .loading-card::before {
+        content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(99,102,241,0.9), rgba(168,85,247,0.9), transparent);
+        animation: scanLine 3s ease-in-out infinite;
+    }
+
+    @keyframes scanLine { 0%,100%{opacity:0.4;left:15%;right:15%} 50%{opacity:1;left:5%;right:5%} }
+    @keyframes cardEntry { from{opacity:0;transform:scale(0.85) translateY(30px)} to{opacity:1;transform:scale(1) translateY(0)} }
+
+    .orbital-ring { position:relative; width:96px; height:96px; margin:0 auto 2rem; }
+    .orbit { position:absolute; inset:0; border-radius:50%; border:2px solid transparent; }
+    .orbit-1 { border-top-color:#6366f1; border-bottom-color:rgba(99,102,241,0.1); animation:orb1 1.4s cubic-bezier(0.5,0,0.5,1) infinite; }
+    .orbit-2 { inset:12px; border-left-color:#a855f7; border-right-color:rgba(168,85,247,0.1); animation:orb2 1s linear infinite reverse; }
+    .orbit-3 { inset:24px; border-top-color:#38ef7d; border-bottom-color:rgba(56,239,125,0.1); animation:orb1 0.7s linear infinite; }
+    .orbit-core { position:absolute; inset:36px; background:radial-gradient(circle,rgba(99,102,241,0.45),rgba(168,85,247,0.2),transparent); border-radius:50%; animation:corePulse 2s ease-in-out infinite; }
+
+    @keyframes orb1 { to{transform:rotate(360deg)} }
+    @keyframes orb2 { to{transform:rotate(360deg)} }
+    @keyframes corePulse { 0%,100%{transform:scale(1);opacity:0.6} 50%{transform:scale(1.3);opacity:1} }
+
+    .ai-progress-wrap { width:100%; height:4px; background:rgba(255,255,255,0.06); border-radius:99px; overflow:hidden; margin:1.5rem 0 1rem; }
+    .ai-progress-bar { height:100%; width:5%; background:linear-gradient(90deg,#6366f1,#a855f7,#38ef7d); border-radius:99px; animation:progressFlow 4s ease-in-out infinite; position:relative; }
+    .ai-progress-bar::after { content:''; position:absolute; right:0; top:0; bottom:0; width:40px; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.45)); border-radius:99px; animation:shimmerBar 1.5s ease-in-out infinite; }
+
+    @keyframes progressFlow { 0%{width:5%} 30%{width:45%} 65%{width:75%} 90%{width:90%} 100%{width:93%} }
+    @keyframes shimmerBar { 0%,100%{opacity:0} 50%{opacity:1} }
+
+    .loading-title { font-size:1.3rem; font-weight:700; letter-spacing:-0.02em; background:linear-gradient(135deg,#a5b4fc,#c084fc,#86efac); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:0.35rem; }
+    .loading-sub { color:#475569; font-size:0.85rem; letter-spacing:0.02em; min-height:1.2em; }
+
+    .loading-steps { display:flex; justify-content:center; gap:1rem; margin-top:1.2rem; }
+    .loading-step { display:flex; flex-direction:column; align-items:center; gap:5px; opacity:0.25; transition:opacity 0.4s ease; font-size:0.68rem; color:#94a3b8; letter-spacing:0.06em; font-weight:600; }
+    .loading-step.active { opacity:1; }
+    .step-dot { width:7px; height:7px; border-radius:50%; background:#475569; transition:background 0.4s, box-shadow 0.4s; }
+    .loading-step.active .step-dot { background:#38ef7d; box-shadow:0 0 8px rgba(56,239,125,0.7); animation:dotBeat 0.9s ease-in-out infinite; }
+    @keyframes dotBeat { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
+
+    .modal-content { border-radius: 20px; border: 1px solid var(--border-color); }
+    .config-section { background: #f8faff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .config-section-title { font-weight:700; color:var(--text-primary); font-size:0.9rem; margin-bottom:1rem; text-transform:uppercase; letter-spacing:0.5px; }
+
+    .type-badge { display:inline-block; padding:0.25rem 0.75rem; border-radius:6px; font-size:0.75rem; font-weight:600; }
+    .type-badge-mcq     { background:rgba(25,135,84,0.1);  color:var(--success); }
+    .type-badge-msq     { background:rgba(255,193,7,0.1);  color:#ffc107; }
+    .type-badge-numeric { background:rgba(102,126,234,0.1); color:var(--brand1); }
+
+    /* ── Rendered View ───────────────────────────────── */
+    .rendered-view-box {
+        display: none;
+        background: #f8faff;
+        border-radius: 10px;
+        padding: 1.2rem;
+        border: 1px solid #e2e8f0;
+        width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    /* KEY FIX: .latex-content splits \newline into separate blocks */
+.latex-content {
+    display: block;
+    width: 100%;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    line-height: 2.2;
+    max-width: 100%;
+}
+
+    /* Force each MathJax equation onto its own line */
+mjx-container {
+    display: block !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    max-width: 100% !important;
+    margin: 2px 0 !important;
+    text-align: left !important;
+}
+
+    .rendered-option {
+        background: #fff;
+        border-radius: 8px;
+        padding: 10px 14px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 8px;
+        overflow-x: hidden;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+</style>
+
+<!-- ════════════════════════════════════════════════════════════ PAGE HTML -->
+<div class="container-fluid">
+    <div class="ai-page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="fw-bold mb-2">
+                    <i class="fas fa-robot me-2" style="color: var(--brand1);"></i>AI Command Centre
+                </h2>
+                <p class="text-secondary mb-0">Generate high-quality exam questions using Gemini 1.5 Flash AI</p>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="status-badge"><span class="status-dot"></span>System Online</div>
+                <button class="btn btn-primary" onclick="openCSVUploadModal()">
+                    <i class="fas fa-file-csv me-2"></i>Upload CSV
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="ai-card" onclick="openModeModal('extract')">
+                <div class="mode-icon"><i class="fas fa-file-pdf"></i></div>
+                <h3 class="ai-card-title">Direct Extraction</h3>
+                <p class="ai-card-desc">Extract existing questions directly from PDF papers. Perfect for previous year questions.</p>
+                <div class="ai-card-action">Configure & Generate <i class="fas fa-arrow-right"></i></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ai-card" onclick="openModeModal('mine')">
+                <div class="mode-icon"><i class="fas fa-brain"></i></div>
+                <h3 class="ai-card-title">Concept Mining</h3>
+                <p class="ai-card-desc">AI reads theory PDFs and generates new questions based on concepts using RAG technology.</p>
+                <div class="ai-card-action">Configure & Generate <i class="fas fa-arrow-right"></i></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ai-card" onclick="openModeModal('pure')">
+                <div class="mode-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+                <h3 class="ai-card-title">Pure Generation</h3>
+                <p class="ai-card-desc">Generate questions directly from a topic name. No PDF required, just pure AI creativity.</p>
+                <div class="ai-card-action">Configure & Generate <i class="fas fa-arrow-right"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="previewSection" style="display:none;">
+        <div class="preview-section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold mb-0">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    Generated Questions (<span id="questionCount">0</span>)
+                </h3>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="exportToCSV()"><i class="fas fa-download me-2"></i>Export CSV</button>
+                    <button class="btn btn-success" onclick="saveToDatabase()"><i class="fas fa-save me-2"></i>Save to Database</button>
+                </div>
+            </div>
+            <div id="questionsPreviewList"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ MODALS -->
+
+<!-- AI Generation Config Modal -->
+<div class="modal fade" id="generationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <form id="aiGenForm" enctype="multipart/form-data">
+                <input type="hidden" name="mode" id="modalMode">
+                <div class="modal-header">
+                    <h4 class="modal-title fw-bold" id="modalTitle"><i class="fas fa-cog me-2"></i>Configuration Engine</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
+                    <div class="config-section">
+                        <div class="config-section-title"><i class="fas fa-sliders-h me-2"></i>Basic Configuration</div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Select Exam</label>
+                                <select name="exam_id" class="form-select" required>
+                                    <option value="">Choose exam...</option>
+                                    {% for exam in exams %}<option value="{{ exam.id }}">{{ exam.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Difficulty Level</label>
+                                <select name="difficulty" class="form-select">
+                                    <option>Easy</option><option selected>Medium</option><option>Hard</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="config-section" id="pdfInputArea">
+                        <div class="config-section-title"><i class="fas fa-file-pdf me-2"></i>Upload PDF Document</div>
+                        <input type="file" name="pdf_file" class="form-control" accept=".pdf">
+                        <small class="text-muted">Upload your PDF containing questions or theory content</small>
+                    </div>
+                    <div class="config-section" id="topicInputArea" style="display:none;">
+                        <div class="config-section-title"><i class="fas fa-lightbulb me-2"></i>Enter Topic</div>
+                        <input type="text" name="topic" id="topicInput" class="form-control" placeholder="e.g., Newton's Laws of Motion">
+                        <small class="text-muted">Enter the topic for AI to generate questions</small>
+                    </div>
+                    <div class="config-section">
+                        <div class="config-section-title"><i class="fas fa-list-ol me-2"></i>Question Counts</div>
+                        <div class="row g-3">
+                            <div class="col-md-4"><label class="form-label">MCQ (Single Correct)</label><input type="number" name="mcq_count" class="form-control" value="5" min="0"></div>
+                            <div class="col-md-4"><label class="form-label">MSQ (Multiple Correct)</label><input type="number" name="msq_count" class="form-control" value="2" min="0"></div>
+                            <div class="col-md-4"><label class="form-label">NUMERIC (Integer Answer)</label><input type="number" name="numeric_count" class="form-control" value="3" min="0"></div>
+                        </div>
+                    </div>
+                    <div class="config-section">
+                        <div class="config-section-title"><i class="fas fa-star me-2"></i>Marking Scheme</div>
+                        <div class="row g-3">
+                            <div class="col-md-4"><label class="form-label text-success">MCQ: Positive Marks</label><input type="number" name="mcq_plus" class="form-control" value="4" step="0.5"></div>
+                            <div class="col-md-4"><label class="form-label text-danger">MCQ: Negative Marks</label><input type="number" name="mcq_minus" class="form-control" value="1" step="0.5"></div>
+                            <div class="col-md-4"></div>
+                            <div class="col-md-4"><label class="form-label text-success">MSQ: Positive Marks</label><input type="number" name="msq_plus" class="form-control" value="4" step="0.5"></div>
+                            <div class="col-md-4"><label class="form-label text-danger">MSQ: Negative Marks</label><input type="number" name="msq_minus" class="form-control" value="2" step="0.5"></div>
+                            <div class="col-md-4"></div>
+                            <div class="col-md-4"><label class="form-label text-success">NUMERIC: Positive Marks</label><input type="number" name="numeric_plus" class="form-control" value="3" step="0.5"></div>
+                            <div class="col-md-4">
+                                <label class="form-label">NUMERIC: Tolerance</label>
+                                <input type="number" name="numeric_tolerance" class="form-control" value="0.01" step="0.01">
+                                <small class="text-muted">Acceptable error margin (e.g., 0.01)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="config-section">
+                        <div class="config-section-title"><i class="fas fa-comment-dots me-2"></i>Custom Instructions (Optional)</div>
+                        <textarea name="custom_instructions" class="form-control" rows="3" placeholder="E.g., Focus more on Organic Chemistry reactions..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-rocket me-2"></i>Launch AI Engine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- CSV Upload Modal -->
+<div class="modal fade" id="csvUploadModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h4 class="modal-title"><i class="fas fa-file-csv me-2"></i>CSV Upload & Editor</h4>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" style="background:#f8f9fa;">
+                <div id="csvUploadSection">
+                    <div class="card shadow-sm">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-3">Upload CSV File</h5>
+                            <div class="mb-3">
+                                <input type="file" id="csvFileInput" class="form-control" accept=".csv">
+                                <small class="text-muted">Columns: exam_id, question_text, option_a, option_b, option_c, option_d, correct_answer, question_type, image_path, positive_marks, negative_marks, tolerance</small>
+                            </div>
+                            <div class="alert alert-info d-flex align-items-center gap-3">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Need a template?</span>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="downloadSampleCSV()">
+                                    <i class="fas fa-download me-1"></i>Download Sample CSV
+                                </button>
+                            </div>
+                            <button class="btn btn-primary btn-lg w-100" onclick="parseCSVFile()">
+                                <i class="fas fa-check me-2"></i>Parse & Preview
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="csvPreviewSection" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="fw-bold mb-0">Questions: <span id="csvCount">0</span></h5>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-secondary" onclick="backToCSVUpload()"><i class="fas fa-arrow-left me-2"></i>Back</button>
+                            <button class="btn btn-outline-primary" onclick="exportCSV()"><i class="fas fa-download me-2"></i>Export</button>
+                            <button class="btn btn-success" onclick="confirmCSVSave()"><i class="fas fa-database me-2"></i>Save to DB</button>
+                        </div>
+                    </div>
+                    <div id="csvQuestionsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSV Confirm Modal -->
+<div class="modal fade" id="csvConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">Confirm Save</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Save <strong><span id="csvConfirmCount">0</span> questions</strong> to database?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveCSVToDB()">Yes, Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay">
+    <div class="loading-card">
+        <div class="orbital-ring">
+            <div class="orbit orbit-1"></div>
+            <div class="orbit orbit-2"></div>
+            <div class="orbit orbit-3"></div>
+            <div class="orbit-core"></div>
+        </div>
+        <div class="loading-title">AI Engine Active</div>
+        <div class="loading-sub" id="loadingSubText">Initialising question generation...</div>
+        <div class="ai-progress-wrap"><div class="ai-progress-bar"></div></div>
+        <div class="loading-steps">
+            <div class="loading-step active" id="lstep-1"><div class="step-dot"></div><span>READING</span></div>
+            <div class="loading-step" id="lstep-2"><div class="step-dot"></div><span>ANALYSING</span></div>
+            <div class="loading-step" id="lstep-3"><div class="step-dot"></div><span>CRAFTING</span></div>
+            <div class="loading-step" id="lstep-4"><div class="step-dot"></div><span>VALIDATING</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SINGLE SCRIPT BLOCK — fixes all scope / race condition bugs
+     ════════════════════════════════════════════════════════════ -->
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let genModal, csvModalInstance, csvConfirmInstance;
+let generatedQuestions = [];
+let csvQuestions       = [];
+
+// ─── Init ───────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    genModal          = new bootstrap.Modal(document.getElementById('generationModal'));
+    csvModalInstance  = new bootstrap.Modal(document.getElementById('csvUploadModal'));
+    csvConfirmInstance = new bootstrap.Modal(document.getElementById('csvConfirmModal'));
+});
+
+// ─── Loading animation  (top-level, NOT inside any function) ─────────────────
+const _loadSteps = [
+    [1, 'Reading and parsing PDF content...'],
+    [2, 'Analysing concepts with RAG pipeline...'],
+    [3, 'Crafting high-quality questions via Gemini...'],
+    [4, 'Validating LaTeX and schema compliance...'],
+];
+let _loadTimer = null;
+
+function startLoadingAnimation() {
+    let idx = 0;
+    for (let i = 1; i <= 4; i++) document.getElementById(`lstep-${i}`)?.classList.remove('active');
+    document.getElementById('lstep-1')?.classList.add('active');
+    const sub = document.getElementById('loadingSubText');
+    if (sub) sub.textContent = _loadSteps[0][1];
+    _loadTimer = setInterval(() => {
+        idx++;
+        if (idx >= _loadSteps.length) { clearInterval(_loadTimer); return; }
+        const [step, msg] = _loadSteps[idx];
+        document.getElementById(`lstep-${step - 1}`)?.classList.remove('active');
+        document.getElementById(`lstep-${step}`)?.classList.add('active');
+        if (sub) sub.textContent = msg;
+    }, 2200);
+}
+
+function stopLoadingAnimation() {
+    if (_loadTimer) clearInterval(_loadTimer);
+    for (let i = 1; i <= 4; i++) document.getElementById(`lstep-${i}`)?.classList.remove('active');
+}
+
+// ─── AI Generation ────────────────────────────────────────────────────────────
+function openModeModal(mode) {
+    if (!genModal) { alert('Page not ready, refresh.'); return; }
+    document.getElementById('modalMode').value = mode;
+    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-cog me-2"></i>' +
+        { extract:'Direct Extraction', mine:'Concept Mining', pure:'Pure Generation' }[mode] + ' Configuration';
+    document.getElementById('pdfInputArea').style.display   = mode === 'pure' ? 'none' : 'block';
+    document.getElementById('topicInputArea').style.display = mode === 'pure' ? 'block' : 'none';
+    genModal.show();
+}
+
+document.getElementById('aiGenForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const mode = document.getElementById('modalMode').value;
+    const formData = new FormData(e.target);
+    if (mode === 'pure' && !formData.get('topic')?.trim()) {
+        showErrorModal('Topic Required', 'Please enter a topic name for Pure Generation mode.');
+        return;
+    }
+    genModal.hide();
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    startLoadingAnimation();
+    try {
+        const res  = await fetch('/admin/ai-command-centre/generate', { method:'POST', body: formData });
+        const data = await res.json();
+        stopLoadingAnimation();
+        document.getElementById('loadingOverlay').style.display = 'none';
+        if (data.success) {
+            generatedQuestions = data.questions;
+            renderPreview();
+            document.getElementById('previewSection').style.display = 'block';
+            showNotification('Success!', `Generated ${data.count} questions successfully!`, 'success');
+            document.getElementById('previewSection').scrollIntoView({ behavior:'smooth' });
+        } else {
+            showErrorModal('Generation Failed', data.message || 'Unknown error occurred');
+        }
+    } catch (err) {
+        stopLoadingAnimation();
+        document.getElementById('loadingOverlay').style.display = 'none';
+        showErrorModal('Server Error', 'Could not connect to server. Please check your connection.');
+    }
+};
+
+// ─── KEY FIX: \newline splitter — splits ONE $...\newline...$ into multiple blocks
+// Root cause: MathJax treats $\text{A}\newline\text{B}$ as one inline expression.
+// Fix: break into $\text{A}$<br>$\text{B}$ so each renders on its own line.
+function prepareLatexForDisplay(text) {
+    if (!text) return text;
+    let inner = text.trim();
+    let wrap = '$';
+    if      (inner.startsWith('$$') && inner.endsWith('$$')) { inner = inner.slice(2,-2).trim(); wrap = '$$'; }
+    else if (inner.startsWith('$')  && inner.endsWith('$'))  { inner = inner.slice(1,-1).trim(); }
+    else return text;
+
+    if (!inner.includes('\\newline')) return text;
+
+    return inner.split('\\newline').map(p => p.trim()).filter(Boolean).map(p => wrap + p + wrap).join('<br>');
+}
+
+// ─── LaTeX size helper ────────────────────────────────────────────────────────
+function applyLatexSize(text, sizeCmd) {
+    if (!text) return text;
+    let inner = text.trim();
+    if      (inner.startsWith('$$') && inner.endsWith('$$')) inner = inner.slice(2,-2).trim();
+    else if (inner.startsWith('$')  && inner.endsWith('$'))  inner = inner.slice(1,-1).trim();
+    inner = inner.replace(/^\\(small|normalsize|large|Large|LARGE|huge|Huge)\s*/, '').trim();
+    return '$' + sizeCmd + ' ' + inner + ' $';
+}
+
+// ─── Shared: build one question card ─────────────────────────────────────────
+function buildCard(q, i, pfx) {
+    const isNum = q.question_type === 'NUMERIC';
+    const badgeCls = q.question_type==='MCQ' ? 'type-badge-mcq' : q.question_type==='MSQ' ? 'type-badge-msq' : 'type-badge-numeric';
+    const pm = q.positive_marks || 4;
+    const nm = q.negative_marks || 1;
+
+    const rawOpts = !isNum ? `
+        <div class="row g-2 mb-3">
+            <div class="col-6"><strong>A)</strong> <code style="display:block;background:#f8f9fa;padding:4px 8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(q.option_a)}</code></div>
+            <div class="col-6"><strong>B)</strong> <code style="display:block;background:#f8f9fa;padding:4px 8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(q.option_b)}</code></div>
+            <div class="col-6"><strong>C)</strong> <code style="display:block;background:#f8f9fa;padding:4px 8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(q.option_c)}</code></div>
+            <div class="col-6"><strong>D)</strong> <code style="display:block;background:#f8f9fa;padding:4px 8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(q.option_d)}</code></div>
+        </div>` : '';
+
+    const rendOpts = !isNum ? `
+        <div class="mt-2">
+            <div class="rendered-option"><strong style="color:#28a745;">A)</strong> <span class="latex-content" id="${pfx}ropt-${i}-a">${prepareLatexForDisplay(q.option_a)}</span></div>
+            <div class="rendered-option"><strong style="color:#28a745;">B)</strong> <span class="latex-content" id="${pfx}ropt-${i}-b">${prepareLatexForDisplay(q.option_b)}</span></div>
+            <div class="rendered-option"><strong style="color:#28a745;">C)</strong> <span class="latex-content" id="${pfx}ropt-${i}-c">${prepareLatexForDisplay(q.option_c)}</span></div>
+            <div class="rendered-option"><strong style="color:#28a745;">D)</strong> <span class="latex-content" id="${pfx}ropt-${i}-d">${prepareLatexForDisplay(q.option_d)}</span></div>
+        </div>` : '';
+
+    const editOpts = !isNum ? `
+        <div class="row g-2 mb-3">
+            <div class="col-6"><label class="form-label">Option A:</label><input type="text" class="form-control" id="${pfx}eo-a-${i}" value="${escapeHtml(q.option_a)}"></div>
+            <div class="col-6"><label class="form-label">Option B:</label><input type="text" class="form-control" id="${pfx}eo-b-${i}" value="${escapeHtml(q.option_b)}"></div>
+            <div class="col-6"><label class="form-label">Option C:</label><input type="text" class="form-control" id="${pfx}eo-c-${i}" value="${escapeHtml(q.option_c)}"></div>
+            <div class="col-6"><label class="form-label">Option D:</label><input type="text" class="form-control" id="${pfx}eo-d-${i}" value="${escapeHtml(q.option_d)}"></div>
+        </div>` : '';
+
+    return `
+    <div class="question-preview-card" id="${pfx}card-${i}">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <span class="type-badge ${badgeCls}">${q.question_type}</span>
+                <span class="badge bg-light text-dark">+${pm} / -${nm}</span>
+                <div class="d-flex align-items-center gap-1" style="background:#f1f5f9;border-radius:8px;padding:3px 10px;">
+                    <i class="fas fa-text-height" style="color:#667eea;font-size:0.75rem;"></i>
+                    <select class="form-select form-select-sm border-0 bg-transparent p-0" style="font-size:0.75rem;width:90px;cursor:pointer;"
+                            onchange="onSizeChange('${pfx}',${i},this.value)">
+                        <option value="\\small">Small</option>
+                        <option value="\\normalsize">Normal</option>
+                        <option value="\\large" selected>Large</option>
+                        <option value="\\Large">Larger</option>
+                        <option value="\\LARGE">X-Large</option>
+                        <option value="\\huge">Huge</option>
+                        <option value="\\Huge">Maximum</option>
+                    </select>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-sm btn-outline-primary" id="${pfx}tbtn-${i}" onclick="onToggleView('${pfx}',${i})">
+                    <i class="fas fa-eye"></i> Rendered View
+                </button>
+                <button class="btn btn-sm btn-outline-warning" onclick="onEdit('${pfx}',${i})"><i class="fas fa-edit"></i> Edit</button>
+                <button class="btn btn-sm btn-outline-danger"  onclick="onDelete('${pfx}',${i})"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+
+        <h6 class="fw-bold text-primary mb-3">Question ${i + 1}</h6>
+
+        <div id="${pfx}raw-${i}">
+            <div class="mb-3">
+                <strong>Question:</strong>
+                <code style="display:block;background:#f8f9fa;padding:10px;border-radius:6px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(q.question_text)}</code>
+            </div>
+            ${rawOpts}
+        </div>
+
+        <div id="${pfx}rend-${i}" class="rendered-view-box">
+            <strong style="color:#667eea;display:block;margin-bottom:8px;">Question:</strong>
+            <div class="latex-content" id="${pfx}rq-${i}">${prepareLatexForDisplay(q.question_text)}</div>
+            ${rendOpts}
+        </div>
+
+        <div id="${pfx}edit-${i}" style="display:none;">
+            <div class="mb-3">
+                <label class="form-label"><strong>Question Text:</strong></label>
+                <textarea class="form-control" id="${pfx}eq-${i}" rows="3">${escapeHtml(q.question_text)}</textarea>
+            </div>
+            ${editOpts}
+            <div class="mb-3">
+                <label class="form-label">Correct Answer:</label>
+                <input type="text" class="form-control" id="${pfx}ea-${i}" value="${escapeHtml(q.correct_answer)}">
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success"   onclick="onSaveEdit('${pfx}',${i})"><i class="fas fa-save me-2"></i>Save Changes</button>
+                <button class="btn btn-secondary"  onclick="onCancelEdit('${pfx}',${i})"><i class="fas fa-times me-2"></i>Cancel</button>
+            </div>
+        </div>
+
+        <div class="text-success fw-bold mt-3">
+            <i class="fas fa-check-circle me-2"></i>Correct Answer: <span id="${pfx}ans-${i}">${q.correct_answer}</span>
+        </div>
+    </div>`;
+}
+
+// ─── Shared action handlers (pfx='' for AI, 'csv-' for CSV) ──────────────────
+function getArr(pfx) { return pfx === '' ? generatedQuestions : csvQuestions; }
+
+function onToggleView(pfx, i) {
+    const raw  = document.getElementById(`${pfx}raw-${i}`);
+    const rend = document.getElementById(`${pfx}rend-${i}`);
+    const btn  = document.getElementById(`${pfx}tbtn-${i}`);
+    if (raw.style.display !== 'none') {
+        raw.style.display = 'none'; rend.style.display = 'block';
+        btn.innerHTML = '<i class="fas fa-code"></i> Raw LaTeX'; btn.className = 'btn btn-sm btn-primary';
+        if (window.MathJax) MathJax.typesetPromise().catch(console.warn);
+    } else {
+        raw.style.display = 'block'; rend.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-eye"></i> Rendered View'; btn.className = 'btn btn-sm btn-outline-primary';
+    }
+}
+
+function onSizeChange(pfx, i, sizeCmd) {
+    const arr = getArr(pfx);
+    const q   = arr[i];
+    q.question_text = applyLatexSize(q.question_text, sizeCmd);
+    if (q.question_type !== 'NUMERIC') {
+        q.option_a = applyLatexSize(q.option_a, sizeCmd);
+        q.option_b = applyLatexSize(q.option_b, sizeCmd);
+        q.option_c = applyLatexSize(q.option_c, sizeCmd);
+        q.option_d = applyLatexSize(q.option_d, sizeCmd);
+    }
+    // Raw update
+    const codes = document.querySelectorAll(`#${pfx}raw-${i} code`);
+    if (codes[0]) codes[0].textContent = q.question_text;
+    if (q.question_type !== 'NUMERIC') {
+        const keys = ['option_a','option_b','option_c','option_d'];
+        codes.forEach((el, ci) => { if (ci > 0 && keys[ci-1]) el.textContent = q[keys[ci-1]]; });
+    }
+    // Rendered update in-place
+    const pairs = [
+        [`${pfx}rq-${i}`, q.question_text],
+        [`${pfx}ropt-${i}-a`, q.option_a],
+        [`${pfx}ropt-${i}-b`, q.option_b],
+        [`${pfx}ropt-${i}-c`, q.option_c],
+        [`${pfx}ropt-${i}-d`, q.option_d],
+    ];
+    pairs.forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el && val !== undefined) el.innerHTML = prepareLatexForDisplay(val);
+    });
+    const rv = document.getElementById(`${pfx}rend-${i}`);
+    if (rv && rv.style.display !== 'none' && window.MathJax) MathJax.typesetPromise([rv]).catch(console.warn);
+}
+
+function onEdit(pfx, i) {
+    document.getElementById(`${pfx}raw-${i}`).style.display  = 'none';
+    document.getElementById(`${pfx}rend-${i}`).style.display = 'none';
+    document.getElementById(`${pfx}edit-${i}`).style.display = 'block';
+}
+
+function onCancelEdit(pfx, i) {
+    document.getElementById(`${pfx}raw-${i}`).style.display  = 'block';
+    document.getElementById(`${pfx}edit-${i}`).style.display = 'none';
+}
+
+function onSaveEdit(pfx, i) {
+    const arr = getArr(pfx);
+    const q   = arr[i];
+    q.question_text  = document.getElementById(`${pfx}eq-${i}`).value;
+    q.correct_answer = document.getElementById(`${pfx}ea-${i}`).value;
+    if (q.question_type !== 'NUMERIC') {
+        q.option_a = document.getElementById(`${pfx}eo-a-${i}`).value;
+        q.option_b = document.getElementById(`${pfx}eo-b-${i}`).value;
+        q.option_c = document.getElementById(`${pfx}eo-c-${i}`).value;
+        q.option_d = document.getElementById(`${pfx}eo-d-${i}`).value;
+    }
+    if (pfx === '') renderPreview(); else renderCSVQuestions();
+    showNotification('Saved!', `Question ${i + 1} updated`, 'success');
+}
+
+function onDelete(pfx, i) {
+    if (!confirm('Delete this question?')) return;
+    getArr(pfx).splice(i, 1);
+    if (pfx === '') renderPreview(); else renderCSVQuestions();
+    showNotification('Deleted', 'Question removed', 'info');
+}
+
+// ─── AI Preview render ────────────────────────────────────────────────────────
+function renderPreview() {
+    document.getElementById('questionCount').textContent = generatedQuestions.length;
+    document.getElementById('questionsPreviewList').innerHTML =
+        generatedQuestions.map((q, i) => buildCard(q, i, '')).join('');
+}
+
+// ─── AI DB / Export ───────────────────────────────────────────────────────────
+async function saveToDatabase() {
+    if (!generatedQuestions.length) { alert('No questions to save!'); return; }
+    if (!confirm(`Save ${generatedQuestions.length} questions to database?`)) return;
+    try {
+        const res  = await fetch('/admin/ai-command-centre/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ questions: generatedQuestions }) });
+        const data = await res.json();
+        if (data.success) { alert(`Saved ${data.count} questions!`); location.reload(); }
+        else alert('Error: ' + (data.message || 'Save failed'));
+    } catch { alert('Server error.'); }
+}
+
+async function exportToCSV() {
+    if (!generatedQuestions.length) { alert('No questions to export!'); return; }
+    try {
+        const res = await fetch('/admin/ai-command-centre/export-csv', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ questions: generatedQuestions }) });
+        if (res.ok) {
+            const blob = await res.blob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = 'ai_generated_questions.csv';
+            document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); document.body.removeChild(a);
+        } else alert('Export failed');
+    } catch { alert('Server error.'); }
+}
+
+// ─── CSV Upload ───────────────────────────────────────────────────────────────
+function openCSVUploadModal() {
+    document.getElementById('csvUploadSection').style.display  = 'block';
+    document.getElementById('csvPreviewSection').style.display = 'none';
+    csvQuestions = [];
+    csvModalInstance.show();
+}
+
+function downloadSampleCSV() {
+    const csv = `exam_id,question_text,option_a,option_b,option_c,option_d,correct_answer,question_type,image_path,positive_marks,negative_marks,tolerance\n1,"$\\\\large\\\\text{What is } 2+2?$","$\\\\large\\\\text{3}$","$\\\\large\\\\text{4}$","$\\\\large\\\\text{5}$","$\\\\large\\\\text{6}$",B,MCQ,,4,1,0`;
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv],{type:'text/csv'})), download:'sample_questions.csv' });
+    document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); document.body.removeChild(a);
+}
+
+function parseCSVFile() {
+    const file = document.getElementById('csvFileInput').files[0];
+    if (!file) { alert('Please select a CSV file!'); return; }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const rows = e.target.result.split('\n').filter(r => r.trim());
+        if (rows.length < 2) { alert('CSV is empty!'); return; }
+        const header = rows[0].split(',').map(h => h.trim());
+        csvQuestions = [];
+        for (let i = 1; i < rows.length; i++) {
+            const vals = parseCSVRow(rows[i]);
+            if (vals.length !== header.length) continue;
+            const q = {};
+            header.forEach((k, idx) => { q[k] = vals[idx]; });
+            if (q.exam_id && q.question_text && q.correct_answer) csvQuestions.push(q);
+        }
+        if (!csvQuestions.length) { alert('No valid questions found!'); return; }
+        document.getElementById('csvUploadSection').style.display  = 'none';
+        document.getElementById('csvPreviewSection').style.display = 'block';
+        renderCSVQuestions();
+    };
+    reader.readAsText(file);
+}
+
+function parseCSVRow(row) {
+    const res = []; let cur = ''; let inQ = false;
+    for (const ch of row) {
+        if (ch === '"') inQ = !inQ;
+        else if (ch === ',' && !inQ) { res.push(cur.trim()); cur = ''; }
+        else cur += ch;
+    }
+    res.push(cur.trim()); return res;
+}
+
+function renderCSVQuestions() {
+    document.getElementById('csvCount').textContent = csvQuestions.length;
+    document.getElementById('csvQuestionsList').innerHTML = csvQuestions.map((q,i) => buildCard(q,i,'csv-')).join('');
+}
+
+function backToCSVUpload() {
+    if (!confirm('Discard changes and go back?')) return;
+    document.getElementById('csvUploadSection').style.display  = 'block';
+    document.getElementById('csvPreviewSection').style.display = 'none';
+    csvQuestions = [];
+}
+
+function exportCSV() {
+    const hdr = 'exam_id,question_text,option_a,option_b,option_c,option_d,correct_answer,question_type,image_path,positive_marks,negative_marks,tolerance\n';
+    const rows = csvQuestions.map(q =>
+        `${q.exam_id},"${q.question_text}","${q.option_a||''}","${q.option_b||''}","${q.option_c||''}","${q.option_d||''}",${q.correct_answer},${q.question_type},${q.image_path||''},${q.positive_marks||4},${q.negative_marks||1},${q.tolerance||0}`
+    ).join('\n');
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([hdr+rows],{type:'text/csv'})), download:'edited_questions.csv' });
+    document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); document.body.removeChild(a);
+}
+
+function confirmCSVSave() {
+    document.getElementById('csvConfirmCount').textContent = csvQuestions.length;
+    csvConfirmInstance.show();
+}
+
+async function saveCSVToDB() {
+    csvConfirmInstance.hide();
+    const hdr = 'exam_id,question_text,option_a,option_b,option_c,option_d,correct_answer,question_type,image_path,positive_marks,negative_marks,tolerance\n';
+    const rows = csvQuestions.map(q =>
+        `${q.exam_id},"${q.question_text}","${q.option_a||''}","${q.option_b||''}","${q.option_c||''}","${q.option_d||''}",${q.correct_answer},${q.question_type},${q.image_path||''},${q.positive_marks||4},${q.negative_marks||1},${q.tolerance||0}`
+    ).join('\n');
+    const fd = new FormData();
+    fd.append('csv_file', new Blob([hdr+rows],{type:'text/csv'}), 'questions.csv');
+    try {
+        const res  = await fetch('/admin/questions/import-csv', { method:'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+            alert(`Saved!\n\nInserted: ${data.inserted}\nSkipped: ${data.skipped}`);
+            csvModalInstance.hide(); location.reload();
+        } else alert('Error: ' + data.message);
+    } catch { alert('Server error occurred.'); }
+}
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+function showErrorModal(title, message) {
+    document.body.insertAdjacentHTML('beforeend', `
+        <div class="modal fade show" id="errorModal" style="display:block;background:rgba(0,0,0,0.7);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="border:2px solid #dc3545;">
+                    <div class="modal-header" style="background:linear-gradient(135deg,#dc3545,#c82333);color:white;border:none;">
+                        <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>${title}</h5>
+                        <button class="btn-close btn-close-white" onclick="document.getElementById('errorModal').remove()"></button>
+                    </div>
+                    <div class="modal-body" style="padding:2rem;">
+                        <div style="background:#f8d7da;border-left:4px solid #dc3545;padding:1rem;border-radius:6px;color:#721c24;"><strong>Error:</strong> ${message}</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger" onclick="document.getElementById('errorModal').remove()"><i class="fas fa-times me-2"></i>Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>`);
+}
+
+function showNotification(title, message, type='info') {
+    const c = { success:{bg:'linear-gradient(135deg,#28a745,#20c997)',border:'#28a745',icon:'check-circle'}, error:{bg:'linear-gradient(135deg,#dc3545,#c82333)',border:'#dc3545',icon:'exclamation-circle'}, info:{bg:'linear-gradient(135deg,#17a2b8,#138496)',border:'#17a2b8',icon:'info-circle'} }[type];
+    const id = 'notif-' + Date.now();
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="${id}" style="position:fixed;top:20px;right:20px;z-index:9999;min-width:320px;max-width:480px;background:${c.bg};color:white;border:2px solid ${c.border};border-radius:12px;padding:1.2rem;box-shadow:0 10px 40px rgba(0,0,0,0.3);animation:slideIn .3s ease-out;">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div class="d-flex gap-3 align-items-start">
+                    <i class="fas fa-${c.icon}" style="font-size:1.4rem;margin-top:2px;"></i>
+                    <div><strong style="display:block;margin-bottom:4px;">${title}</strong><div style="opacity:.95;">${message}</div></div>
+                </div>
+                <button onclick="document.getElementById('${id}').remove()" style="background:transparent;border:none;color:white;font-size:1.4rem;cursor:pointer;padding:0;">&times;</button>
+            </div>
+        </div>
+        <style>@keyframes slideIn{from{transform:translateX(400px);opacity:0}to{transform:translateX(0);opacity:1}}</style>`);
+    setTimeout(() => document.getElementById(id)?.remove(), 5000);
+}
+</script>
+
+{% endblock %}

@@ -588,12 +588,11 @@
                     title="Edit Exam">
               <i class="fas fa-edit"></i>
             </button>
-            <a href="{{ url_for('admin.delete_exam', exam_id=exam.id) }}"
-               class="btn btn-danger btn-sm"
-               onclick="return confirm('Are you sure you want to delete this exam? This action cannot be undone.');"
-               title="Delete Exam">
-              <i class="fas fa-trash"></i>
-            </a>
+<button class="btn btn-danger btn-sm" 
+        onclick="showDeleteConfirmation({{ exam.id }}, '{{ exam.name | replace("'", "\\'") }}')"
+        title="Delete Exam">
+  <i class="fas fa-trash"></i>
+</button>
           </td>
         </tr>
         {% endfor %}
@@ -788,6 +787,169 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Mobile enhancement - Force table wrapper if needed
+  if (window.innerWidth <= 768) {
+    const table = document.querySelector('.exams-table');
+    if (table && !table.closest('.table-responsive')) {
+      const cardBody = table.closest('.card-body');
+      if (cardBody) {
+        cardBody.style.overflowX = 'auto';
+        cardBody.style.webkitOverflowScrolling = 'touch';
+      }
+    }
+  }
+});
+</script>
+<!-- Beautiful Delete Confirmation Modal -->
+<div class="modal fade" id="deleteExamModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 24px;">
+        <h5 class="modal-title" style="font-weight: 800; font-size: 1.3rem;">
+          <i class="fas fa-exclamation-triangle me-2"></i>Delete Exam
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+      </div>
+      <div class="modal-body" style="padding: 28px; background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);">
+        <div class="text-center mb-4">
+          <div style="width: 80px; height: 80px; margin: 0 auto 20px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <i class="fas fa-trash-alt" style="font-size: 2rem; color: #dc2626;"></i>
+          </div>
+          <h4 style="color: #1f2937; font-weight: 700; margin-bottom: 10px;">Are you sure?</h4>
+          <p style="color: #6b7280; font-size: 0.95rem; margin-bottom: 0;">You are about to delete:</p>
+          <p id="examNameToDelete" style="color: #dc2626; font-weight: 700; font-size: 1.1rem; margin-top: 5px;"></p>
+        </div>
+        
+        <div class="alert alert-danger" style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 2px solid #fca5a5; border-radius: 12px; padding: 16px;">
+          <h6 style="color: #991b1b; font-weight: 700; margin-bottom: 10px;">
+            <i class="fas fa-exclamation-circle me-2"></i>This will permanently delete:
+          </h6>
+            <ul style="color: #991b1b; margin-bottom: 0; padding-left: 20px;">
+              <li><strong>All questions</strong> for this exam only</li>
+              <li><strong>All student results</strong> for this exam only</li>
+              <li><strong>All student responses</strong> for this exam only</li>
+              <li><strong>All exam attempts</strong> for this exam only</li>
+            </ul>
+            <p style="color: #059669; font-size: 0.85rem; margin-top: 10px; margin-bottom: 0;">
+              <i class="fas fa-info-circle me-1"></i><strong>Note:</strong> Only data related to <u>this specific exam</u> will be deleted. Other exams and their data will remain safe.
+            </p>
+        </div>
+        
+        <p style="text-align: center; color: #4b5563; font-size: 0.9rem; margin-top: 15px; margin-bottom: 0;">
+          <i class="fas fa-info-circle me-1"></i>This action cannot be undone!
+        </p>
+      </div>
+      <div class="modal-footer" style="border: none; padding: 20px 28px; background: linear-gradient(135deg, #fef2f2 0%, #f9fafb 100%); gap: 10px;">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="flex: 1; padding: 12px; border-radius: 10px; font-weight: 600;">
+          <i class="fas fa-times me-1"></i>Cancel
+        </button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn" style="flex: 1; padding: 12px; border-radius: 10px; font-weight: 600; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border: none;">
+          <i class="fas fa-trash-alt me-1"></i>Delete Everything
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let examIdToDelete = null;
+
+function showDeleteConfirmation(examId, examName) {
+  examIdToDelete = examId;
+  document.getElementById('examNameToDelete').textContent = examName;
+  const modal = new bootstrap.Modal(document.getElementById('deleteExamModal'));
+  modal.show();
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+  if (!examIdToDelete) return;
+  
+  const btn = this;
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Deleting...';
+  
+  fetch(`/admin/exams/delete/${examIdToDelete}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteExamModal'));
+    modal.hide();
+    
+    if (data.success) {
+      // Show success message
+      const alertDiv = document.createElement('div');
+      alertDiv.className = 'alert alert-success alert-dismissible fade show';
+      alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);';
+      alertDiv.innerHTML = `
+        <strong><i class="fas fa-check-circle me-2"></i>Success!</strong> ${data.message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      document.body.appendChild(alertDiv);
+      
+      // Reload after 2 seconds
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(error => {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    console.error('Delete error:', error);
+    alert('Error deleting exam. Please try again.');
+  });
+});
+
+// Form validation for add/edit exams
+document.addEventListener('DOMContentLoaded', function() {
+  const forms = document.querySelectorAll('form');
+  forms.forEach(form => {
+    form.addEventListener('submit', function(e) {
+      const ma = this.querySelector('input[name="max_attempts"]');
+      if (ma) {
+        const v = ma.value.trim();
+        if (v !== "" && !/^\d+$/.test(v)) {
+          e.preventDefault();
+          alert('Max Attempts must be a whole non-negative number');
+          ma.focus();
+          return false;
+        }
+      }
+      const submitBtn = this.querySelector('button[type="submit"]');
+      if (submitBtn && !submitBtn.disabled) {
+        submitBtn.setAttribute('data-original-text', submitBtn.innerHTML);
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+        submitBtn.disabled = true;
+      }
+    });
+  });
+
+  const modals = document.querySelectorAll('.modal');
+  modals.forEach(modal => {
+    modal.addEventListener('hidden.bs.modal', function() {
+      const forms = this.querySelectorAll('form');
+      forms.forEach(form => {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          const orig = submitBtn.getAttribute('data-original-text');
+          if (orig) submitBtn.innerHTML = orig;
+        }
+      });
+    });
+  });
+
+  // Mobile enhancement
   if (window.innerWidth <= 768) {
     const table = document.querySelector('.exams-table');
     if (table && !table.closest('.table-responsive')) {

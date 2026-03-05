@@ -964,15 +964,29 @@
   }
 }
 </style>
+<!-- Page Header with Buttons -->
 <div class="page-header">
-  <div class="d-flex justify-content-between align-items-center">
-    <h1 class="page-title">
+  <div class="d-flex justify-content-between align-items-center flex-wrap">
+    <h1 class="page-title mb-3 mb-md-0">
       <i class="fas fa-question-circle me-3"></i>Questions Management
     </h1>
-    <div>
+    <div class="d-flex gap-2 flex-wrap">
+      <!-- Import CSV Button -->
+      <button class="btn btn-success" id="import-csv-btn" style="border-radius: 10px; font-weight: 600;">
+        <i class="fas fa-file-upload me-2"></i>Import CSV
+      </button>
+      
+      <!-- Export CSV Button -->
+      <button class="btn btn-info" id="export-csv-btn" style="border-radius: 10px; font-weight: 600;">
+        <i class="fas fa-file-download me-2"></i>Export CSV
+      </button>
+      
+      <!-- Add Question Button -->
       <a class="btn btn-light me-2" href="{{ url_for('admin.add_question') }}" style="border-radius: 10px; font-weight: 900;">
         <i class="fas fa-plus me-2"></i>Add Question
       </a>
+      
+      <!-- Back Button -->
       <a class="btn btn-outline-light" href="{{ url_for('admin.questions_index') }}" style="border-radius: 10px; font-weight: 600;">
         <i class="fas fa-list me-2"></i>Back to List
       </a>
@@ -981,13 +995,20 @@
 </div>
 
 <!-- Enhanced Exam selector -->
+<!-- Enhanced Exam selector with ID display -->
 <div class="control-card">
   <form id="exam-select-form" class="row g-3 align-items-end">
     <div class="col-md-8">
-      <label class="form-label fw-bold" style="color: #2d3748;">Select Exam to Manage</label>
+      <label class="form-label fw-bold" style="color: #2d3748;">
+        <i class="fas fa-graduation-cap me-2"></i>Select Exam to Manage
+      </label>
       <select id="exam-select" class="form-select" name="exam_id" style="font-weight: 500;">
         {% for e in exams %}
-          <option value="{{ e.id }}" {% if selected_exam_id == e.id %}selected{% endif %}>{{ e.name }}</option>
+          <option value="{{ e.id }}" 
+                  {% if selected_exam_id == e.id %}selected{% endif %}
+                  data-exam-name="{{ e.name }}">
+            {{ e.name }} (ID: {{ e.id }})
+          </option>
         {% endfor %}
       </select>
     </div>
@@ -997,6 +1018,34 @@
       </button>
     </div>
   </form>
+  
+  <!-- Exam Info Display -->
+  {% if selected_exam_id %}
+  <div style="
+    margin-top: 15px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #f0f4ff 0%, #e6f2ff 100%);
+    border-left: 4px solid #667eea;
+    border-radius: 8px;
+  ">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+      <span style="color: #4a5568; font-weight: 500;">
+        <i class="fas fa-info-circle me-2" style="color: #667eea;"></i>
+        Currently viewing questions for selected exam
+      </span>
+      <span style="
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.9rem;
+      ">
+        <i class="fas fa-hashtag me-1"></i>Exam ID: {{ selected_exam_id }}
+      </span>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Search Controls -->
@@ -2158,5 +2207,449 @@ const mobileTableCSS = `
 
 
 document.head.insertAdjacentHTML('beforeend', mobileTableCSS);
+
+// CSV Import/Export Functionality with Beautiful Modals
+(function(){
+  const importBtn = document.getElementById('import-csv-btn');
+  const exportBtn = document.getElementById('export-csv-btn');
+  const examSelect = document.getElementById('exam-select');
+  
+  // Get selected exam name and ID
+  function getSelectedExamInfo() {
+    if (!examSelect || !examSelect.value) return null;
+    const selectedOption = examSelect.options[examSelect.selectedIndex];
+    return {
+      id: examSelect.value,
+      name: selectedOption.text
+    };
+  }
+  
+  // Show custom alert modal
+  function showAlert(title, message, type = 'info') {
+    const iconMap = {
+      success: 'fa-check-circle',
+      error: 'fa-exclamation-circle',
+      warning: 'fa-exclamation-triangle',
+      info: 'fa-info-circle'
+    };
+    
+    const colorMap = {
+      success: '#10b981',
+      error: '#ef4444',
+      warning: '#f59e0b',
+      info: '#667eea'
+    };
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.3s ease;
+    `;
+    
+    modal.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 20px;
+        padding: 0;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.3s ease;
+        overflow: hidden;
+      ">
+        <div style="
+          background: linear-gradient(135deg, ${colorMap[type]} 0%, ${colorMap[type]}dd 100%);
+          color: white;
+          padding: 25px;
+          text-align: center;
+        ">
+          <i class="fas ${iconMap[type]} fa-3x mb-3"></i>
+          <h4 style="margin: 0; font-weight: 700;">${title}</h4>
+        </div>
+        <div style="padding: 30px; text-align: center; color: #333; line-height: 1.6;">
+          ${message}
+        </div>
+        <div style="padding: 0 30px 30px; text-align: center;">
+          <button class="btn btn-primary" style="
+            padding: 12px 40px;
+            border-radius: 10px;
+            font-weight: 600;
+            background: linear-gradient(135deg, ${colorMap[type]} 0%, ${colorMap[type]}dd 100%);
+            border: none;
+            box-shadow: 0 4px 15px ${colorMap[type]}40;
+          " onclick="this.closest('[style*=\\'position: fixed\\']').remove()">
+            <i class="fas fa-check me-2"></i>Got it
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Add CSS animations if not exists
+    if (!document.getElementById('csv-modal-styles')) {
+      const style = document.createElement('style');
+      style.id = 'csv-modal-styles';
+      style.textContent = `
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(50px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }
+  
+  // Show confirmation modal
+  function showConfirmModal(title, message, examInfo, onConfirm) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.3s ease;
+    `;
+    
+    const examInfoHTML = examInfo ? `
+      <div style="
+        background: linear-gradient(135deg, #f0f4ff 0%, #e6f2ff 100%);
+        border: 2px solid #667eea;
+        border-radius: 12px;
+        padding: 15px;
+        margin: 20px 0;
+      ">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <i class="fas fa-graduation-cap" style="color: #667eea; font-size: 1.2rem;"></i>
+          <strong style="color: #2d3748;">Selected Exam:</strong>
+        </div>
+        <div style="color: #4a5568; font-size: 1.1rem; font-weight: 600; margin-left: 32px;">
+          ${examInfo.name}
+        </div>
+        <div style="
+          display: inline-block;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-weight: 700;
+          font-size: 0.9rem;
+          margin-top: 10px;
+          margin-left: 32px;
+        ">
+          <i class="fas fa-hashtag me-1"></i>Exam ID: ${examInfo.id}
+        </div>
+      </div>
+    ` : '';
+    
+    modal.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 20px;
+        padding: 0;
+        max-width: 550px;
+        width: 90%;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.3s ease;
+        overflow: hidden;
+      ">
+        <div style="
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 25px;
+          text-align: center;
+        ">
+          <i class="fas fa-question-circle fa-3x mb-3"></i>
+          <h4 style="margin: 0; font-weight: 700;">${title}</h4>
+        </div>
+        <div style="padding: 30px; color: #333; line-height: 1.6;">
+          ${message}
+          ${examInfoHTML}
+        </div>
+        <div style="
+          padding: 0 30px 30px;
+          display: flex;
+          gap: 15px;
+          justify-content: center;
+        ">
+          <button class="btn btn-secondary cancel-btn" style="
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-weight: 600;
+            flex: 1;
+            max-width: 200px;
+          ">
+            <i class="fas fa-times me-2"></i>Cancel
+          </button>
+          <button class="btn btn-primary confirm-btn" style="
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            flex: 1;
+            max-width: 200px;
+          ">
+            <i class="fas fa-check me-2"></i>Confirm
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    modal.querySelector('.cancel-btn').onclick = () => modal.remove();
+    modal.querySelector('.confirm-btn').onclick = () => {
+      modal.remove();
+      onConfirm();
+    };
+    
+    // Close on background click
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.remove();
+    };
+  }
+  
+  // Export CSV
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      const examInfo = getSelectedExamInfo();
+      if (!examInfo) {
+        showAlert('No Exam Selected', 'Please select an exam from the dropdown first.', 'warning');
+        return;
+      }
+      
+      // Check if there are questions
+      const questionsTable = document.getElementById('questions-tbody');
+      if (!questionsTable || questionsTable.children.length === 0) {
+        showAlert('No Questions Found', `No questions available to export for exam: <strong>${examInfo.name}</strong>`, 'info');
+        return;
+      }
+      
+      // Show confirmation
+      showConfirmModal(
+        'Export Questions to CSV',
+        'This will download all questions for the selected exam in CSV format.',
+        examInfo,
+        () => {
+          // Download CSV
+          exportBtn.disabled = true;
+          exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
+          
+          window.location.href = `/admin/questions/export-csv/${examInfo.id}`;
+          
+          setTimeout(() => {
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = '<i class="fas fa-file-download me-2"></i>Export CSV';
+            showAlert(
+              'Export Successful!', 
+              `Questions from <strong>${examInfo.name}</strong> (ID: ${examInfo.id}) have been downloaded successfully.`, 
+              'success'
+            );
+          }, 2000);
+        }
+      );
+    });
+  }
+  
+  // Import CSV
+  if (importBtn) {
+    importBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Create file input
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.csv';
+      fileInput.style.display = 'none';
+      
+      fileInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Validate file
+        if (!file.name.endsWith('.csv')) {
+          showAlert('Invalid File Type', 'Please select a CSV file (.csv extension).', 'error');
+          return;
+        }
+        
+        // Show confirmation with format info
+        showConfirmModal(
+          'Import Questions from CSV',
+          `
+            <div style="text-align: left;">
+              <p><strong>File:</strong> ${file.name}</p>
+              <p style="margin-top: 15px;"><strong>Required CSV Format:</strong></p>
+              <div style="
+                background: #f8f9fa;
+                border-left: 4px solid #667eea;
+                padding: 12px;
+                border-radius: 8px;
+                font-family: monospace;
+                font-size: 0.85rem;
+                overflow-x: auto;
+                margin-top: 10px;
+              ">
+                exam_id, question_text, option_a, option_b,<br>
+                option_c, option_d, correct_answer,<br>
+                question_type, image_path, positive_marks,<br>
+                negative_marks, tolerance
+              </div>
+              <p style="margin-top: 15px; color: #dc2626; font-weight: 600;">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Important: exam_id must exist in database!
+              </p>
+            </div>
+          `,
+          null,
+          async () => {
+            // Upload file
+            const formData = new FormData();
+            formData.append('csv_file', file);
+            
+            importBtn.disabled = true;
+            importBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Importing...';
+            
+            try {
+              const response = await fetch('/admin/questions/import-csv', {
+                method: 'POST',
+                body: formData
+              });
+              
+              const data = await response.json();
+              
+              if (data.success) {
+                let message = `
+                  <div style="text-align: center;">
+                    <div style="font-size: 3rem; color: #10b981; margin-bottom: 15px;">
+                      <i class="fas fa-check-circle"></i>
+                    </div>
+                    <p style="font-size: 1.2rem; font-weight: 600; margin-bottom: 10px;">
+                      Successfully imported ${data.inserted} question(s)!
+                    </p>
+                `;
+                
+                if (data.skipped > 0) {
+                  message += `
+                    <p style="color: #f59e0b; margin-top: 15px;">
+                      <i class="fas fa-exclamation-triangle me-2"></i>
+                      Skipped ${data.skipped} row(s) due to errors
+                    </p>
+                  `;
+                }
+                
+                if (data.errors && data.errors.length > 0) {
+                  message += `
+                    <details style="margin-top: 20px; text-align: left;">
+                      <summary style="cursor: pointer; font-weight: 600; color: #667eea;">
+                        <i class="fas fa-list me-2"></i>View Error Details
+                      </summary>
+                      <div style="
+                        background: #f8f9fa;
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin-top: 10px;
+                        max-height: 200px;
+                        overflow-y: auto;
+                        font-size: 0.85rem;
+                      ">
+                        ${data.errors.map(err => `<div style="padding: 5px 0; border-bottom: 1px solid #dee2e6;">${err}</div>`).join('')}
+                      </div>
+                    </details>
+                  `;
+                }
+                
+                message += `</div>`;
+                
+                showAlert('Import Complete', message, 'success');
+                
+                // Reload page after 3 seconds
+                if (data.inserted > 0) {
+                  setTimeout(() => {
+                    const currentExamId = examSelect?.value || '';
+                    window.location.href = `/admin/questions?exam_id=${currentExamId}`;
+                  }, 3000);
+                }
+              } else {
+                let errorMsg = `
+                  <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; color: #ef4444; margin-bottom: 15px;">
+                      <i class="fas fa-times-circle"></i>
+                    </div>
+                    <p style="font-weight: 600; margin-bottom: 10px;">Import Failed</p>
+                    <p>${data.message || 'Unknown error occurred'}</p>
+                `;
+                
+                if (data.errors && data.errors.length > 0) {
+                  errorMsg += `
+                    <details style="margin-top: 20px; text-align: left;">
+                      <summary style="cursor: pointer; font-weight: 600; color: #ef4444;">
+                        <i class="fas fa-list me-2"></i>View Error Details
+                      </summary>
+                      <div style="
+                        background: #fef2f2;
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin-top: 10px;
+                        max-height: 200px;
+                        overflow-y: auto;
+                        font-size: 0.85rem;
+                        color: #991b1b;
+                      ">
+                        ${data.errors.map(err => `<div style="padding: 5px 0; border-bottom: 1px solid #fecaca;">${err}</div>`).join('')}
+                      </div>
+                    </details>
+                  `;
+                }
+                
+                errorMsg += `</div>`;
+                
+                showAlert('Import Error', errorMsg, 'error');
+              }
+            } catch (error) {
+              console.error('Import error:', error);
+              showAlert(
+                'System Error', 
+                `<p>An unexpected error occurred during import:</p><p style="color: #ef4444; font-weight: 600; margin-top: 10px;">${error.message}</p>`, 
+                'error'
+              );
+            } finally {
+              importBtn.disabled = false;
+              importBtn.innerHTML = '<i class="fas fa-file-upload me-2"></i>Import CSV';
+            }
+          }
+        );
+      });
+      
+      // Trigger file selection
+      document.body.appendChild(fileInput);
+      fileInput.click();
+      document.body.removeChild(fileInput);
+    });
+  }
+})();
+
 </script>
 {% endblock %}
