@@ -1,4 +1,3 @@
-# google_drive_service.py — PERFORMANCE OPTIMIZED VERSION
 import os
 import json
 import time
@@ -12,7 +11,8 @@ from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
 from google.oauth2.credentials import Credentials as UserCredentials
-from google_auth_oauthlib.flow import InstalledAppFlow  # <-- added
+from google_auth_oauthlib.flow import InstalledAppFlow  
+import urllib.parse
 
 load_dotenv()
 
@@ -283,8 +283,12 @@ def save_csv_to_drive(service, df: pd.DataFrame, file_id: str, max_retries: int 
         print("❌ save_csv_to_drive: no service available")
         return False
         
-    if df is None or df.empty:
-        print("⚠️ save_csv_to_drive: empty DataFrame")
+    if df is None:
+        print("⚠️ save_csv_to_drive: None DataFrame")
+        return False
+    
+    if not hasattr(df, 'columns') or len(df.columns) == 0:
+        print("⚠️ save_csv_to_drive: DataFrame has no columns")
         return False
     if not file_id or len(str(file_id)) < 8:
         print(f"❌ save_csv_to_drive: invalid file_id '{file_id}'")
@@ -350,11 +354,13 @@ def find_file_by_name(service, filename: str, parent_folder_id: str | None = Non
 
     for attempt in range(1, max_retries + 1):
         try:
+            # Order by modifiedTime desc so the most recently uploaded file is returned first.
             res = service.files().list(
                 q=query,
                 spaces="drive",
-                fields="files(id,name)",
-                pageSize=5
+                fields="files(id,name,modifiedTime)",
+                orderBy="modifiedTime desc",
+                pageSize=10
             ).execute()
             files = res.get("files", [])
             if files:
@@ -440,8 +446,8 @@ def list_drive_files(service, folder_id: str | None = None, max_retries: int = 2
 # -------------------------------------------------------------------
 # Public URL helper (sets 'anyone with link' if needed) - UPDATED
 # -------------------------------------------------------------------
-def get_public_url(service, file_id: str, max_retries: int = 2):
-    # If no service passed, get the global service
+def get_public_url(service, file_id: str, max_retries: int = 2, force_refresh: bool = False):
+    """Get public URL with STRONG cache-busting"""
     if not service:
         service = get_drive_service()
     
@@ -449,29 +455,81 @@ def get_public_url(service, file_id: str, max_retries: int = 2):
         return None
 
     cache_key = f"url::{file_id}"
-    if _is_cache_valid(cache_key, 3600):
-        return _image_cache[cache_key]
+    
+    # ✅ FORCE REFRESH: Clear cache FIRST
+    if force_refresh:
+        _image_cache.pop(cache_key, None)
+        _cache_timestamps.pop(cache_key, None)
+        print(f"🔥 [IMAGE] Force refresh - cleared cache for {file_id}")
+    else:
+        # Check cache if NOT force refresh
+        if _is_cache_valid(cache_key, 10):
+            cached_url = _image_cache.get(cache_key)
+            if cached_url:
+                print(f"💾 [IMAGE] Using cached URL: {cached_url[:60]}...")
+                return cached_url
 
     for attempt in range(1, max_retries + 1):
         try:
-            if service:
-                try:
-                    service.permissions().create(
-                        fileId=file_id,
-                        body={"type": "anyone", "role": "reader"}
-                    ).execute()
-                    print(f"🔓 Made file public: {file_id}")
-                except HttpError as he:
-                    print(f"⚠️ permissions.create warn: {he}")
+            # ✅ CRITICAL: Make file public FIRST
+            try:
+                service.permissions().create(
+                    fileId=file_id,
+                    body={"type": "anyone", "role": "reader"}
+                ).execute()
+                print(f"🔓 [IMAGE] Made file public: {file_id}")
+            except Exception as e:
+                print(f"⚠️ [IMAGE] Permission warning: {e}")
 
-            url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
+            # ✅ Get metadata for STRONG cache-bust token
+            bust_token = None
+            try:
+                meta = service.files().get(
+                    fileId=file_id, 
+                    fields="modifiedTime,md5Checksum,version"
+                ).execute()
+                
+                # Priority: md5 > version > modifiedTime
+                if meta.get('md5Checksum'):
+                    bust_token = str(meta['md5Checksum'])[:16]  # First 16 chars of MD5
+                    print(f"📌 [IMAGE] Using MD5 cache-bust: {bust_token}")
+                elif meta.get('version'):
+                    bust_token = f"v{meta['version']}"
+                    print(f"📌 [IMAGE] Using version cache-bust: {bust_token}")
+                elif meta.get('modifiedTime'):
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(meta['modifiedTime'].replace('Z', '+00:00'))
+                    bust_token = str(int(dt.timestamp()))
+                    print(f"📌 [IMAGE] Using timestamp cache-bust: {bust_token}")
+                
+            except Exception as e:
+                print(f"⚠️ [IMAGE] Metadata fetch failed: {e}")
+                # Fallback to timestamp
+                bust_token = str(int(time.time()))
+                print(f"📌 [IMAGE] Using fallback timestamp: {bust_token}")
+
+            # ✅ Build URL with STRONG token
+            if bust_token:
+                url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000&v={bust_token}"
+            else:
+                url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000&t={int(time.time())}"
+
+            # ✅ Cache the NEW URL
             _set_cache(cache_key, url, _image_cache)
+            
+            print(f"✅ [IMAGE] Generated URL: {url[:100]}...")
             return url
+
         except Exception as e:
-            print(f"❌ get_public_url (try {attempt}): {e}")
+            print(f"❌ [IMAGE] get_public_url error (attempt {attempt}): {e}")
             time.sleep(1)
 
-    return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
+    # Final fallback with random token
+    import random
+    fallback_url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000&t={int(time.time())}&r={random.randint(1000,9999)}"
+    print(f"⚠️ [IMAGE] Using fallback URL: {fallback_url[:100]}...")
+    return fallback_url
+
 
 # -------------------------------------------------------------------
 # File/CSV creation helper - UPDATED
@@ -621,3 +679,18 @@ def get_drive_service_for_upload():
         "Set GOOGLE_SERVICE_TOKEN_JSON to your token.json or client_secret.json path. "
         "If you provide client_secret.json, a one-time browser window will open to create token.json."
     )
+    
+
+
+def clear_image_cache_immediate(file_id=None):
+    if file_id:
+        cache_key = f"url::{file_id}"
+        _image_cache.pop(cache_key, None)
+        _cache_timestamps.pop(cache_key, None)
+        print(f"✅ Cleared image cache for file: {file_id}")
+    else:
+        _image_cache.clear()
+        for key in list(_cache_timestamps.keys()):
+            if key.startswith("url::"):
+                _cache_timestamps.pop(key, None)
+        print("✅ Cleared all image caches")    

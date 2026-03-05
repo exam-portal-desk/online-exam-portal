@@ -12,7 +12,9 @@ CSV_ENV_MAP = {
     'requests_raised': 'REQUESTS_RAISED_FILE_ID',
     'sessions': 'SESSIONS_FILE_ID',
     'login_attempts': 'LOGIN_ATTEMPTS_FILE_ID',
-    'pw_tokens': 'PW_TOKENS_FILE_ID' 
+    'pw_tokens': 'PW_TOKENS_FILE_ID',
+    'ai_chat_history': 'AI_CHAT_HISTORY_CSV',
+    'ai_usage_tracking': 'AI_USAGE_TRACKING_CSV'
 }
 
 _lock = RLock()

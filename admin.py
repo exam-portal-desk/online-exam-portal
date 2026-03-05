@@ -14,23 +14,31 @@ from flask import session, redirect, url_for, request
 from markupsafe import escape
 import html
 from latex_editor import latex_bp
-from markupsafe import Markup
-from drive_utils import safe_csv_save_with_retry
+
+
 from sessions import generate_session_token, save_session_record, invalidate_session, get_session_by_token, require_admin_role
 from datetime import datetime
 from flask import abort, send_file
-import io
-import re
-import time
 
+
+
+# ✅ Supabase import
+from supabase_db import (
+    get_user_by_username, get_user_by_id, get_all_users,
+    create_user, update_user, delete_user,
+    get_all_exams, get_exam_by_id, create_exam, update_exam, delete_exam,
+    get_questions_by_exam, create_question, update_question, delete_question,
+    create_session, invalidate_session,
+    get_all_results, get_result_by_id, get_results_by_user, get_results_by_exam,
+    get_responses_by_result, supabase
+)
+
+# Google Drive imports (will be gradually deprecated as we migrate to BigQuery)
 from google_drive_service import (
-    get_drive_service,         
+    get_drive_service,
     create_subject_folder,
-    load_csv_from_drive,
-    save_csv_to_drive,
-    clear_cache,
     find_file_by_name,
-    get_drive_service_for_upload  
+    get_drive_service_for_upload
 )
 
 
@@ -38,13 +46,13 @@ from google_drive_service import (
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin", template_folder="templates")
 admin_bp.register_blueprint(latex_bp)
 # ========== Config ==========
-USERS_FILE_ID     = os.environ.get("USERS_FILE_ID")
-EXAMS_FILE_ID     = os.environ.get("EXAMS_FILE_ID")
-QUESTIONS_FILE_ID = os.environ.get("QUESTIONS_FILE_ID")
+#USERS_FILE_ID     = os.environ.get("USERS_FILE_ID")
+#EXAMS_FILE_ID     = os.environ.get("EXAMS_FILE_ID")
+#QUESTIONS_FILE_ID = os.environ.get("QUESTIONS_FILE_ID")
 SUBJECTS_FILE_ID  = os.environ.get("SUBJECTS_FILE_ID")
-REQUESTS_RAISED_FILE_ID = os.environ.get("REQUESTS_RAISED_FILE_ID")
-RESULTS_FILE_ID  = os.environ.get("RESULTS_FILE_ID")
-RESPONSES_FILE_ID  = os.environ.get("RESPONSES_FILE_ID")
+#REQUESTS_RAISED_FILE_ID = os.environ.get("REQUESTS_RAISED_FILE_ID")
+#RESULTS_FILE_ID  = os.environ.get("RESULTS_FILE_ID")
+#RESPONSES_FILE_ID  = os.environ.get("RESPONSES_FILE_ID")
 
 UPLOAD_TMP_DIR = os.path.join(os.path.dirname(__file__), "uploads_tmp")
 os.makedirs(UPLOAD_TMP_DIR, exist_ok=True)
@@ -68,31 +76,32 @@ def admin_required(f):
         return f(*args, **kwargs)
     return wrapper
 
-def _get_subject_folders(service):
-    """Return [{'id', 'name', 'folder_id'}] from subjects.csv for dropdown."""
+def _get_subject_folders(service=None):
+    """Get subject folders from Supabase"""
     out = []
     try:
-        if not SUBJECTS_FILE_ID:
+        from supabase_db import supabase
+        
+        # Get all subjects from Supabase
+        response = supabase.table('subjects').select('*').order('subject_name').execute()
+        subjects = response.data if response.data else []
+        
+        if not subjects:
             return out
-        df = load_csv_from_drive(service, SUBJECTS_FILE_ID)  # caching ok
-        if df is None or df.empty:
-            return out
-        norm = {c.lower(): c for c in df.columns}
-        name_col = norm.get("subject_name") or norm.get("name")
-        folder_col = norm.get("subject_folder_id") or norm.get("folder_id")
-        id_col = norm.get("id")
-        if not (name_col and folder_col):
-            return out
-        for _, r in df.iterrows():
-            fid = str(r.get(folder_col, "")).strip()
-            if fid:
+        
+        for subject in subjects:
+            folder_id = str(subject.get('subject_folder_id', '')).strip()
+            if folder_id:
                 out.append({
-                    "id": int(r.get(id_col, 0)) if (id_col and id_col in df.columns) else None,
-                    "name": str(r.get(name_col, "")).strip(),
-                    "folder_id": fid,
+                    "id": int(subject.get('id', 0)),
+                    "name": str(subject.get('subject_name', '')).strip(),
+                    "folder_id": folder_id,
                 })
     except Exception as e:
         print(f"⚠️ _get_subject_folders error: {e}")
+        import traceback
+        traceback.print_exc()
+    
     out.sort(key=lambda x: x["name"].lower())
     return out
 
@@ -125,176 +134,136 @@ def sanitize_html(s):
     return str(escape(s))
 
 
-@admin_bp.route("/admin_login", methods=["GET", "POST"])
+# Add at top of admin.py after imports:
+
+def safe_float(value, default=0.0):
+    """Safely convert to float"""
+    if value is None or str(value).strip() in ['', 'None', 'null']:
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_int(value, default=0):
+    """Safely convert to int"""
+    if value is None or str(value).strip() in ['', 'None', 'null']:
+        return default
+    try:
+        return int(float(value))  # Handle "5.0" strings
+    except (ValueError, TypeError):
+        return default
+
+
+@admin_bp.route("/login", methods=["GET", "POST"])
 def admin_login():
-    from main import load_csv_with_cache, is_password_hashed, hash_password, verify_password, get_file_lock
-    if session.get('user_id') and session.get('token') and not session.get('admin_id'):
-        session_data = get_session_by_token(session.get('token'))
-        if session_data and not session_data.get('admin_session', False):
-            flash("You have an active User session. Please logout first to access Admin portal.", "warning")
-            return redirect(url_for("dashboard"))
-    
-    if session.get('admin_id'):
-        flash("Already logged in as Admin.", "info")
-        return redirect(url_for("admin.dashboard"))
+    if request.method == "GET":
+        return render_template("admin/admin_login.html")
 
     if request.method == "POST":
         try:
-            identifier = request.form["username"].strip().lower()
-            password = request.form["password"].strip()
+            username = request.form.get("username", "").strip()
+            password = request.form.get("password", "").strip()
 
-            if not identifier or not password:
-                flash("Username and password are required!", "error")
+            if not username or not password:
+                flash("Username and password required.", "error")
                 return redirect(url_for("admin.admin_login"))
 
-            time.sleep(0.05)
+            print(f"[admin_login] Login attempt: {username}")
 
-            try:
-                users_df = load_csv_with_cache("users.csv")
-                if users_df is None or users_df.empty:
-                    flash("No users available!", "error")
-                    return redirect(url_for("admin.admin_login"))
-            except Exception as e:
-                print(f"[admin_login] Critical error loading users: {e}")
-                flash("System error. Please try again.", "error")
+            # ✅ Get user from Supabase
+            user = get_user_by_username(username)
+            
+            if not user:
+                flash("Invalid username or password.", "error")
                 return redirect(url_for("admin.admin_login"))
 
-            users_df["username_lower"] = users_df["username"].astype(str).str.strip().str.lower()
-            users_df["email_lower"] = users_df["email"].astype(str).str.strip().str.lower()
-            users_df["role_lower"] = users_df["role"].astype(str).str.strip().str.lower()
-
-            user_row = users_df[
-                (users_df["username_lower"] == identifier) |
-                (users_df["email_lower"] == identifier)
-            ]
-            if user_row.empty:
-                flash("Invalid username/email or password!", "error")
-                return redirect(url_for("admin.admin_login"))
-
-            user = user_row.iloc[0]
-            stored_password = str(user.get("password", ""))
-
+            # ✅ VERIFY PASSWORD - Handle both hashed and plain
+            stored_password = str(user.get("password", "")).strip()
+            
             if not stored_password:
-                flash("Your account has no password set. Contact system administrator.", "error")
+                flash("Account setup incomplete. Please contact administrator.", "error")
                 return redirect(url_for("admin.admin_login"))
-
+            
+            # Check if password is hashed (bcrypt format)
             password_valid = False
+            
+            # Import bcrypt functions from main.py
+            from main import is_password_hashed, verify_password
+            
             if is_password_hashed(stored_password):
+                # ✅ BCRYPT VERIFICATION
                 password_valid = verify_password(password, stored_password)
+                print(f"🔐 [ADMIN_LOGIN] Bcrypt verification for {username}: {password_valid}")
             else:
+                # ✅ PLAIN TEXT (backward compatibility)
                 password_valid = (stored_password == password)
-                if password_valid:
-                    try:
-                        with get_file_lock('users'):
-                            users_df = load_csv_with_cache("users.csv")
-                            user_row = users_df[
-                                (users_df["username"].str.lower() == identifier) |
-                                (users_df["email"].str.lower() == identifier)
-                            ]
-                            current_password = str(user_row.iloc[0]["password"])
-                            if not is_password_hashed(current_password):
-                                hashed_password = hash_password(password)
-                                users_df.loc[user_row.index[0], "password"] = hashed_password
-                                users_df.loc[user_row.index[0], "updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                safe_csv_save_with_retry(users_df, "users")
-                    except Exception as e:
-                        print(f"[admin_login] Error auto-migrating password: {e}")
-
+                print(f"⚠️ [ADMIN_LOGIN] Plain text verification for {username}: {password_valid}")
+            
             if not password_valid:
-                flash("Invalid username/email or password!", "error")
+                from login_attempts_cache import record_failed_login, check_login_attempts
+                
+                record_failed_login(username, request.remote_addr)
+                
+                # Get remaining attempts
+                allowed, error_msg, remaining = check_login_attempts(username, request.remote_addr)
+                
+                if not allowed:
+                    flash(error_msg, "error")
+                elif remaining > 0:
+                    flash(f"Invalid credentials! {remaining} attempts remaining.", "error")
+                else:
+                    flash("Invalid credentials!", "error")
+                
                 return redirect(url_for("admin.admin_login"))
 
-            role = str(user.get("role", "")).lower().strip()
-            roles_set = set(t.strip() for t in re.split(r"[,\;/\|\s]+", role) if t.strip())
-            if "admin" not in roles_set:
+            # ✅ Check admin role
+            role = str(user.get("role", "")).lower()
+            if "admin" not in role:
                 flash("You do not have admin access.", "error")
                 return redirect(url_for("admin.admin_login"))
             
-            try:
-                old_user_id = session.get('user_id')
-                old_token = session.get('token')
-                
-                if old_user_id and old_token:
-                    try:
-                        from sessions import invalidate_session, set_exam_active
-                        set_exam_active(old_user_id, old_token, is_active=False)
-                        invalidate_session(old_user_id, token=old_token)
-                    except Exception as e:
-                        print(f"[admin_login] Error cleaning old session: {e}")
-                
-                keys_to_remove = []
-                for key in list(session.keys()):
-                    if 'exam' in key.lower() or 'attempt' in key.lower():
-                        keys_to_remove.append(key)
-                
-                for key in keys_to_remove:
-                    session.pop(key, None)
-                
-                session.clear()
-                
-                try:
-                    from sessions import invalidate_session as inv_session_all
-                    inv_session_all(int(user["id"]))
-                    print(f"[admin_login] Invalidated all existing sessions for admin user {user['id']}")
-                except Exception as e:
-                    print(f"[admin_login] Warning: invalidate_session failed: {e}")
+            print(f"[admin_login] ✅ Admin verified: {username}")
 
-                token = generate_session_token()
-                session_record = {
-                    "user_id": int(user["id"]),
-                    "token": token,
-                    "device_info": request.headers.get("User-Agent", "admin_unknown"),
-                    "is_exam_active": False,
-                    "admin_session": True
-                }
+            # ✅ Invalidate old sessions
+            invalidate_session(int(user["id"]))
+            session.clear()
 
-                try:
-                    saved = save_session_record(session_record)
-                    if saved:
-                        verify_session = get_session_by_token(token)
-                        if verify_session and verify_session.get('admin_session', False):
-                            print(f"[admin_login] Successfully saved and verified admin session for user {user['id']}")
-                        else:
-                            print("[admin_login] WARNING: Admin session not properly marked as admin_session=True")
-                            flash("Session setup warning. Please try logging in again.", "warning")
-                            return redirect(url_for("admin.admin_login"))
-                    else:
-                        print("[admin_login] WARNING: save_session_record returned False")
-                        flash("Session setup failed. Please try again.", "error")
-                        return redirect(url_for("admin.admin_login"))
-                except Exception as e:
-                    print(f"[admin_login] Warning: save_session_record exception: {e}")
-                    flash("Session setup error. Please try again.", "error")
-                    return redirect(url_for("admin.admin_login"))
+            # ✅ Create new session
+            import secrets
+            token = secrets.token_urlsafe(32)
+            
+            session_data = {
+                "token": token,
+                "user_id": int(user["id"]),
+                "device_info": request.headers.get("User-Agent", "admin"),
+                "is_exam_active": False,
+                "admin_session": True,
+                "active": True
+            }
 
-                session.permanent = True
-                session['user_id'] = int(user["id"])
-                session['admin_id'] = int(user["id"])
-                session['token'] = token
-                session['username'] = user.get("username")
-                session['full_name'] = user.get("full_name", user.get("username"))
-                session['is_admin'] = True
-                session.modified = True
-                
-            except Exception as e:
-                print(f"[admin_login] Critical error setting up session: {e}")
-                session.clear()
-                flash("Session setup error. Please try again.", "error")
-                return redirect(url_for("admin.admin_login"))
+            create_session(session_data)
 
+            # ✅ Set Flask session
+            session.permanent = True
+            session['user_id'] = int(user["id"])
+            session['admin_id'] = int(user["id"])
+            session['token'] = token
+            session['username'] = user.get("username")
+            session['full_name'] = user.get("full_name", user.get("username"))
+            session['is_admin'] = True
+            session.modified = True
+
+            print(f"[admin_login] ✅ Login successful!")
             flash("Admin login successful!", "success")
             return redirect(url_for("admin.dashboard"))
 
-        except KeyError as e:
-            print(f"[admin_login] Missing form field: {e}")
-            flash("Username and password are required!", "error")
-            return redirect(url_for("admin.admin_login"))
         except Exception as e:
-            print(f"[admin_login] Unexpected error: {e}")
-            flash("System error occurred. Please try again.", "error")
+            print(f"[admin_login] ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+            flash("Login error.", "error")
             return redirect(url_for("admin.admin_login"))
-    
-    return render_template("admin/admin_login.html")
 
 
 def _parse_max_attempts(raw):
@@ -332,228 +301,247 @@ def logout():
             cleanup_thread.start()
         
         flash("Admin logout successful.", "success")
-        return redirect(url_for("home"))
+        return render_template('logout_redirect.html', is_admin=True)
         
     except Exception as e:
         print(f"[admin_logout] Error: {e}")
         session.clear()
         flash("Admin logout successful.", "success")
-        return redirect(url_for("home"))
+        return render_template('logout_redirect.html', is_admin=True)
 
 # ========== Dashboard ==========
 @admin_bp.route("/dashboard")
 @require_admin_role
 def dashboard():
-    sa = get_drive_service()
+    try:
+        # ✅ Get data from Supabase
+        exams = get_all_exams()
+        users = get_all_users()
 
-    exams_df = load_csv_from_drive(sa, EXAMS_FILE_ID)
-    users_df = load_csv_from_drive(sa, USERS_FILE_ID)
+        total_exams = len(exams) if exams else 0
+        total_users = len(users) if users else 0
 
-    total_exams = 0 if exams_df is None or exams_df.empty else len(exams_df)
-    total_users = 0 if users_df is None or users_df.empty else len(users_df)
+        # Count admins
+        admins_count = 0
+        if users:
+            for user in users:
+                role = str(user.get('role', '')).strip().lower()
+                if 'admin' in role:
+                    admins_count += 1
 
-    admins_count = 0
-    if users_df is not None and not users_df.empty and "role" in users_df.columns:
-        admins_count = (
-            users_df["role"]
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .str.contains("admin")
-            .sum()
-        )
-
-    stats = {
-        "total_exams": total_exams,
-        "total_users": total_users,
-        "total_admins": admins_count,
-    }
-    return render_template("admin/dashboard.html", stats=stats)
+        stats = {
+            "total_exams": total_exams,
+            "total_users": total_users,
+            "total_admins": admins_count,
+        }
+        return render_template("admin/dashboard.html", stats=stats)
+    
+    except Exception as e:
+        print(f"Dashboard error: {e}")
+        flash("Error loading dashboard.", "error")
+        return render_template("admin/dashboard.html", stats={})
 
 # ========== Subjects ==========
 @admin_bp.route("/subjects", methods=["GET", "POST"])
 @require_admin_role
 def subjects():
-    sa = get_drive_service()
-    subjects_df = load_csv_from_drive(sa, SUBJECTS_FILE_ID)
-
+    """Subjects management using Supabase"""
+    
     if request.method == "POST":
         subject_name = request.form["subject_name"].strip()
         if not subject_name:
             flash("Subject name required.", "danger")
             return redirect(url_for("admin.subjects"))
-
-        if (not subjects_df.empty and
-            subjects_df["subject_name"].astype(str).str.lower().eq(subject_name.lower()).any()):
-            flash("Subject already exists.", "warning")
-            return redirect(url_for("admin.subjects"))
-
+        
+        # Check if subject already exists in Supabase
+        from supabase_db import supabase
+        
+        try:
+            response = supabase.table('subjects').select('*').eq('subject_name', subject_name).execute()
+            if response.data:
+                flash("Subject already exists.", "warning")
+                return redirect(url_for("admin.subjects"))
+        except:
+            pass
+        
+        # Create Drive folder
         try:
             drive_owner = get_drive_service_for_upload()
         except Exception as e:
             flash(f"Cannot create folder: {e}", "danger")
             return redirect(url_for("admin.subjects"))
-
+        
         folder_id, created_at = create_subject_folder(drive_owner, subject_name)
-
-        new_id = 1 if subjects_df.empty else int(subjects_df["id"].max()) + 1
-        new_row = pd.DataFrame([{
-            "id": new_id,
+        
+        # Insert into Supabase
+        new_subject = {
             "subject_name": subject_name,
             "subject_folder_id": folder_id,
             "subject_folder_created_at": created_at
-        }])
-        updated_df = pd.concat([subjects_df, new_row], ignore_index=True)
-        safe_csv_save_with_retry(updated_df, 'subjects')
-        clear_cache()
-        flash(f"Subject '{subject_name}' created successfully.", "success")
+        }
+        
+        try:
+            supabase.table('subjects').insert(new_subject).execute()
+            flash(f"Subject '{subject_name}' created successfully.", "success")
+        except Exception as e:
+            print(f"Error creating subject: {e}")
+            flash("Failed to create subject in database.", "danger")
+        
         return redirect(url_for("admin.subjects"))
-
-    return render_template("admin/subjects.html", subjects=subjects_df.to_dict(orient="records"))
+    
+    # GET: Load subjects from Supabase
+    from supabase_db import supabase
+    
+    try:
+        response = supabase.table('subjects').select('*').order('subject_name').execute()
+        subjects_list = response.data if response.data else []
+    except Exception as e:
+        print(f"Error loading subjects: {e}")
+        subjects_list = []
+    
+    return render_template("admin/subjects.html", subjects=subjects_list)
 
 @admin_bp.route("/subjects/edit/<int:subject_id>", methods=["POST"])
 @require_admin_role
 def edit_subject(subject_id):
-    sa = get_drive_service()
-    subjects_df = load_csv_from_drive(sa, SUBJECTS_FILE_ID)
-    if subjects_df.empty or subject_id not in subjects_df["id"].values:
+    """Edit subject using Supabase"""
+    
+    from supabase_db import supabase
+    
+    # Get subject from Supabase
+    try:
+        response = supabase.table('subjects').select('*').eq('id', subject_id).execute()
+        subject = response.data[0] if response.data else None
+    except:
+        subject = None
+    
+    if not subject:
         flash("Subject not found.", "danger")
         return redirect(url_for("admin.subjects"))
-
+    
     new_name = request.form.get("subject_name", "").strip()
     if not new_name:
         flash("Subject name required.", "danger")
         return redirect(url_for("admin.subjects"))
-
-    row = subjects_df[subjects_df["id"] == subject_id].iloc[0]
-    folder_id = row["subject_folder_id"]
-
+    
+    folder_id = subject.get("subject_folder_id", "")
+    
+    # Update Drive folder name
     try:
         drive_owner = get_drive_service_for_upload()
         drive_owner.files().update(fileId=folder_id, body={"name": new_name}).execute()
     except Exception as e:
-        print(f"⚠️ rename folder failed: {e}")
-        flash("Drive folder rename failed; CSV updated.", "warning")
-
-    subjects_df.loc[subjects_df["id"] == subject_id, "subject_name"] = new_name
-    safe_csv_save_with_retry(subjects_df, 'subjects')
-    clear_cache()
-    flash("Subject updated successfully.", "success")
+        print(f"⚠️ Rename folder failed: {e}")
+        flash("Drive folder rename failed; database updated.", "warning")
+    
+    # Update in Supabase
+    try:
+        supabase.table('subjects').update({'subject_name': new_name}).eq('id', subject_id).execute()
+        flash("Subject updated successfully.", "success")
+    except Exception as e:
+        print(f"Error updating subject: {e}")
+        flash("Failed to update subject in database.", "danger")
+    
     return redirect(url_for("admin.subjects"))
 
 @admin_bp.route("/subjects/delete/<int:subject_id>")
 @require_admin_role
 def delete_subject(subject_id):
-    service = get_drive_service()
-    subjects_df = load_csv_from_drive(service, SUBJECTS_FILE_ID)
-    if subjects_df is None or subjects_df.empty:
-        flash("No subjects found.", "warning")
+    """Delete subject using Supabase"""
+    
+    from supabase_db import supabase
+    
+    # Get subject from Supabase
+    try:
+        response = supabase.table('subjects').select('*').eq('id', subject_id).execute()
+        subject = response.data[0] if response.data else None
+    except:
+        subject = None
+    
+    if not subject:
+        flash("Subject not found.", "warning")
         return redirect(url_for("admin.subjects"))
-
-    if "id" not in subjects_df.columns:
-        flash("Subjects file is missing 'id' column.", "danger")
-        return redirect(url_for("admin.subjects"))
-    working_df = subjects_df.copy()
-    working_df["id"] = pd.to_numeric(working_df["id"], errors="coerce").astype("Int64")
-
-    hit = working_df[working_df["id"] == int(subject_id)]
-    if hit.empty:
-        flash("Subject not found.", "danger")
-        return redirect(url_for("admin.subjects"))
-
-    folder_id_col = "subject_folder_id" if "subject_folder_id" in working_df.columns else "folder_id"
-    folder_id = str(hit.iloc[0].get(folder_id_col, "")).strip()
-
+    
+    folder_id = str(subject.get("subject_folder_id", "")).strip()
+    
+    # Try to delete Drive folder
     if folder_id:
         try:
             drive_owner = get_drive_service_for_upload()
             try:
                 drive_owner.files().delete(fileId=folder_id, supportsAllDrives=True).execute()
-                print(f"✅ Deleted folder {folder_id} using owner OAuth client.")
+                print(f"✅ Deleted folder {folder_id}")
             except Exception as e_del:
-                print(f"⚠ Owner delete failed for {folder_id}: {e_del} — trying to trash it instead.")
+                print(f"⚠ Delete failed: {e_del} — trying to trash")
                 try:
                     drive_owner.files().update(fileId=folder_id, body={"trashed": True}, supportsAllDrives=True).execute()
-                    print(f"♻ Trashed folder {folder_id} using owner OAuth client.")
+                    print(f"♻ Trashed folder {folder_id}")
                 except Exception as e_trash:
-                    print(f"❌ Failed to trash folder {folder_id} with owner client: {e_trash}")
-        except Exception as e_owner:
-            print(f"⚠ get_drive_service_for_upload() failed: {e_owner}. Trying service-account client as fallback.")
-            try:
-                service.files().delete(fileId=folder_id, supportsAllDrives=True).execute()
-                print(f"✅ Deleted folder {folder_id} using service-account client (fallback).")
-            except Exception as e_sa:
-                print(f"❌ Fallback SA delete also failed for {folder_id}: {e_sa}")
-
-    new_df = working_df[working_df["id"] != int(subject_id)].copy()
-    ok = safe_csv_save_with_retry(new_df, 'subjects')
-    if ok:
-        clear_cache()
-        flash("Subject deleted (Drive folder removed if permitted).", "info")
-    else:
-        flash("Failed to update subjects.csv after delete.", "danger")
-
+                    print(f"❌ Failed to trash: {e_trash}")
+        except Exception as e:
+            print(f"⚠ Drive service error: {e}")
+    
+    # Delete from Supabase
+    try:
+        supabase.table('subjects').delete().eq('id', subject_id).execute()
+        flash("Subject deleted successfully.", "info")
+    except Exception as e:
+        print(f"Error deleting subject: {e}")
+        flash("Failed to delete subject from database.", "danger")
+    
     return redirect(url_for("admin.subjects"))
 
 # ========== Exams ==========
 @admin_bp.route("/exams", methods=["GET", "POST"])
 @require_admin_role
 def exams():
-    service = get_drive_service()
-    exams_df = load_csv_from_drive(service, EXAMS_FILE_ID)
-    if exams_df is None:
-        exams_df = pd.DataFrame()
-    if "max_attempts" not in exams_df.columns:
-        exams_df["max_attempts"] = ""
+    """Exams management using Supabase"""
+    
     if request.method == "POST":
         form = request.form
-        try:
-            new_id = int(exams_df["id"].max()) + 1 if not exams_df.empty else 1
-        except Exception:
-            new_id = 1
+        
         try:
             parsed_max = _parse_max_attempts(form.get("max_attempts", ""))
         except ValueError as e:
             flash(str(e), "danger")
             return redirect(url_for("admin.exams"))
-        row = {
-            "id": new_id,
+        
+        new_exam = {
             "name": form.get("name", "").strip(),
             "date": form.get("date", "").strip(),
             "start_time": form.get("start_time", "").strip(),
-            "duration": int(form.get("duration") or 0),
+            "duration": int(form.get("duration") or 60),
             "total_questions": int(form.get("total_questions") or 0),
-            "status": form.get("status", "").strip(),
+            "status": form.get("status", "draft").strip(),
             "instructions": form.get("instructions", "").strip(),
-            "positive_marks": form.get("positive_marks", "").strip(),
-            "negative_marks": form.get("negative_marks", "").strip(),
-            "max_attempts": "" if parsed_max is None else str(parsed_max)
+            "positive_marks": form.get("positive_marks", "1").strip(),
+            "negative_marks": form.get("negative_marks", "0").strip(),
+            "max_attempts": parsed_max
         }
-        new_df = pd.concat([exams_df, pd.DataFrame([row])], ignore_index=True)
-        ok = safe_csv_save_with_retry(new_df, 'exams')
-        if ok:
-            clear_cache()
+        
+        result = create_exam(new_exam)
+        
+        if result:
             flash("Exam created successfully.", "success")
-            return redirect(url_for("admin.exams"))
         else:
-            flash("Failed to save exam.", "danger")
-            return redirect(url_for("admin.exams"))
-    return render_template("admin/exams.html", exams=exams_df.to_dict(orient="records"))
+            flash("Failed to create exam.", "error")
+            
+        return redirect(url_for("admin.exams"))
+    
+    exams_list = get_all_exams()
+    return render_template("admin/exams.html", exams=exams_list)
 
 
 @admin_bp.route("/exams/edit/<int:exam_id>", methods=["GET", "POST"])
 @require_admin_role
 def edit_exam(exam_id):
-    service = get_drive_service()
-    exams_df = load_csv_from_drive(service, EXAMS_FILE_ID)
-    if exams_df is None:
-        exams_df = pd.DataFrame()
-    if "max_attempts" not in exams_df.columns:
-        exams_df["max_attempts"] = ""
-    exam = exams_df[exams_df["id"] == exam_id]
-    if exam.empty:
+    """Edit exam using Supabase"""
+    
+    exam = get_exam_by_id(exam_id)
+    if not exam:
         flash("Exam not found.", "danger")
         return redirect(url_for("admin.exams"))
+    
     if request.method == "POST":
         form = request.form
         try:
@@ -562,155 +550,146 @@ def edit_exam(exam_id):
         except Exception:
             flash("Duration and Total Questions must be integers.", "danger")
             return redirect(url_for("admin.edit_exam", exam_id=exam_id))
+        
         try:
             parsed_max = _parse_max_attempts(form.get("max_attempts", ""))
         except ValueError as e:
             flash(str(e), "danger")
             return redirect(url_for("admin.edit_exam", exam_id=exam_id))
-        exams_df.loc[exams_df["id"] == exam_id, [
-            "name", "date", "start_time", "duration",
-            "total_questions", "status",
-            "instructions", "positive_marks", "negative_marks", "max_attempts"
-        ]] = [
-            form.get("name", "").strip(),
-            form.get("date", "").strip(),
-            form.get("start_time", "").strip(),
-            duration_val,
-            total_q_val,
-            form.get("status", "").strip(),
-            form.get("instructions", "").strip(),
-            form.get("positive_marks", "").strip(),
-            form.get("negative_marks", "").strip(),
-            "" if parsed_max is None else str(parsed_max)
-        ]
-        ok = safe_csv_save_with_retry(exams_df, 'exams')
-        if ok:
-            clear_cache()
+        
+        updated_fields = {
+            "name": form.get("name", "").strip(),
+            "date": form.get("date", "").strip(),
+            "start_time": form.get("start_time", "").strip(),
+            "duration": duration_val,
+            "total_questions": total_q_val,
+            "status": form.get("status", "").strip(),
+            "instructions": form.get("instructions", "").strip(),
+            "positive_marks": form.get("positive_marks", "").strip(),
+            "negative_marks": form.get("negative_marks", "").strip(),
+            "max_attempts": parsed_max
+        }
+        
+        if update_exam(exam_id, updated_fields):
             flash("Exam updated successfully.", "success")
             return redirect(url_for("admin.exams"))
         else:
             flash("Failed to save exam changes.", "danger")
             return redirect(url_for("admin.edit_exam", exam_id=exam_id))
-    return render_template("admin/edit_exam.html", exam=exam.iloc[0].to_dict())
+    
+    return render_template("admin/edit_exam.html", exam=exam)
 
-@admin_bp.route("/exams/delete/<int:exam_id>", methods=["GET"])
+@admin_bp.route("/exams/delete/<int:exam_id>", methods=["POST"])  # ✅ POST only
 @require_admin_role
 def delete_exam(exam_id):
-    service = get_drive_service()
-    exams_df = load_csv_from_drive(service, EXAMS_FILE_ID)
-    if exams_df is None or exams_df.empty:
-        flash("Exam not found.", "danger")
-        return redirect(url_for("admin.exams"))
+    """Delete exam with cascade (questions, results, responses)"""
     try:
-        ids = exams_df["id"].astype(int)
-    except Exception:
-        ids = exams_df["id"].apply(lambda x: int(str(x).strip()) if str(x).strip().isdigit() else None)
-    if int(exam_id) not in ids.tolist():
-        flash("Exam not found.", "danger")
-        return redirect(url_for("admin.exams"))
-    exams_df = exams_df[ids != int(exam_id)].reset_index(drop=True)
-    ok = safe_csv_save_with_retry(exams_df, "exams")
-    if ok:
-        clear_cache()
-        flash("Exam deleted successfully.", "success")
-    else:
-        flash("Failed to delete exam.", "danger")
-    return redirect(url_for("admin.exams"))
+        from supabase_db import supabase
+        
+        # Get exam name
+        exam = get_exam_by_id(exam_id)
+        if not exam:
+            return jsonify({"success": False, "message": "Exam not found"}), 404
+        
+        exam_name = exam.get('name', f'Exam {exam_id}')
+        
+        # ✅ CASCADE DELETE
+        try:
+            # 1. Delete responses (via results)
+            results = get_results_by_exam(exam_id)
+            for result in results:
+                supabase.table('responses').delete().eq('result_id', result['id']).execute()
+            
+            # 2. Delete results
+            supabase.table('results').delete().eq('exam_id', exam_id).execute()
+            
+            # 3. Delete attempts
+            supabase.table('exam_attempts').delete().eq('exam_id', exam_id).execute()
+            
+            # 4. Delete questions
+            supabase.table('questions').delete().eq('exam_id', exam_id).execute()
+            
+            # 5. Delete exam
+            supabase.table('exams').delete().eq('id', exam_id).execute()
+            
+            return jsonify({
+                "success": True, 
+                "message": f"Exam '{exam_name}' and all related data deleted successfully"
+            })
+        
+        except Exception as e:
+            print(f"Error in cascade delete: {e}")
+            return jsonify({"success": False, "message": str(e)}), 500
+    
+    except Exception as e:
+        print(f"Error deleting exam: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
-# ========== Questions helpers & CRUD ==========
-QUESTIONS_COLUMNS = [
-    "id", "exam_id", "question_text", "option_a", "option_b", "option_c", "option_d",
-    "correct_answer", "question_type", "image_path", "positive_marks", "negative_marks", "tolerance"
-]
 
-def _ensure_questions_df(df):
-    """Return a DataFrame guaranteed to have QUESTIONS_COLUMNS in order and safe dtypes."""
-    if df is None or df.empty:
-        df = pd.DataFrame(columns=QUESTIONS_COLUMNS)
-
-    for c in QUESTIONS_COLUMNS:
-        if c not in df.columns:
-            df[c] = ""
-
-    for col in ("positive_marks", "negative_marks", "tolerance"):
-        if col in df.columns:
-            df[col] = df[col].fillna("").astype(str)
-
-    return df[QUESTIONS_COLUMNS].copy()
 
 @admin_bp.route("/questions", methods=["GET"])
 @require_admin_role
 def questions_index():
-    sa = get_drive_service()
-    exams_df = load_csv_from_drive(sa, EXAMS_FILE_ID)
-    exams = []
-    if not exams_df.empty:
-        for _, r in exams_df.iterrows():
-            exams.append({
-                "id": int(r.get("id")) if "id" in exams_df.columns and str(r.get("id")).strip() else None,
-                "name": r.get("name") if "name" in exams_df.columns else f"Exam {r.get('id')}"
-            })
-
-    selected_exam_id = request.args.get("exam_id", type=int)
-    if not selected_exam_id and exams:
-        selected_exam_id = exams[0]["id"]
-
-    questions_df = load_csv_from_drive(sa, QUESTIONS_FILE_ID)
-    questions_df = _ensure_questions_df(questions_df)
-
-    if selected_exam_id:
-        filtered = questions_df[questions_df["exam_id"].astype(str) == str(selected_exam_id)]
-    else:
-        filtered = questions_df.copy()
-
-    questions = []
-    for _, r in filtered.iterrows():
-        # sanitize server-side and keep markup safe for templates
-        qtext = sanitize_html(r.get("question_text", ""))
-        questions.append({
-            "id": int(r["id"]) if str(r["id"]).strip() else None,
-            "exam_id": int(r["exam_id"]) if str(r["exam_id"]).strip() else None,
-            "question_text": qtext,
-            "option_a": sanitize_html(r.get("option_a", "")),
-            "option_b": sanitize_html(r.get("option_b", "")),
-            "option_c": sanitize_html(r.get("option_c", "")),
-            "option_d": sanitize_html(r.get("option_d", "")),
-            "correct_answer": r.get("correct_answer", ""),
-            "question_type": r.get("question_type", ""),
-            "image_path": r.get("image_path", ""),
-            "positive_marks": r.get("positive_marks", ""),
-            "negative_marks": r.get("negative_marks", ""),
-            "tolerance": r.get("tolerance", "")
+    """Questions listing using Supabase"""
+    
+    # Get all exams for filter
+    exams = get_all_exams()
+    exams_list = []
+    for exam in exams:
+        exams_list.append({
+            "id": int(exam.get("id")),
+            "name": exam.get("name", f"Exam {exam.get('id')}")
         })
-
+    
+    # Get selected exam
+    selected_exam_id = request.args.get("exam_id", type=int)
+    if not selected_exam_id and exams_list:
+        selected_exam_id = exams_list[0]["id"]
+    
+    # Get questions for selected exam
+    questions_list = []
+    if selected_exam_id:
+        questions = get_questions_by_exam(selected_exam_id)
+        for q in questions:
+            questions_list.append({
+                "id": int(q.get("id")),
+                "exam_id": int(q.get("exam_id")),
+                "question_text": sanitize_html(q.get("question_text", "")),
+                "option_a": sanitize_html(q.get("option_a", "")),
+                "option_b": sanitize_html(q.get("option_b", "")),
+                "option_c": sanitize_html(q.get("option_c", "")),
+                "option_d": sanitize_html(q.get("option_d", "")),
+                "correct_answer": q.get("correct_answer", ""),
+                "question_type": q.get("question_type", "MCQ"),
+                "image_path": q.get("image_path", ""),
+                "positive_marks": q.get("positive_marks", "4"),
+                "negative_marks": q.get("negative_marks", "1"),
+                "tolerance": q.get("tolerance", "")
+            })
+    
     return render_template("admin/questions.html",
-                           exams=exams,
-                           selected_exam_id=selected_exam_id,
-                           questions=questions)
+                         exams=exams_list,
+                         selected_exam_id=selected_exam_id,
+                         questions=questions_list)
 
 @admin_bp.route("/questions/add", methods=["GET", "POST"])
 @require_admin_role
 def add_question():
-    sa = get_drive_service()
-    exams_df = load_csv_from_drive(sa, EXAMS_FILE_ID)
-    exams = []
-    if not exams_df.empty:
-        for _, r in exams_df.iterrows():
-            exams.append({"id": int(r.get("id")) if "id" in exams_df.columns and str(r.get("id")).strip() else None,
-                          "name": r.get("name") if "name" in exams_df.columns else f"Exam {r.get('id')}"})
-
+    """Add question using Supabase"""
+    
+    # Get exams for dropdown
+    exams = get_all_exams()
+    exams_list = []
+    for exam in exams:
+        exams_list.append({
+            "id": int(exam.get("id")),
+            "name": exam.get("name", f"Exam {exam.get('id')}")
+        })
+    
     if request.method == "POST":
-        qdf = load_csv_from_drive(sa, QUESTIONS_FILE_ID)
-        qdf = _ensure_questions_df(qdf)
-
-        try:
-            next_id = int(qdf["id"].max()) + 1 if not qdf.empty and qdf["id"].astype(str).str.strip().any() else 1
-        except Exception:
-            next_id = 1
-
         data = request.form.to_dict()
-        new_row = {
-            "id": next_id,
+        
+        new_question = {
             "exam_id": int(data.get("exam_id") or 0),
             "question_text": data.get("question_text", "").strip(),
             "option_a": data.get("option_a", "").strip(),
@@ -718,91 +697,109 @@ def add_question():
             "option_c": data.get("option_c", "").strip(),
             "option_d": data.get("option_d", "").strip(),
             "correct_answer": data.get("correct_answer", "").strip(),
-            "question_type": data.get("question_type", "").strip(),
+            "question_type": data.get("question_type", "MCQ").strip(),
             "image_path": data.get("image_path", "").strip(),
-            "positive_marks": data.get("positive_marks", "").strip() or "4",
-            "negative_marks": data.get("negative_marks", "").strip() or "1",
-            "tolerance": data.get("tolerance", "").strip() or ""
+            "tolerance": safe_float(data.get("tolerance"), 0),
+            "positive_marks": safe_int(data.get("positive_marks"), 4),
+            "negative_marks": safe_float(data.get("negative_marks"), 1)
         }
-
-        new_df = pd.concat([qdf, pd.DataFrame([new_row])], ignore_index=True)
-        ok = safe_csv_save_with_retry(new_df, 'questions')
-        if ok:
-            clear_cache()
+        
+        result = create_question(new_question)
+        
+        if result:
             flash("Question added successfully.", "success")
-            return redirect(url_for("admin.questions_index", exam_id=new_row["exam_id"]))
+            return redirect(url_for("admin.questions_index", exam_id=new_question["exam_id"]))
         else:
-            flash("Failed to save question.", "danger")
+            flash("Failed to add question.", "danger")
             return redirect(url_for("admin.add_question"))
-
-    return render_template("admin/add_question.html", exams=exams, question=None, form_mode="add")
+    
+    return render_template("admin/add_question.html", exams=exams_list, question=None, form_mode="add")
 
 @admin_bp.route("/questions/edit/<int:question_id>", methods=["GET", "POST"])
 @require_admin_role
 def edit_question(question_id):
-    sa = get_drive_service()
-    exams_df = load_csv_from_drive(sa, EXAMS_FILE_ID)
-    exams = []
-    if not exams_df.empty:
-        for _, r in exams_df.iterrows():
-            exams.append({"id": int(r.get("id")) if "id" in exams_df.columns and str(r.get("id")).strip() else None,
-                          "name": r.get("name") if "name" in exams_df.columns else f"Exam {r.get('id')}"})
-
-    qdf = load_csv_from_drive(sa, QUESTIONS_FILE_ID)
-    qdf = _ensure_questions_df(qdf)
-
-    hit = qdf[qdf["id"].astype(str) == str(question_id)]
-    if hit.empty:
+    """Edit question using Supabase"""
+    
+    # Get exams for dropdown
+    exams = get_all_exams()
+    exams_list = []
+    for exam in exams:
+        exams_list.append({
+            "id": int(exam.get("id")),
+            "name": exam.get("name", f"Exam {exam.get('id')}")
+        })
+    
+    # Get question
+    from supabase_db import supabase
+    
+    try:
+        response = supabase.table('questions').select('*').eq('id', question_id).execute()
+        question = response.data[0] if response.data else None
+    except:
+        question = None
+    
+    if not question:
         flash("Question not found.", "danger")
         return redirect(url_for("admin.questions_index"))
-
+    
     if request.method == "POST":
         data = request.form.to_dict()
-        idx = hit.index[0]
-        qdf.at[idx, "exam_id"] = int(data.get("exam_id") or qdf.at[idx, "exam_id"])
-        qdf.at[idx, "question_text"] = data.get("question_text", "").strip()
-        qdf.at[idx, "option_a"] = data.get("option_a", "").strip()
-        qdf.at[idx, "option_b"] = data.get("option_b", "").strip()
-        qdf.at[idx, "option_c"] = data.get("option_c", "").strip()
-        qdf.at[idx, "option_d"] = data.get("option_d", "").strip()
-        qdf.at[idx, "correct_answer"] = data.get("correct_answer", "").strip()
-        qdf.at[idx, "question_type"] = data.get("question_type", "").strip()
-        qdf.at[idx, "image_path"] = data.get("image_path", "").strip()
-        qdf.at[idx, "positive_marks"] = data.get("positive_marks", "").strip() or "4"
-        qdf.at[idx, "negative_marks"] = data.get("negative_marks", "").strip() or "1"
-        qdf.at[idx, "tolerance"] = data.get("tolerance", "").strip() or ""
-
-        ok = save_csv_to_drive(sa, qdf, QUESTIONS_FILE_ID)
-        if ok:
-            clear_cache()
-            flash("Question updated.", "success")
-            return redirect(url_for("admin.questions_index", exam_id=qdf.at[idx, "exam_id"]))
+        
+        updated_data = {
+            "exam_id": int(data.get("exam_id") or question.get("exam_id")),
+            "question_text": data.get("question_text", "").strip(),
+            "option_a": data.get("option_a", "").strip(),
+            "option_b": data.get("option_b", "").strip(),
+            "option_c": data.get("option_c", "").strip(),
+            "option_d": data.get("option_d", "").strip(),
+            "correct_answer": data.get("correct_answer", "").strip(),
+            "question_type": data.get("question_type", "MCQ").strip(),
+            "image_path": data.get("image_path", "").strip(),
+            "tolerance": safe_float(data.get("tolerance"), 0),
+            "positive_marks": safe_int(data.get("positive_marks"), 4),
+            "negative_marks": safe_float(data.get("negative_marks"), 1)
+        }
+        
+        if update_question(question_id, updated_data):
+            flash("Question updated successfully.", "success")
+            return redirect(url_for("admin.questions_index", exam_id=updated_data["exam_id"]))
         else:
-            flash("Failed to save changes.", "danger")
+            flash("Failed to update question.", "danger")
             return redirect(url_for("admin.edit_question", question_id=question_id))
-
-    qrow = hit.iloc[0].to_dict()
-    # Provide sanitized markup to the edit form (it will be shown inside textarea - we send raw string)
-    return render_template("admin/edit_question.html", exams=exams, question=qrow, form_mode="edit")
+    
+    return render_template("admin/edit_question.html", exams=exams_list, question=question, form_mode="edit")
 
 @admin_bp.route("/questions/delete/<int:question_id>", methods=["POST"])
 @require_admin_role
 def delete_question(question_id):
-    sa = get_drive_service()
-    qdf = load_csv_from_drive(sa, QUESTIONS_FILE_ID)
-    qdf = _ensure_questions_df(qdf)
-    new_df = qdf[qdf["id"].astype(str) != str(question_id)].copy()
-    ok = safe_csv_save_with_retry(new_df, 'questions')
-    if ok:
-        clear_cache()
-        flash("Question deleted.", "info")
+    """Delete question from Supabase"""
+    
+    # Get question to find exam_id
+    from supabase_db import supabase
+    
+    try:
+        response = supabase.table('questions').select('exam_id').eq('id', question_id).execute()
+        exam_id = response.data[0]['exam_id'] if response.data else None
+    except:
+        exam_id = None
+    
+    # Delete question
+    from supabase_db import delete_question as db_delete_question
+    
+    if db_delete_question(question_id):
+        flash("Question deleted successfully.", "info")
     else:
         flash("Failed to delete question.", "danger")
-    return redirect(url_for("admin.questions_index"))
+    
+    if exam_id:
+        return redirect(url_for("admin.questions_index", exam_id=exam_id))
+    else:
+        return redirect(url_for("admin.questions_index"))
 
 @admin_bp.route("/questions/delete-multiple", methods=["POST"])
 @require_admin_role
 def delete_multiple_questions():
+    """Delete multiple questions from Supabase"""
     try:
         payload = request.get_json(force=True)
         if not payload or "ids" not in payload:
@@ -812,22 +809,19 @@ def delete_multiple_questions():
         if not isinstance(ids, list) or not ids:
             return jsonify({"success": False, "message": "No IDs provided"}), 400
 
-        ids_str = set([str(int(i)) for i in ids if str(i).strip()])
+        ids_int = [int(i) for i in ids if str(i).strip()]
 
-        sa = get_drive_service()
-        qdf = load_csv_from_drive(sa, QUESTIONS_FILE_ID)
-        qdf = _ensure_questions_df(qdf)
+        from supabase_db import supabase
+        
+        deleted_count = 0
+        for question_id in ids_int:
+            try:
+                supabase.table('questions').delete().eq('id', question_id).execute()
+                deleted_count += 1
+            except Exception as e:
+                print(f"Failed to delete question {question_id}: {e}")
+                continue
 
-        before_count = len(qdf)
-        new_df = qdf[~qdf["id"].astype(str).isin(ids_str)].copy()
-        after_count = len(new_df)
-        deleted_count = before_count - after_count
-
-        ok = safe_csv_save_with_retry(new_df, 'questions')
-        if not ok:
-            return jsonify({"success": False, "message": "Failed to save updated questions CSV"}), 500
-
-        clear_cache()
         return jsonify({"success": True, "deleted": deleted_count})
 
     except Exception as e:
@@ -837,6 +831,7 @@ def delete_multiple_questions():
 @admin_bp.route("/questions/bulk-update", methods=["POST"])
 @require_admin_role
 def questions_bulk_update():
+    """Bulk update questions marks/tolerance in Supabase"""
     try:
         payload = request.get_json(force=True)
         if not payload:
@@ -853,36 +848,40 @@ def questions_bulk_update():
         if not qtype:
             return jsonify({"success": False, "message": "question_type required"}), 400
 
-        pos_str = None if pos is None else str(pos).strip()
-        neg_str = None if neg is None else str(neg).strip()
-        tol_str = None if tol is None else str(tol)
+        # Get questions for this exam and type
+        questions = get_questions_by_exam(exam_id)
+        
+        matching_questions = [
+            q for q in questions 
+            if str(q.get('question_type', '')).strip().upper() == qtype.upper()
+        ]
 
-        sa = get_drive_service()
-        qdf = load_csv_from_drive(sa, QUESTIONS_FILE_ID)
-        qdf = _ensure_questions_df(qdf)
-
-        mask_exam = qdf["exam_id"].astype(str) == str(exam_id)
-        mask_type = qdf["question_type"].astype(str).str.strip().str.upper() == qtype.upper()
-        mask = mask_exam & mask_type
-
-        if not mask.any():
+        if not matching_questions:
             return jsonify({"success": True, "updated": 0, "message": "No matching questions found"}), 200
 
-        idxs = qdf[mask].index.tolist()
-        for idx in idxs:
-            if pos_str is not None and pos_str != "":
-                qdf.at[idx, "positive_marks"] = pos_str
-            if neg_str is not None and neg_str != "":
-                qdf.at[idx, "negative_marks"] = neg_str
+        from supabase_db import supabase
+        
+        updated_count = 0
+        for q in matching_questions:
+            question_id = int(q.get('id'))
+            
+            update_data = {}
+            if pos is not None and str(pos).strip() != "":
+                update_data['positive_marks'] = int(pos)
+            if neg is not None and str(neg).strip() != "":
+                update_data['negative_marks'] = float(neg)
             if tol is not None:
-                qdf.at[idx, "tolerance"] = tol_str
+                update_data['tolerance'] = float(tol)
+            
+            if update_data:
+                try:
+                    supabase.table('questions').update(update_data).eq('id', question_id).execute()
+                    updated_count += 1
+                except Exception as e:
+                    print(f"Failed to update question {question_id}: {e}")
+                    continue
 
-        ok = save_csv_to_drive(sa, qdf, QUESTIONS_FILE_ID)
-        if not ok:
-            return jsonify({"success": False, "message": "Failed to save CSV"}), 500
-
-        clear_cache()
-        return jsonify({"success": True, "updated": len(idxs)}), 200
+        return jsonify({"success": True, "updated": updated_count}), 200
 
     except Exception as e:
         print(f"❌ questions_bulk_update error: {e}")
@@ -939,15 +938,53 @@ def upload_images_page():
                     fh = open(temp_path, "rb")
                     media = MediaIoBaseUpload(fh, mimetype=mime or "application/octet-stream", resumable=True)
 
+                    new_file_id = None
                     if existing_id:
-                        drive_upload.files().update(fileId=existing_id, media_body=media).execute()
+                        # Capture response; some update calls return metadata
+                        try:
+                            res = drive_upload.files().update(fileId=existing_id, media_body=media, fields="id").execute()
+                            new_file_id = res.get('id') if isinstance(res, dict) and res.get('id') else existing_id
+                        except Exception:
+                            # fallback: assume existing_id still valid
+                            new_file_id = existing_id
                     else:
-                        drive_upload.files().create(
+                        res = drive_upload.files().create(
                             body={"name": safe_name, "parents": [folder_id]},
                             media_body=media,
                             fields="id"
                         ).execute()
+                        new_file_id = res.get('id') if isinstance(res, dict) else None
+
                     uploaded += 1
+
+                    # Clear caches for this file so latest image appears immediately
+                    try:
+                        from google_drive_service import clear_image_cache_immediate
+                        from main import app_cache
+
+                        if new_file_id:
+                            clear_image_cache_immediate(new_file_id)
+
+                            # Remove any app_cache image entries that reference this file id (URL contains id=)
+                            imgs = app_cache.get('images', {})
+                            if imgs:
+                                keys_to_remove = [k for k, v in list(imgs.items()) if v and str(new_file_id) in str(v)]
+                                for k in keys_to_remove:
+                                    imgs.pop(k, None)
+                                    app_cache.get('timestamps', {}).pop(k, None)
+
+                            # Set force_refresh so the next preload will rebuild session image URLs
+                            app_cache['force_refresh'] = True
+                            try:
+                                from flask import session
+                                session['force_refresh'] = True
+                                session.modified = True
+                            except Exception:
+                                pass
+
+                            print(f"✅ Cleared image caches for uploaded file: {new_file_id}")
+                    except Exception as cache_err:
+                        print(f"⚠️ Cache clear after upload failed: {cache_err}")
                 except HttpError as e:
                     failed.append({"filename": safe_name, "error": str(e)})
                 except Exception as e:
@@ -981,6 +1018,7 @@ def upload_images_page():
 @admin_bp.route("/questions/batch-add", methods=["POST"])
 @require_admin_role
 def questions_batch_add():
+    """Batch add questions to Supabase"""
     try:
         payload = request.get_json(force=True)
         if not payload or "questions" not in payload or "exam_id" not in payload:
@@ -991,23 +1029,17 @@ def questions_batch_add():
         if not items:
             return jsonify({"success": False, "message": "No questions provided"}), 400
 
-        sa = get_drive_service()
-        qdf = load_csv_from_drive(sa, QUESTIONS_FILE_ID)
-        qdf = _ensure_questions_df(qdf)
-
-        try:
-            next_id = int(qdf["id"].max()) + 1 if not qdf.empty and qdf["id"].astype(str).str.strip().any() else 1
-        except Exception:
-            next_id = 1
-
+        from supabase_db import supabase
+        
         new_rows = []
         added_count = 0
+        
         for it in items:
             qt = (it.get("question_text") or "").strip()
             if not qt:
                 continue
+            
             row = {
-                "id": next_id,
                 "exam_id": exam_id,
                 "question_text": qt,
                 "option_a": (it.get("option_a") or "").strip(),
@@ -1017,43 +1049,85 @@ def questions_batch_add():
                 "correct_answer": (it.get("correct_answer") or "").strip(),
                 "question_type": (it.get("question_type") or "MCQ").strip(),
                 "image_path": (it.get("image_path") or "").strip(),
-                "positive_marks": str(it.get("positive_marks") or "4"),
-                "negative_marks": str(it.get("negative_marks") or "1"),
-                "tolerance": str(it.get("tolerance") or "")
+                "positive_marks": safe_int(it.get("positive_marks"), 4),
+                "negative_marks": safe_float(it.get("negative_marks") or 1),
+                "tolerance": safe_float(it.get("tolerance") or 0)
             }
             new_rows.append(row)
-            next_id += 1
-            added_count += 1
 
         if not new_rows:
             return jsonify({"success": False, "message": "No valid rows to add"}), 400
 
-        appended = pd.concat([qdf, pd.DataFrame(new_rows)], ignore_index=True)
-        ok = safe_csv_save_with_retry(appended, 'questions')
-        if not ok:
-            return jsonify({"success": False, "message": "Failed to save to Drive"}), 500
+        # Insert all at once
+        try:
+            supabase.table('questions').insert(new_rows).execute()
+            added_count = len(new_rows)
+        except Exception as e:
+            print(f"Batch insert failed: {e}")
+            return jsonify({"success": False, "message": "Failed to save to Supabase"}), 500
 
-        clear_cache()
         return jsonify({"success": True, "added": added_count})
 
     except Exception as e:
         print(f"❌ questions_batch_add error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
-
+    
+    
 # ========== Publish ==========
 @admin_bp.route("/publish", methods=["GET", "POST"])
 @require_admin_role
 def publish():
+    """Enhanced publish with proper force refresh flags"""
+    
     if request.method == "POST":
-        clear_cache()
         try:
-            from main import clear_user_cache
+            print("🔄 [PUBLISH] Starting cache clear...")
+            
+            # ✅ 1. Clear Drive cache
+            from google_drive_service import clear_cache, clear_image_cache_immediate
+            clear_cache()
+            clear_image_cache_immediate()
+            print("✅ [PUBLISH] Drive image cache cleared")
+            
+            # ✅ 2. Clear app cache
+            from main import app_cache, clear_user_cache
+            
+            app_cache['data'].clear()
+            app_cache['images'].clear()
+            app_cache['timestamps'].clear()
+            app_cache['force_refresh'] = True  # ✅ SET FLAG
+            
             clear_user_cache()
-            session["force_refresh"] = True
+            
+            print("✅ [PUBLISH] App cache cleared")
+            
+            # ✅ 3. Set GLOBAL session flag (for ALL users)
+            try:
+                from flask import current_app
+                with current_app.app_context():
+                    # Store in app config (survives across requests)
+                    import time
+                    current_app.config['FORCE_REFRESH_TIMESTAMP'] = time.time()
+                    print(f"✅ [PUBLISH] Global refresh timestamp: {current_app.config['FORCE_REFRESH_TIMESTAMP']}")
+            except Exception as e:
+                print(f"⚠️ [PUBLISH] Global flag error: {e}")
+            
+            # ✅ 4. Set session flag (for current admin)
+            session["force_refresh"] = True  # ✅ SET FLAG
+            session.modified = True
+            print("✅ [PUBLISH] Session refresh flag set")
+            
+            print("🎉 [PUBLISH] Cache clear completed!")
+            flash("✅ All caches cleared! Fresh data and images will load now.", "success")
+            
         except Exception as e:
-            print(f"⚠️ Failed to clear user cache: {e}")
-        flash("✅ All caches cleared. Fresh data will load now!", "success")
+            print(f"❌ [PUBLISH] Error: {e}")
+            import traceback
+            traceback.print_exc()
+            flash("⚠️ Cache clear completed with some errors.", "warning")
+        
         return redirect(url_for("admin.dashboard"))
+    
     return render_template("admin/publish.html")
 
 # --- START: Web OAuth routes for admin (paste into admin.py) ---
@@ -1163,39 +1237,47 @@ def admin_oauth_callback():
 @admin_bp.route("/attempts")
 @require_admin_role
 def attempts():
-    sa = get_drive_service()
-    users_df = load_csv_from_drive(sa, USERS_FILE_ID)
-    exams_df = load_csv_from_drive(sa, EXAMS_FILE_ID)
-    attempts_df = load_csv_from_drive(sa, EXAM_ATTEMPTS_FILE_ID)
-
-    if users_df is None: users_df = pd.DataFrame()
-    if exams_df is None: exams_df = pd.DataFrame()
-    if attempts_df is None: attempts_df = pd.DataFrame()
-
+    """Display exam attempts using Supabase"""
+    
+    from supabase_db import supabase
+    
+    try:
+        # Get data from Supabase
+        users_response = supabase.table('users').select('*').execute()
+        users = users_response.data if users_response.data else []
+        
+        exams_response = supabase.table('exams').select('*').execute()
+        exams = exams_response.data if exams_response.data else []
+        
+        attempts_response = supabase.table('exam_attempts').select('*').execute()
+        attempts = attempts_response.data if attempts_response.data else []
+    except Exception as e:
+        print(f"Error loading attempts data: {e}")
+        users = []
+        exams = []
+        attempts = []
+    
     rows = []
-    for _, u in users_df.iterrows():
-        for _, e in exams_df.iterrows():
+    for u in users:
+        for e in exams:
             student_id, exam_id = str(u["id"]), str(e["id"])
-            user_attempts = attempts_df[(attempts_df["student_id"].astype(str)==student_id) &
-                                        (attempts_df["exam_id"].astype(str)==exam_id)]
+            user_attempts = [a for a in attempts
+                           if str(a["student_id"]) == student_id and str(a["exam_id"]) == exam_id]
             used = len(user_attempts)
             
-            # More robust max_attempts handling
             max_att_raw = e.get("max_attempts", "")
             
-            # Convert to string and strip
-            if pd.isna(max_att_raw):
+            if max_att_raw is None or max_att_raw == "":
                 max_att = ""
             else:
                 max_att = str(max_att_raw).strip()
             
-            # Calculate remaining
             if max_att == "" or max_att == "0" or max_att.lower() == "nan":
                 remaining = "∞"
                 display_max = "∞"
             else:
                 try:
-                    max_attempts_int = int(float(max_att))  # Handle case where it's stored as float string
+                    max_attempts_int = int(float(max_att))
                     remaining = max(max_attempts_int - used, 0)
                     display_max = str(max_attempts_int)
                 except (ValueError, TypeError):
@@ -1218,45 +1300,58 @@ def attempts():
 @admin_bp.route("/attempts/modify", methods=["POST"])
 @require_admin_role
 def attempts_modify():
-    sa = get_drive_service()
-    payload = request.get_json(force=True)
-    student_id = str(payload.get("student_id"))
-    exam_id = str(payload.get("exam_id"))
-    action = payload.get("action")
-    amount = int(payload.get("amount") or 0)
-
-    attempts_df = load_csv_from_drive(sa, EXAM_ATTEMPTS_FILE_ID)
-    if attempts_df is None: 
-        attempts_df = pd.DataFrame(columns=["id","student_id","exam_id","attempt_number","status","start_time","end_time"])
-
-    mask = (attempts_df["student_id"].astype(str)==student_id) & (attempts_df["exam_id"].astype(str)==exam_id)
-    current = attempts_df[mask]
-    used = len(current)
-
-    if action == "reset":
-        attempts_df = attempts_df[~mask]
-    elif action == "decrease":
-        drop_ids = current.tail(amount)["id"].tolist()
-        attempts_df = attempts_df[~attempts_df["id"].isin(drop_ids)]
-    elif action == "increase":
-        start_id = (attempts_df["id"].astype(int).max() + 1) if not attempts_df.empty else 1
-        for i in range(amount):
-            attempts_df = pd.concat([attempts_df, pd.DataFrame([{
-                "id": start_id+i,
-                "student_id": student_id,
-                "exam_id": exam_id,
-                "attempt_number": used+i+1,
-                "status": "manual_add",
-                "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "end_time": ""
-            }])], ignore_index=True)
-
-    # Use save_csv_to_drive directly instead of safe_csv_save_with_retry
-    ok = save_csv_to_drive(sa, attempts_df, EXAM_ATTEMPTS_FILE_ID)
-    if ok:
-        clear_cache()
+    """Modify attempts using Supabase"""
+    
+    from supabase_db import supabase
+    from datetime import datetime
+    
+    try:
+        payload = request.get_json(force=True)
+        student_id = str(payload.get("student_id"))
+        exam_id = str(payload.get("exam_id"))
+        action = payload.get("action")
+        amount = int(payload.get("amount") or 0)
+        
+        # Get current attempts
+        response = supabase.table('exam_attempts').select('*').eq('student_id', student_id).eq('exam_id', exam_id).execute()
+        current_attempts = response.data if response.data else []
+        used = len(current_attempts)
+        
+        if action == "reset":
+            # Delete all attempts for this user-exam combo
+            for attempt in current_attempts:
+                supabase.table('exam_attempts').delete().eq('id', attempt['id']).execute()
+        
+        elif action == "decrease":
+            if used >= amount:
+                # Delete last N attempts
+                sorted_attempts = sorted(current_attempts, key=lambda x: x.get('id', 0))
+                to_delete = sorted_attempts[-amount:]
+                for attempt in to_delete:
+                    supabase.table('exam_attempts').delete().eq('id', attempt['id']).execute()
+            else:
+                return jsonify({"success": False, "message": f"Not enough attempts to remove"}), 400
+        
+        elif action == "increase":
+            # Add new attempts
+            for i in range(amount):
+                new_attempt = {
+                    "student_id": int(student_id),
+                    "exam_id": int(exam_id),
+                    "attempt_number": used + i + 1,
+                    "status": "manual_add",
+                    "start_time": datetime.now().isoformat(),
+                    "end_time": None
+                }
+                supabase.table('exam_attempts').insert(new_attempt).execute()
+        
         return jsonify({"success": True})
-    return jsonify({"success": False}), 500
+    
+    except Exception as e:
+        print(f"Error modifying attempts: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 
@@ -1270,41 +1365,31 @@ def requests_dashboard():
 @admin_bp.route("/requests/new")
 @require_admin_role
 def new_requests():
-    """View new (pending) access requests"""
+    """View new (pending) access requests from Supabase"""
     try:
-        service = get_drive_service()
+        from supabase_db import supabase
         
-        # Load requests data
-        requests_df = load_csv_from_drive(service, REQUESTS_RAISED_FILE_ID)
-        if requests_df is None:
-            requests_df = pd.DataFrame(columns=[
-                'request_id', 'username', 'email', 'current_access',
-                'requested_access', 'request_date', 'request_status', 'reason'
-            ])
+        # Get pending requests from Supabase
+        response = supabase.table('requests_raised').select('*').eq('request_status', 'pending').order('request_date', desc=True).execute()
         
-        # Filter pending requests
-        if not requests_df.empty:
-            pending_requests = requests_df[
-                requests_df['request_status'].astype(str).str.lower() == 'pending'
-            ].sort_values('request_date', ascending=False)
-        else:
-            pending_requests = pd.DataFrame()
+        pending_requests = response.data if response.data else []
         
-        # Convert to list of dictionaries for template
+        # Convert to list for template
         requests_list = []
-        for _, row in pending_requests.iterrows():
+        for req in pending_requests:
             requests_list.append({
-                'request_id': int(row['request_id']),
-                'username': row['username'],
-                'email': row['email'],
-                'current_access': row['current_access'],
-                'requested_access': row['requested_access'],
-                'request_date': row['request_date'],
-                'status': row['request_status']
+                'request_id': int(req.get('request_id', 0)),
+                'username': req.get('username', ''),
+                'email': req.get('email', ''),
+                'current_access': req.get('current_access', ''),
+                'requested_access': req.get('requested_access', ''),
+                'request_date': req.get('request_date', ''),
+                'status': req.get('request_status', ''),
+                'reason': req.get('reason', '')  # ✅ ADD THIS LINE
             })
         
         return render_template("admin/new_requests.html", requests=requests_list)
-        
+    
     except Exception as e:
         print(f"Error loading new requests: {e}")
         flash("Error loading requests data.", "error")
@@ -1313,38 +1398,33 @@ def new_requests():
 @admin_bp.route("/requests/history")
 @require_admin_role
 def requests_history():
-    """View completed/denied requests history"""
+    """View completed/denied requests history from Supabase"""
     try:
-        service = get_drive_service()
+        from supabase_db import supabase
         
-        # Load requests data
-        requests_df = load_csv_from_drive(service, REQUESTS_RAISED_FILE_ID)
-        if requests_df is None:
-            requests_df = pd.DataFrame()
+        # Get completed/denied requests from Supabase
+        response = supabase.table('requests_raised').select('*').in_('request_status', ['completed', 'denied']).order('request_date', desc=True).execute()
         
-        # Filter completed/denied requests
+        history_requests_filtered = response.data if response.data else []
+        
+        # Convert to list for template
         history_requests = []
-        if not requests_df.empty:
-            history_df = requests_df[
-                requests_df['request_status'].astype(str).str.lower().isin(['completed', 'denied'])
-            ].sort_values('request_date', ascending=False)
-            
-            for _, row in history_df.iterrows():
-                history_requests.append({
-                    'request_id': int(row['request_id']),
-                    'username': row['username'],
-                    'email': row['email'],
-                    'current_access': row['current_access'],
-                    'requested_access': row['requested_access'],
-                    'request_date': row['request_date'],
-                    'status': row['request_status'],
-                    'reason': row.get('reason', ''),
-                    'processed_by': row.get('processed_by', 'Admin'),
-                    'processed_date': row.get('processed_date', '')
-                })
+        for req in history_requests_filtered:
+            history_requests.append({
+                'request_id': int(req.get('request_id', 0)),
+                'username': req.get('username', ''),
+                'email': req.get('email', ''),
+                'current_access': req.get('current_access', ''),
+                'requested_access': req.get('requested_access', ''),
+                'request_date': req.get('request_date', ''),
+                'status': req.get('request_status', ''),
+                'reason': req.get('reason', ''),
+                'processed_by': req.get('processed_by', 'Admin'),
+                'processed_date': req.get('processed_date', '')
+            })
         
         return render_template("admin/requests_history.html", requests=history_requests)
-        
+    
     except Exception as e:
         print(f"Error loading requests history: {e}")
         flash("Error loading requests history.", "error")
@@ -1353,8 +1433,11 @@ def requests_history():
 @admin_bp.route("/requests/approve/<int:request_id>", methods=["POST"])
 @require_admin_role
 def approve_request(request_id):
-    """Approve an access request"""
+    """Approve an access request using Supabase"""
     try:
+        from supabase_db import supabase
+        from datetime import datetime
+        
         data = request.get_json()
         approved_access = data.get('approved_access')
         
@@ -1364,82 +1447,58 @@ def approve_request(request_id):
                 'message': 'Please select an access level to approve'
             }), 400
         
-        service = get_drive_service()
+        # Get request from Supabase
+        req_response = supabase.table('requests_raised').select('*').eq('request_id', request_id).eq('request_status', 'pending').execute()
         
-        # Load requests data
-        requests_df = load_csv_from_drive(service, REQUESTS_RAISED_FILE_ID)
-        if requests_df is None or requests_df.empty:
-            return jsonify({
-                'success': False,
-                'message': 'No requests found'
-            }), 404
-        
-        # Find the specific request
-        request_row = requests_df[
-            (requests_df['request_id'].astype(int) == request_id) &
-            (requests_df['request_status'].astype(str).str.lower() == 'pending')
-        ]
-        
-        if request_row.empty:
+        if not req_response.data:
             return jsonify({
                 'success': False,
                 'message': 'Request not found or already processed'
             }), 404
         
-        request_data = request_row.iloc[0]
+        request_data = req_response.data[0]
         username = request_data['username']
         email = request_data['email']
         
-        # Load users data and update access
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
-        if users_df is None or users_df.empty:
-            return jsonify({
-                'success': False,
-                'message': 'Users database unavailable'
-            }), 500
+        # Get user from Supabase
+        user_response = supabase.table('users').select('*').eq('username', username).eq('email', email).execute()
         
-        # Find and update user
-        users_df['username_lower'] = users_df['username'].astype(str).str.strip().str.lower()
-        users_df['email_lower'] = users_df['email'].astype(str).str.strip().str.lower()
-        
-        user_mask = (
-            (users_df['username_lower'] == username.lower()) &
-            (users_df['email_lower'] == email.lower())
-        )
-        
-        if not user_mask.any():
+        if not user_response.data:
             return jsonify({
                 'success': False,
                 'message': 'User not found in database'
             }), 404
         
-        # Update user access
-        users_df.loc[user_mask, 'role'] = approved_access
-        users_df.loc[user_mask, 'updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        user = user_response.data[0]
+        user_id = user['id']
+        
+        # Update user role
+        supabase.table('users').update({
+            'role': approved_access,
+            'updated_at': datetime.now().isoformat()
+        }).eq('id', user_id).execute()
         
         # Update request status
-        request_mask = requests_df['request_id'].astype(int) == request_id
-        requests_df.loc[request_mask, 'request_status'] = 'completed'
-        requests_df.loc[request_mask, 'reason'] = f'Approved: {approved_access}'
-        requests_df.loc[request_mask, 'processed_by'] = session.get('admin_name', 'Admin')
-        requests_df.loc[request_mask, 'processed_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Get existing reason (user's reason)
+        existing_reason = request_data.get('reason', '')
+
+        # Append admin approval reason
+        admin_reason = f"\n[ADMIN APPROVAL] Approved: {approved_access}"
+        final_reason = existing_reason + admin_reason if existing_reason else admin_reason
+
+        # Update request status
+        supabase.table('requests_raised').update({
+            'request_status': 'completed',
+            'reason': final_reason,
+            'processed_by': session.get('username', 'Admin'),
+            'processed_date': datetime.now().isoformat()
+        }).eq('request_id', request_id).execute()
         
-        # Save both files
-        users_success = safe_csv_save_with_retry(users_df, 'users')
-        requests_success = safe_csv_save_with_retry(requests_df, 'requests_raised')
-        
-        if users_success and requests_success:
-            clear_cache()
-            return jsonify({
-                'success': True,
-                'message': f'Request approved successfully. User {username} now has {approved_access} access.'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'Error saving approval. Please try again.'
-            }), 500
-        
+        return jsonify({
+            'success': True,
+            'message': f'Request approved successfully. User {username} now has {approved_access} access.'
+        })
+    
     except Exception as e:
         print(f"Error approving request: {e}")
         import traceback
@@ -1452,8 +1511,11 @@ def approve_request(request_id):
 @admin_bp.route("/requests/deny/<int:request_id>", methods=["POST"])
 @require_admin_role
 def deny_request(request_id):
-    """Deny an access request with reason"""
+    """Deny an access request using Supabase"""
     try:
+        from supabase_db import supabase
+        from datetime import datetime
+        
         data = request.get_json()
         denial_reason = data.get('reason', '').strip()
         
@@ -1463,50 +1525,45 @@ def deny_request(request_id):
                 'message': 'Please provide a reason for denial'
             }), 400
         
-        service = get_drive_service()
+        # Check if request exists and is pending
+        req_response = supabase.table('requests_raised').select('*').eq('request_id', request_id).eq('request_status', 'pending').execute()
         
-        # Load requests data
-        requests_df = load_csv_from_drive(service, REQUESTS_RAISED_FILE_ID)
-        if requests_df is None or requests_df.empty:
-            return jsonify({
-                'success': False,
-                'message': 'No requests found'
-            }), 404
-        
-        # Find the specific request
-        request_row = requests_df[
-            (requests_df['request_id'].astype(int) == request_id) &
-            (requests_df['request_status'].astype(str).str.lower() == 'pending')
-        ]
-        
-        if request_row.empty:
+        if not req_response.data:
             return jsonify({
                 'success': False,
                 'message': 'Request not found or already processed'
             }), 404
         
         # Update request status
-        request_mask = requests_df['request_id'].astype(int) == request_id
-        requests_df.loc[request_mask, 'request_status'] = 'denied'
-        requests_df.loc[request_mask, 'reason'] = denial_reason
-        requests_df.loc[request_mask, 'processed_by'] = session.get('admin_name', 'Admin')
-        requests_df.loc[request_mask, 'processed_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        # Save requests file
-        success = safe_csv_save_with_retry(requests_df, 'requests_raised')
-        
-        if success:
-            clear_cache()
-            return jsonify({
-                'success': True,
-                'message': f'Request denied successfully.'
-            })
-        else:
+        # Get request data to preserve user reason
+        req_response = supabase.table('requests_raised').select('*').eq('request_id', request_id).eq('request_status', 'pending').execute()
+
+        if not req_response.data:
             return jsonify({
                 'success': False,
-                'message': 'Error saving denial. Please try again.'
-            }), 500
+                'message': 'Request not found or already processed'
+            }), 404
+
+        request_data = req_response.data[0]
+        existing_reason = request_data.get('reason', '')
+
+        # Append admin denial reason
+        admin_reason = f"\n[ADMIN DENIAL] {denial_reason}"
+        final_reason = existing_reason + admin_reason if existing_reason else admin_reason
+
+        # Update request status
+        supabase.table('requests_raised').update({
+            'request_status': 'denied',
+            'reason': final_reason,
+            'processed_by': session.get('username', 'Admin'),
+            'processed_date': datetime.now().isoformat()
+        }).eq('request_id', request_id).execute()
         
+        return jsonify({
+            'success': True,
+            'message': 'Request denied successfully.'
+        })
+    
     except Exception as e:
         print(f"Error denying request: {e}")
         import traceback
@@ -1519,30 +1576,26 @@ def deny_request(request_id):
 @admin_bp.route("/api/requests/stats")
 @require_admin_role
 def api_requests_stats():
-    """API endpoint for request statistics"""
+    """API endpoint for request statistics from Supabase"""
     try:
-        service = get_drive_service()
+        from supabase_db import supabase
         
-        # Load requests data
-        requests_df = load_csv_from_drive(service, REQUESTS_RAISED_FILE_ID)
-        if requests_df is None or requests_df.empty:
-            return jsonify({
-                'pending': 0,
-                'completed': 0,
-                'denied': 0,
-                'total': 0
-            })
+        # Get all requests
+        response = supabase.table('requests_raised').select('request_status').execute()
+        requests = response.data if response.data else []
         
         # Count by status
-        status_counts = requests_df['request_status'].astype(str).str.lower().value_counts()
+        pending = sum(1 for r in requests if r.get('request_status', '').lower() == 'pending')
+        completed = sum(1 for r in requests if r.get('request_status', '').lower() == 'completed')
+        denied = sum(1 for r in requests if r.get('request_status', '').lower() == 'denied')
         
         return jsonify({
-            'pending': int(status_counts.get('pending', 0)),
-            'completed': int(status_counts.get('completed', 0)),
-            'denied': int(status_counts.get('denied', 0)),
-            'total': len(requests_df)
+            'pending': pending,
+            'completed': completed,
+            'denied': denied,
+            'total': len(requests)
         })
-        
+    
     except Exception as e:
         print(f"Error getting request stats: {e}")
         return jsonify({
@@ -1560,36 +1613,29 @@ def api_requests_stats():
 @admin_bp.route("/users/manage")
 @require_admin_role
 def users_manage():
-    """View users management page"""
+    """View users management page from Supabase"""
     try:
-        service = get_drive_service()
+        from supabase_db import supabase
         
-        # Load users data
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
-        if users_df is None:
-            users_df = pd.DataFrame(columns=[
-                'id', 'username', 'email', 'full_name', 'role', 'created_at', 'updated_at'
-            ])
+        # Get all users from Supabase
+        response = supabase.table('users').select('*').order('username').execute()
+        users_data = response.data if response.data else []
         
-        # Prepare users data (exclude sensitive information)
+        # Prepare users list
         users_list = []
-        if not users_df.empty:
-            for _, row in users_df.iterrows():
-                users_list.append({
-                    'id': int(row['id']),
-                    'username': row.get('username', ''),
-                    'email': row.get('email', ''),
-                    'full_name': row.get('full_name', ''),
-                    'role': row.get('role', 'user'),
-                    'created_at': row.get('created_at', ''),
-                    'updated_at': row.get('updated_at', '')
-                })
-        
-        # Sort by username
-        users_list.sort(key=lambda x: x['username'].lower())
+        for user in users_data:
+            users_list.append({
+                'id': int(user.get('id', 0)),
+                'username': user.get('username', ''),
+                'email': user.get('email', ''),
+                'full_name': user.get('full_name', ''),
+                'role': user.get('role', 'user'),
+                'created_at': user.get('created_at', ''),
+                'updated_at': user.get('updated_at', '')
+            })
         
         return render_template("admin/users_manage.html", users=users_list)
-        
+    
     except Exception as e:
         print(f"Error loading users management: {e}")
         flash("Error loading users data.", "error")
@@ -1598,8 +1644,11 @@ def users_manage():
 @admin_bp.route("/users/update-role", methods=["POST"])
 @require_admin_role
 def update_user_role():
-    """Update user role"""
+    """Update user role using Supabase"""
     try:
+        from supabase_db import supabase
+        from datetime import datetime
+        
         data = request.get_json()
         user_id = data.get('user_id')
         new_role = data.get('new_role', '').strip()
@@ -1618,28 +1667,18 @@ def update_user_role():
                 'message': 'Invalid role selected'
             }), 400
         
-        service = get_drive_service()
+        # Get user from Supabase
+        user_response = supabase.table('users').select('*').eq('id', user_id).execute()
         
-        # Load users data
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
-        if users_df is None or users_df.empty:
-            return jsonify({
-                'success': False,
-                'message': 'Users database unavailable'
-            }), 500
-        
-        # Find user
-        user_mask = users_df['id'].astype(str) == str(user_id)
-        if not user_mask.any():
+        if not user_response.data:
             return jsonify({
                 'success': False,
                 'message': 'User not found'
             }), 404
         
-        # Get current user info
-        user_row = users_df[user_mask].iloc[0]
-        username = user_row['username']
-        current_role = user_row.get('role', 'user')
+        user = user_response.data[0]
+        username = user.get('username')
+        current_role = user.get('role', 'user')
         
         # Check if role actually changed
         if current_role == new_role:
@@ -1650,27 +1689,19 @@ def update_user_role():
             })
         
         # Update user role
-        users_df.loc[user_mask, 'role'] = new_role
-        users_df.loc[user_mask, 'updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        supabase.table('users').update({
+            'role': new_role,
+            'updated_at': datetime.now().isoformat()
+        }).eq('id', user_id).execute()
         
-        # Save to CSV
-        success = safe_csv_save_with_retry(users_df, 'users')
-        
-        if success:
-            clear_cache()
-            return jsonify({
-                'success': True,
-                'message': f'Successfully updated {username} role from {current_role} to {new_role}',
-                'user_id': user_id,
-                'new_role': new_role,
-                'username': username
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'Error saving role update. Please try again.'
-            }), 500
-        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully updated {username} role from {current_role} to {new_role}',
+            'user_id': user_id,
+            'new_role': new_role,
+            'username': username
+        })
+    
     except Exception as e:
         print(f"Error updating user role: {e}")
         import traceback
@@ -1683,8 +1714,11 @@ def update_user_role():
 @admin_bp.route("/users/bulk-update-roles", methods=["POST"])
 @require_admin_role
 def bulk_update_user_roles():
-    """Bulk update multiple user roles"""
+    """Bulk update multiple user roles using Supabase"""
     try:
+        from supabase_db import supabase
+        from datetime import datetime
+        
         data = request.get_json()
         updates = data.get('updates', [])
         
@@ -1693,15 +1727,6 @@ def bulk_update_user_roles():
                 'success': False,
                 'message': 'No updates provided'
             }), 400
-        
-        service = get_drive_service()
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
-        
-        if users_df is None or users_df.empty:
-            return jsonify({
-                'success': False,
-                'message': 'Users database unavailable'
-            }), 500
         
         valid_roles = ['user', 'admin', 'user,admin']
         updated_count = 0
@@ -1714,47 +1739,40 @@ def bulk_update_user_roles():
             if not user_id or not new_role:
                 errors.append(f'Invalid update data for user {user_id}')
                 continue
-                
+            
             if new_role not in valid_roles:
                 errors.append(f'Invalid role {new_role} for user {user_id}')
                 continue
             
-            user_mask = users_df['id'].astype(str) == str(user_id)
-            if not user_mask.any():
-                errors.append(f'User {user_id} not found')
-                continue
-            
-            # Update role
-            users_df.loc[user_mask, 'role'] = new_role
-            users_df.loc[user_mask, 'updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            updated_count += 1
+            try:
+                # Update user
+                supabase.table('users').update({
+                    'role': new_role,
+                    'updated_at': datetime.now().isoformat()
+                }).eq('id', user_id).execute()
+                
+                updated_count += 1
+            except Exception as e:
+                errors.append(f'User {user_id}: {str(e)}')
         
         if updated_count > 0:
-            success = safe_csv_save_with_retry(users_df, 'users')
-            if success:
-                clear_cache()
-                message = f'Successfully updated {updated_count} user roles'
-                if errors:
-                    message += f' ({len(errors)} errors occurred)'
-                
-                return jsonify({
-                    'success': True,
-                    'message': message,
-                    'updated_count': updated_count,
-                    'errors': errors
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': 'Error saving bulk updates'
-                }), 500
+            message = f'Successfully updated {updated_count} user roles'
+            if errors:
+                message += f' ({len(errors)} errors occurred)'
+            
+            return jsonify({
+                'success': True,
+                'message': message,
+                'updated_count': updated_count,
+                'errors': errors
+            })
         else:
             return jsonify({
                 'success': False,
                 'message': 'No valid updates to apply',
                 'errors': errors
             }), 400
-        
+    
     except Exception as e:
         print(f"Error in bulk update: {e}")
         return jsonify({
@@ -1765,25 +1783,20 @@ def bulk_update_user_roles():
 @admin_bp.route("/api/users/stats")
 @require_admin_role
 def api_users_stats():
-    """API endpoint for user statistics"""
+    """API endpoint for user statistics from Supabase"""
     try:
-        service = get_drive_service()
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
+        from supabase_db import supabase
         
-        if users_df is None or users_df.empty:
-            return jsonify({
-                'total_users': 0,
-                'user_role': 0,
-                'admin_role': 0,
-                'both_roles': 0
-            })
+        # Get all users
+        response = supabase.table('users').select('role').execute()
+        users = response.data if response.data else []
         
         # Count by role
         role_counts = {'user': 0, 'admin': 0, 'both': 0}
         
-        for _, row in users_df.iterrows():
-            role = str(row.get('role', 'user')).lower().strip()
-            if ',' in role or 'user' in role and 'admin' in role:
+        for user in users:
+            role = str(user.get('role', 'user')).lower().strip()
+            if ',' in role or ('user' in role and 'admin' in role):
                 role_counts['both'] += 1
             elif 'admin' in role:
                 role_counts['admin'] += 1
@@ -1791,12 +1804,12 @@ def api_users_stats():
                 role_counts['user'] += 1
         
         return jsonify({
-            'total_users': len(users_df),
+            'total_users': len(users),
             'user_role': role_counts['user'],
             'admin_role': role_counts['admin'],
             'both_roles': role_counts['both']
         })
-        
+    
     except Exception as e:
         print(f"Error getting user stats: {e}")
         return jsonify({
@@ -1804,7 +1817,7 @@ def api_users_stats():
             'user_role': 0,
             'admin_role': 0,
             'both_roles': 0
-        })        
+        })       
         
         
 
@@ -1820,25 +1833,28 @@ def users_analytics():
 @admin_bp.route("/api/users-analytics/stats")
 @require_admin_role
 def api_users_analytics_stats():
-    """API endpoint for users analytics overview stats"""
+    """API endpoint for users analytics overview stats from Supabase"""
     try:
-        service = get_drive_service()
+        # Get data from Supabase
+        users = get_all_users()
+        exams = get_all_exams()
+        results = get_all_results()
         
-        # Load all required data
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
-        exams_df = load_csv_from_drive(service, EXAMS_FILE_ID)
-        results_df = load_csv_from_drive(service, RESULTS_FILE_ID)
-        responses_df = load_csv_from_drive(service, RESPONSES_FILE_ID)
+        # Count responses
+        responses_count = 0
+        for result in results:
+            responses = get_responses_by_result(result['id'])
+            responses_count += len(responses)
         
         stats = {
-            'total_users': len(users_df) if users_df is not None and not users_df.empty else 0,
-            'total_exams': len(exams_df) if exams_df is not None and not exams_df.empty else 0,
-            'total_results': len(results_df) if results_df is not None and not results_df.empty else 0,
-            'total_responses': len(responses_df) if responses_df is not None and not responses_df.empty else 0
+            'total_users': len(users),
+            'total_exams': len(exams),
+            'total_results': len(results),
+            'total_responses': responses_count
         }
         
         return jsonify(stats)
-        
+    
     except Exception as e:
         print(f"Error getting analytics stats: {e}")
         return jsonify({
@@ -1851,10 +1867,8 @@ def api_users_analytics_stats():
 @admin_bp.route("/users-analytics/results")
 @require_admin_role
 def users_analytics_results():
-    """Results tab content for users analytics"""
+    """Results tab content for users analytics from Supabase"""
     try:
-        service = get_drive_service()
-        
         # Get filter parameters
         user_filter = request.args.get('user', '')
         exam_filter = request.args.get('exam', '')
@@ -1863,133 +1877,107 @@ def users_analytics_results():
         page = int(request.args.get('page', 1))
         per_page = 20
         
-        # Load data
-        results_df = load_csv_from_drive(service, RESULTS_FILE_ID)
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
-        exams_df = load_csv_from_drive(service, EXAMS_FILE_ID)
+        # Load data from Supabase
+        all_results = get_all_results()
+        users = get_all_users()
+        exams = get_all_exams()
         
-        results_list = []
-        pagination = None
+        # Create lookup maps
+        users_map = {str(u['id']): u for u in users}
+        exams_map = {str(e['id']): e for e in exams}
         
-        if results_df is not None and not results_df.empty:
-            # Merge with users and exams data
-            if users_df is not None and not users_df.empty:
-                results_df = results_df.merge(
-                    users_df[['id', 'username', 'full_name']], 
-                    left_on='student_id', 
-                    right_on='id', 
-                    how='left',
-                    suffixes=('', '_user')
-                )
-            
-            if exams_df is not None and not exams_df.empty:
-                results_df = results_df.merge(
-                    exams_df[['id', 'name']], 
-                    left_on='exam_id', 
-                    right_on='id', 
-                    how='left',
-                    suffixes=('', '_exam')
-                )
-            
+        # Filter results
+        filtered_results = []
+        for result in all_results:
             # Apply filters
-            filtered_df = results_df.copy()
+            if user_filter and str(result.get('student_id')) != user_filter:
+                continue
+            if exam_filter and str(result.get('exam_id')) != exam_filter:
+                continue
             
-            if user_filter:
-                filtered_df = filtered_df[filtered_df['student_id'].astype(str) == str(user_filter)]
-            
-            if exam_filter:
-                filtered_df = filtered_df[filtered_df['exam_id'].astype(str) == str(exam_filter)]
-            
-            # Use 'completed_at' for date filtering
-            if date_from:
+            # Date filters
+            completed_at = result.get('completed_at', '')
+            if date_from and completed_at:
                 try:
-                    filtered_df = filtered_df[pd.to_datetime(filtered_df['completed_at']).dt.date >= pd.to_datetime(date_from).date()]
+                    if completed_at < date_from:
+                        continue
+                except:
+                    pass
+            if date_to and completed_at:
+                try:
+                    if completed_at > date_to:
+                        continue
                 except:
                     pass
             
-            if date_to:
-                try:
-                    filtered_df = filtered_df[pd.to_datetime(filtered_df['completed_at']).dt.date <= pd.to_datetime(date_to).date()]
-                except:
-                    pass
+            filtered_results.append(result)
+        
+        # Pagination
+        total_results = len(filtered_results)
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_results = filtered_results[start_idx:end_idx]
+        
+        # Convert to list for template
+        results_list = []
+        for result in paginated_results:
+            student_id = str(result.get('student_id', ''))
+            exam_id = str(result.get('exam_id', ''))
             
-            # Sort by date
-            filtered_df = filtered_df.sort_values('completed_at', ascending=False)
+            user = users_map.get(student_id, {})
+            exam = exams_map.get(exam_id, {})
             
-            # Pagination
-            total_results = len(filtered_df)
-            start_idx = (page - 1) * per_page
-            end_idx = start_idx + per_page
-            paginated_df = filtered_df.iloc[start_idx:end_idx]
-            
-            # Convert to list
-            for _, row in paginated_df.iterrows():
-                results_list.append({
-                    'id': int(row.get('id', 0)),
-                    'username': row.get('username', 'Unknown'),
-                    'full_name': row.get('full_name', 'Unknown'),
-                    'exam_id': int(row.get('exam_id', 0)),
-                    'exam_name': row.get('name', 'Unknown Exam'),
-                    'subject_name': 'N/A',
-                    'score': row.get('score', 0),
-                    'max_score': row.get('max_score', 0),
-                    'percentage': float(row.get('percentage', 0)),
-                    'grade': row.get('grade', 'N/A'),
-                    'duration': f"{row.get('time_taken_minutes', 0):.1f} min" if row.get('time_taken_minutes') else 'N/A',
-                    'created_at': row.get('completed_at', 'N/A')
-                })
-            
-            # Create pagination object
-            pagination = {
-                'page': page,
-                'per_page': per_page,
-                'total': total_results,
-                'start': start_idx + 1 if results_list else 0,
-                'end': min(end_idx, total_results),
-                'has_prev': page > 1,
-                'has_next': end_idx < total_results,
-                'prev_num': page - 1 if page > 1 else None,
-                'next_num': page + 1 if end_idx < total_results else None
-            }
-            
-            # Add iter_pages method simulation
-            def iter_pages():
-                total_pages = (total_results + per_page - 1) // per_page
-                for p in range(max(1, page - 2), min(total_pages + 1, page + 3)):
-                    yield p
-            pagination['iter_pages'] = iter_pages
+            results_list.append({
+                'id': int(result.get('id', 0)),
+                'username': user.get('username', 'Unknown'),
+                'full_name': user.get('full_name', 'Unknown'),
+                'exam_id': int(result.get('exam_id', 0)),
+                'exam_name': exam.get('name', 'Unknown Exam'),
+                'subject_name': 'N/A',
+                'score': result.get('score', 0),
+                'max_score': result.get('max_score', 0),
+                'percentage': float(result.get('percentage', 0)),
+                'grade': result.get('grade', 'N/A'),
+                'duration': f"{result.get('time_taken_minutes', 0):.1f} min" if result.get('time_taken_minutes') else 'N/A',
+                'created_at': result.get('completed_at', 'N/A')
+            })
+        
+        # Create pagination object
+        pagination = {
+            'page': page,
+            'per_page': per_page,
+            'total': total_results,
+            'start': start_idx + 1 if results_list else 0,
+            'end': min(end_idx, total_results),
+            'has_prev': page > 1,
+            'has_next': end_idx < total_results,
+            'prev_num': page - 1 if page > 1 else None,
+            'next_num': page + 1 if end_idx < total_results else None
+        }
+        
+        def iter_pages():
+            total_pages = (total_results + per_page - 1) // per_page
+            for p in range(max(1, page - 2), min(total_pages + 1, page + 3)):
+                yield p
+        pagination['iter_pages'] = iter_pages
         
         # Get users and exams for filters
-        users_list = []
-        if users_df is not None and not users_df.empty:
-            for _, user in users_df.iterrows():
-                users_list.append({
-                    'id': int(user.get('id', 0)),
-                    'username': user.get('username', ''),
-                    'full_name': user.get('full_name', '')
-                })
+        users_list = [{'id': int(u['id']), 'username': u.get('username', ''), 'full_name': u.get('full_name', '')} for u in users]
+        exams_list = [{'id': int(e['id']), 'name': e.get('name', '')} for e in exams]
         
-        exams_list = []
-        if exams_df is not None and not exams_df.empty:
-            for _, exam in exams_df.iterrows():
-                exams_list.append({
-                    'id': int(exam.get('id', 0)),
-                    'name': exam.get('name', '')
-                })
-        
-        return render_template("admin/users_analytics_results.html", 
-                             results=results_list, 
-                             users=users_list, 
+        return render_template("admin/users_analytics_results.html",
+                             results=results_list,
+                             users=users_list,
                              exams=exams_list,
                              pagination=pagination)
-        
+    
     except Exception as e:
         print(f"Error loading results analytics: {e}")
         import traceback
         traceback.print_exc()
-        return render_template("admin/users_analytics_results.html", 
-                             results=[], 
-                             users=[], 
+        return render_template("admin/users_analytics_results.html",
+                             results=[],
+                             users=[],
                              exams=[],
                              pagination=None)
 
@@ -2004,176 +1992,54 @@ def users_analytics_results():
 @admin_bp.route("/users-analytics/view-result/<int:result_id>/<int:exam_id>")
 @require_admin_role
 def users_analytics_view_result(result_id, exam_id):
-    """
-    Return an HTML view (popup) for a specific result.
-    Normalizes fields from:
-      results.csv -> id, student_id, exam_id, score, total_questions, correct_answers,
-                    incorrect_answers, unanswered_questions, max_score, percentage, grade,
-                    time_taken_minutes, completed_at
-      exams.csv   -> id, name, date, start_time, duration, total_questions, status,
-                    instructions, positive_marks, negative_marks, max_attempts
-    Converts NaN/NA to safe defaults, coerces numeric types, and derives attempted_questions.
-    """
+    """View result popup from Supabase"""
     try:
-        service = get_drive_service()
-
-        results_df = load_csv_from_drive(service, RESULTS_FILE_ID)
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
-        exams_df = load_csv_from_drive(service, EXAMS_FILE_ID)
-        responses_df = load_csv_from_drive(service, RESPONSES_FILE_ID)
-        questions_df = load_csv_from_drive(service, QUESTIONS_FILE_ID)
-
-        # helpers
-        def is_missing(v):
-            # treat None, NaN, empty string and "NA"/"N/A" as missing
-            if v is None:
-                return True
-            try:
-                if isinstance(v, float) and pd.isna(v):
-                    return True
-            except Exception:
-                pass
-            s = str(v).strip()
-            if s == '' or s.lower() in ('na', 'n/a', 'none', 'nan'):
-                return True
-            return False
-
-        def s(v, default=''):
-            return default if is_missing(v) else str(v)
-
-        def to_int(v, default=0):
-            if is_missing(v): return default
-            try:
-                return int(float(str(v).strip()))
-            except Exception:
-                return default
-
-        def to_float(v, default=0.0):
-            if is_missing(v): return default
-            try:
-                return float(str(v).strip())
-            except Exception:
-                return default
-
-        # find result row
-        if results_df is None or results_df.empty:
+        # Get result from Supabase
+        result = get_result_by_id(result_id)
+        if not result:
             abort(404)
-
-        rrow = results_df[results_df['id'].astype(str) == str(result_id)]
-        if rrow.empty:
-            abort(404)
-        r = rrow.iloc[0].to_dict()
-
-        # normalized result dict expected by template
-        result = {}
-
-        # map / normalize fields from results.csv
-        result['id'] = s(r.get('id', result_id), str(result_id))
-        result['student_id'] = s(r.get('student_id', ''))
-        # score and max_score
-        result['score'] = to_float(r.get('score', 0.0))
-        # some CSV uses max_score, others use 'max_score' or 'max_score' already; fallback to total_questions*positive_marks if missing
-        result['max_score'] = to_float(r.get('max_score', r.get('max_marks', None)), default=0.0)
-        # total_questions & counts
-        result['total_questions'] = to_int(r.get('total_questions', r.get('total_qs', None)), default=to_int(r.get('total_questions', 0)))
-        result['correct_answers'] = to_int(r.get('correct_answers', r.get('correct', 0)))
-        result['incorrect_answers'] = to_int(r.get('incorrect_answers', r.get('incorrect', 0)))
-        result['unanswered_questions'] = to_int(r.get('unanswered_questions', r.get('unanswered', 0)))
-
-        # Ensure attempted_questions derived
-        if result['total_questions'] and (result['unanswered_questions'] is not None):
-            result['attempted_questions'] = max(0, result['total_questions'] - result['unanswered_questions'])
-        else:
-            result['attempted_questions'] = result['correct_answers'] + result['incorrect_answers']
-
-        # percentage and grade
-        result['percentage'] = to_float(r.get('percentage', r.get('percent', 0.0)))
-        result['grade'] = s(r.get('grade', r.get('grade_label', '')))
-
-        # time and timestamp fields
-        result['time_taken_minutes'] = to_float(r.get('time_taken_minutes', r.get('duration_minutes', 0.0)))
-        result['completed_at'] = s(r.get('completed_at', r.get('completed_on', '')))
-
-        # fallback: if max_score still zero, try to compute from exam positive_marks * total_questions
-        if result['max_score'] in (0, 0.0):
-            try:
-                # find exam row to compute max_score if possible
-                if exams_df is not None and not exams_df.empty:
-                    erow = exams_df[exams_df['id'].astype(str) == str(exam_id)]
-                    if not erow.empty:
-                        e0 = erow.iloc[0].to_dict()
-                        positive_marks = to_float(e0.get('positive_marks', e0.get('pos_marks', 0.0)))
-                        tq = result.get('total_questions', 0)
-                        if positive_marks and tq:
-                            result['max_score'] = positive_marks * tq
-            except Exception:
-                pass
-
-        # find user
-        user = {}
-        if users_df is not None and not users_df.empty:
-            urow = users_df[users_df['id'].astype(str) == str(result.get('student_id', ''))]
-            if not urow.empty:
-                user = urow.iloc[0].to_dict()
-            else:
-                user = {'id': result.get('student_id', ''), 'username': 'Unknown', 'full_name': 'Unknown', 'email': ''}
-        else:
-            user = {'id': result.get('student_id', ''), 'username': 'Unknown', 'full_name': 'Unknown', 'email': ''}
-
-        # find exam and normalize important fields
-        exam = {}
-        if exams_df is not None and not exams_df.empty:
-            erow = exams_df[exams_df['id'].astype(str) == str(exam_id)]
-            if not erow.empty:
-                e = erow.iloc[0].to_dict()
-                exam['id'] = s(e.get('id', exam_id), str(exam_id))
-                exam['name'] = s(e.get('name', 'Unknown Exam'))
-                exam['date'] = s(e.get('date', ''))
-                exam['start_time'] = s(e.get('start_time', ''))
-                exam['duration'] = s(e.get('duration', ''))
-                exam['total_questions'] = to_int(e.get('total_questions', result.get('total_questions', 0)))
-                exam['status'] = s(e.get('status', ''))
-                exam['instructions'] = s(e.get('instructions', ''))
-                exam['positive_marks'] = to_float(e.get('positive_marks', e.get('positive_mark', 0.0)))
-                exam['negative_marks'] = to_float(e.get('negative_marks', e.get('negative_mark', 0.0)))
-                exam['max_attempts'] = to_int(e.get('max_attempts', e.get('max_attempts', 1)), default=1)
-                # if result max_score still missing, compute from exam
-                if (not result.get('max_score')) and exam['positive_marks'] and exam['total_questions']:
-                    result['max_score'] = exam['positive_marks'] * exam['total_questions']
-            else:
-                exam = {'id': exam_id, 'name': 'Unknown Exam', 'description': ''}
-        else:
+        
+        # Get user
+        student_id = result.get('student_id')
+        user = get_user_by_id(student_id) if student_id else None
+        if not user:
+            user = {'id': student_id, 'username': 'Unknown', 'full_name': 'Unknown', 'email': ''}
+        
+        # Get exam
+        exam = get_exam_by_id(exam_id)
+        if not exam:
             exam = {'id': exam_id, 'name': 'Unknown Exam', 'description': ''}
-
-        # gather basic responses for this result (optional)
-        responses = []
-        if responses_df is not None and not responses_df.empty:
-            rows = responses_df[responses_df['result_id'].astype(str) == str(result_id)]
-            for _, rr in rows.iterrows():
-                # keep raw dict here; responses normalization used in view-responses route
-                responses.append({k: ("" if (isinstance(v, float) and pd.isna(v)) else v) for k,v in rr.to_dict().items()})
-
-        # final safety: ensure types and defaults for template
-        # ensure numeric formats
-        result['score'] = to_float(result.get('score', 0.0))
-        result['max_score'] = to_float(result.get('max_score', 0.0))
-        result['percentage'] = to_float(result.get('percentage', 0.0))
-        result['grade'] = s(result.get('grade', ''))
-
-        # attempted questions fallback sanity
-        if result.get('attempted_questions') is None:
-            result['attempted_questions'] = result.get('correct_answers', 0) + result.get('incorrect_answers', 0)
-
-        # pass everything to template
+        
+        # Get responses
+        responses = get_responses_by_result(result_id)
+        
+        # Normalize result data
+        normalized_result = {
+            'id': str(result.get('id', result_id)),
+            'student_id': str(result.get('student_id', '')),
+            'score': float(result.get('score', 0)),
+            'max_score': float(result.get('max_score', 0)),
+            'total_questions': int(result.get('total_questions', 0)),
+            'correct_answers': int(result.get('correct_answers', 0)),
+            'incorrect_answers': int(result.get('incorrect_answers', 0)),
+            'unanswered_questions': int(result.get('unanswered_questions', 0)),
+            'attempted_questions': int(result.get('total_questions', 0)) - int(result.get('unanswered_questions', 0)),
+            'percentage': float(result.get('percentage', 0)),
+            'grade': result.get('grade', ''),
+            'time_taken_minutes': float(result.get('time_taken_minutes', 0)),
+            'completed_at': result.get('completed_at', '')
+        }
+        
         return render_template("admin/view_result_popup.html",
-                               result=result,
-                               user=user,
-                               exam=exam,
-                               responses=responses)
-
+                             result=normalized_result,
+                             user=user,
+                             exam=exam,
+                             responses=responses)
+    
     except Exception as e:
-        print(f"Error in view-result route: {e}")
-        import traceback; traceback.print_exc()
+        print(f"Error in view-result: {e}")
+        import traceback
+        traceback.print_exc()
         abort(500)
 
 
@@ -2181,130 +2047,82 @@ def users_analytics_view_result(result_id, exam_id):
 @admin_bp.route("/users-analytics/view-responses/<int:result_id>/<int:exam_id>")
 @require_admin_role
 def users_analytics_view_responses(result_id, exam_id):
-    """
-    View responses for a result — tailored to responses.csv with columns:
-    id,result_id,exam_id,question_id,given_answer,correct_answer,is_correct,marks_obtained,question_type,is_attempted
-    Normalizes rows into dicts with keys used by template:
-      question_id, question_text, user_answer, correct_answer, status, explanation, marks_obtained
-    """
+    """View responses popup from Supabase"""
     try:
-        service = get_drive_service()
-
-        results_df = load_csv_from_drive(service, RESULTS_FILE_ID)
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
-        exams_df = load_csv_from_drive(service, EXAMS_FILE_ID)
-        responses_df = load_csv_from_drive(service, RESPONSES_FILE_ID)
-        questions_df = load_csv_from_drive(service, QUESTIONS_FILE_ID)
-
-        if results_df is None or results_df.empty:
+        # Get result
+        result = get_result_by_id(result_id)
+        if not result:
             abort(404)
-
-        # find result
-        rrow = results_df[results_df['id'].astype(str) == str(result_id)]
-        if rrow.empty:
-            abort(404)
-        r = rrow.iloc[0].to_dict()
-        result = {k: (("" if pd.isna(v) else v)) for k, v in r.items()}
-
-        # find user
-        if users_df is not None and not users_df.empty:
-            urow = users_df[users_df['id'].astype(str) == str(result.get('student_id', ''))]
-            if not urow.empty:
-                user = urow.iloc[0].to_dict()
-            else:
-                user = {'id': result.get('student_id', ''), 'username': 'Unknown', 'full_name': 'Unknown', 'email': ''}
-        else:
-            user = {'id': result.get('student_id', ''), 'username': 'Unknown', 'full_name': 'Unknown', 'email': ''}
-
-        # find exam
-        if exams_df is not None and not exams_df.empty:
-            erow = exams_df[exams_df['id'].astype(str) == str(exam_id)]
-            if not erow.empty:
-                exam = erow.iloc[0].to_dict()
-            else:
-                exam = {'id': exam_id, 'name': 'Unknown Exam', 'description': ''}
-        else:
+        
+        # Get user
+        student_id = result.get('student_id')
+        user = get_user_by_id(student_id) if student_id else None
+        if not user:
+            user = {'id': student_id, 'username': 'Unknown', 'full_name': 'Unknown', 'email': ''}
+        
+        # Get exam
+        exam = get_exam_by_id(exam_id)
+        if not exam:
             exam = {'id': exam_id, 'name': 'Unknown Exam', 'description': ''}
-
-        # helper: safe stringify
-        def s(val):
-            if val is None: return ''
-            if isinstance(val, float) and pd.isna(val): return ''
-            return str(val)
-
-        # build responses list
-        responses = []
-        if responses_df is not None and not responses_df.empty:
-            rows = responses_df[responses_df['result_id'].astype(str) == str(result_id)]
-            for _, rr in rows.iterrows():
-                rd = rr.to_dict()
-
-                # map known columns
-                qid = s(rd.get('question_id', '')).strip()
-                user_answer = s(rd.get('given_answer', '')).strip()
-                correct_answer = s(rd.get('correct_answer', '')).strip()
-                marks_obtained = s(rd.get('marks_obtained', '')).strip()
-                # is_attempted may be '1','0',True/False, etc.
-                is_attempted_raw = rd.get('is_attempted', None)
-                is_correct_raw = rd.get('is_correct', None)
-
-                # normalize booleans
-                def truthy(x):
-                    if x is None: return False
-                    if isinstance(x, bool): return x
-                    try:
-                        xs = str(x).strip().lower()
-                    except Exception:
-                        return False
-                    return xs in ('1', 'true', 'yes', 'y', 't')
-
-                is_attempted = truthy(is_attempted_raw)
-                is_correct = truthy(is_correct_raw)
-
-                # compute status
-                if not is_attempted:
-                    status = 'unanswered'
-                else:
-                    status = 'correct' if is_correct else 'incorrect'
-
-                # question text: try response row first, else questions_df lookup
-                qtext = ''
-                if 'question_text' in rd and s(rd.get('question_text')).strip():
-                    qtext = s(rd.get('question_text'))
-                else:
-                    if qid and questions_df is not None and not questions_df.empty:
-                        qrow = questions_df[questions_df['id'].astype(str) == qid]
-                        if not qrow.empty:
-                            # prefer 'question_text' or 'text' or 'question'
-                            qtext = s(qrow.iloc[0].get('question_text') or qrow.iloc[0].get('text') or qrow.iloc[0].get('question') or '')
-                        else:
-                            qtext = ''
-                    else:
-                        qtext = ''
-
-                # explanation/hint if present in CSV
-                explanation = s(rd.get('explanation', '') or rd.get('hint', '') or rd.get('solution', '')).strip()
-
-                norm = {
-                    'question_id': qid,
-                    'question_text': qtext,
-                    'user_answer': user_answer,
-                    'correct_answer': correct_answer,
-                    'status': status,
-                    'explanation': explanation,
-                    'marks_obtained': marks_obtained
-                }
-                responses.append(norm)
-
+        
+        # Get responses
+        raw_responses = get_responses_by_result(result_id)
+        
+        # Get all questions for this exam
+        questions = get_questions_by_exam(exam_id)
+        questions_map = {str(q['id']): q for q in questions}
+        
+        # Normalize responses
+        normalized_responses = []
+        for resp in raw_responses:
+            question_id = str(resp.get('question_id', ''))
+            question = questions_map.get(question_id, {})
+            
+            given_answer = str(resp.get('given_answer', ''))
+            if not given_answer or given_answer in ['None', 'nan', '']:
+                given_answer = 'Not Answered'
+            
+            correct_answer = str(resp.get('correct_answer', ''))
+            if not correct_answer or correct_answer in ['None', 'nan', '']:
+                correct_answer = 'N/A'
+            
+            # Parse is_correct and is_attempted
+            is_correct = resp.get('is_correct', False)
+            if isinstance(is_correct, str):
+                is_correct = is_correct.lower() in ['true', '1', 'yes']
+            
+            is_attempted = resp.get('is_attempted', False)
+            if isinstance(is_attempted, str):
+                is_attempted = is_attempted.lower() in ['true', '1', 'yes']
+            
+            # Determine status
+            if not is_attempted or given_answer == 'Not Answered':
+                status = 'unanswered'
+            elif is_correct:
+                status = 'correct'
+            else:
+                status = 'incorrect'
+            
+            normalized_responses.append({
+                'question_id': question_id,
+                'question_text': question.get('question_text', 'Question not found'),
+                'user_answer': given_answer,
+                'correct_answer': correct_answer,
+                'status': status,
+                'explanation': resp.get('explanation', ''),
+                'marks_obtained': resp.get('marks_obtained', 0)
+            })
+        
         return render_template("admin/view_responses_popup.html",
-                               result=result,
-                               user=user,
-                               exam=exam,
-                               responses=responses)
-
+                             result=result,
+                             user=user,
+                             exam=exam,
+                             responses=normalized_responses)
+    
     except Exception as e:
-        print(f"Error in view-responses route: {e}")
-        import traceback; traceback.print_exc()
+        print(f"Error in view-responses: {e}")
+        import traceback
+        traceback.print_exc()
         abort(500)
 
 
@@ -2312,9 +2130,7 @@ def users_analytics_view_responses(result_id, exam_id):
 @admin_bp.route("/users-analytics/download-result/<int:result_id>")
 @require_admin_role
 def users_analytics_download_result(result_id):
-    """
-    Generate a detailed PDF for a result using ReportLab - same format as student portal
-    """
+    """Generate PDF for result from Supabase"""
     try:
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -2324,43 +2140,24 @@ def users_analytics_download_result(result_id):
         from reportlab.lib.enums import TA_CENTER
         from io import BytesIO
         
-        service = get_drive_service()
-        results_df = load_csv_from_drive(service, RESULTS_FILE_ID)
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
-        exams_df = load_csv_from_drive(service, EXAMS_FILE_ID)
-        responses_df = load_csv_from_drive(service, RESPONSES_FILE_ID)
-        questions_df = load_csv_from_drive(service, QUESTIONS_FILE_ID)
-
-        if results_df is None or results_df.empty:
+        # Get result
+        result = get_result_by_id(result_id)
+        if not result:
             abort(404)
-        rrow = results_df[results_df['id'].astype(str) == str(result_id)]
-        if rrow.empty:
-            abort(404)
-        result = rrow.iloc[0].to_dict()
-
-        # Get user info
-        user = {'username': 'Unknown', 'full_name': 'Unknown', 'email': ''}
-        if users_df is not None and not users_df.empty:
-            urows = users_df[users_df['id'].astype(str) == str(result.get('student_id', ''))]
-            if not urows.empty:
-                user = urows.iloc[0].to_dict()
-
-        # Get exam info
-        exam = {'name': 'Unknown Exam', 'description': '', 'instructions': ''}
-        if exams_df is not None and not exams_df.empty:
-            erows = exams_df[exams_df['id'].astype(str) == str(result.get('exam_id', ''))]
-            if not erows.empty:
-                exam = erows.iloc[0].to_dict()
-
-        # Get responses using CORRECT field names
-        user_responses = pd.DataFrame()
-        if responses_df is not None and not responses_df.empty:
-            user_responses = responses_df[
-                responses_df['result_id'].astype(str) == str(result_id)
-            ].sort_values('question_id')
-
-        if user_responses.empty:
-            # If no responses, create a simple summary PDF
+        
+        # Get user
+        student_id = result.get('student_id')
+        user = get_user_by_id(student_id) if student_id else {'username': 'Unknown', 'full_name': 'Unknown'}
+        
+        # Get exam
+        exam_id = result.get('exam_id')
+        exam = get_exam_by_id(exam_id) if exam_id else {'name': 'Unknown Exam'}
+        
+        # Get responses
+        user_responses = get_responses_by_result(result_id)
+        
+        if not user_responses:
+            # Simple summary PDF
             buffer = BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
             
@@ -2373,29 +2170,30 @@ def users_analytics_download_result(result_id):
             story.append(Paragraph(f"<b>Student:</b> {user.get('full_name', user.get('username', 'Unknown'))}", styles['Normal']))
             story.append(Paragraph(f"<b>Score:</b> {result.get('score', 0)}/{result.get('max_score', 0)}", styles['Normal']))
             story.append(Spacer(1, 20))
-            story.append(Paragraph("No detailed responses available for this result.", styles['Normal']))
+            story.append(Paragraph("No detailed responses available.", styles['Normal']))
             
             doc.build(story)
             pdf_bytes = buffer.getvalue()
             buffer.close()
             
             return send_file(BytesIO(pdf_bytes), as_attachment=True, download_name=f"result_{result_id}.pdf", mimetype='application/pdf')
-
-        # Create PDF with detailed responses
+        
+        # Get questions
+        questions = get_questions_by_exam(exam_id)
+        questions_map = {str(q['id']): q for q in questions}
+        
+        # Create detailed PDF
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
         
-        # Styles
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle('CustomTitle', parent=styles['Title'], fontSize=18, textColor=colors.HexColor('#2c3e50'), spaceAfter=20, alignment=TA_CENTER)
         heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor('#2c3e50'), spaceAfter=10)
         
         story = []
-        
-        # Title
         story.append(Paragraph("Exam Response Analysis", title_style))
         
-        # Header info table
+        # Header table
         header_data = [
             ['Exam:', str(exam.get('name', 'Unknown'))],
             ['Student:', f"{user.get('full_name', user.get('username', 'Unknown'))} ({user.get('username', 'Unknown')})"],
@@ -2418,28 +2216,20 @@ def users_analytics_download_result(result_id):
         
         # Questions and responses
         question_num = 1
-        for _, response in user_responses.iterrows():
-            question_id = response['question_id']
-            
-            # Get question details
-            question = {}
-            if questions_df is not None and not questions_df.empty:
-                question_row = questions_df[questions_df['id'].astype(str) == str(question_id)]
-                if not question_row.empty:
-                    question = question_row.iloc[0].to_dict()
+        for response in user_responses:
+            question_id = str(response.get('question_id', ''))
+            question = questions_map.get(question_id, {})
             
             if not question:
                 continue
             
-            # Question header
             story.append(Paragraph(f"Question {question_num}", heading_style))
             
-            # Question text
             question_text = str(question.get('question_text', 'Question text not available'))
             story.append(Paragraph(f"<b>Question:</b> {question_text}", styles['Normal']))
             story.append(Spacer(1, 10))
             
-            # Show options for MCQ/MSQ
+            # Options for MCQ/MSQ
             question_type = str(response.get('question_type', question.get('question_type', 'MCQ')))
             if question_type in ['MCQ', 'MSQ']:
                 story.append(Paragraph("<b>Options:</b>", styles['Normal']))
@@ -2457,32 +2247,25 @@ def users_analytics_download_result(result_id):
                 
                 story.append(Spacer(1, 10))
             
-            # Answers - using CORRECT field names
+            # Answers
             given_answer = str(response.get('given_answer', ''))
             if given_answer in ['nan', 'None', '', None]:
                 given_answer = 'Not Answered'
-                
+            
             correct_answer = str(response.get('correct_answer', ''))
             if correct_answer in ['nan', 'None', '', None]:
                 correct_answer = 'N/A'
             
-            # Parse is_correct properly
-            is_correct_raw = response.get('is_correct', 'false')
-            if isinstance(is_correct_raw, str):
-                is_correct = is_correct_raw.lower() == 'true'
-            else:
-                is_correct = bool(is_correct_raw)
-                
-            # Parse is_attempted properly  
-            is_attempted_raw = response.get('is_attempted', 'false')
-            if isinstance(is_attempted_raw, str):
-                is_attempted = is_attempted_raw.lower() == 'true'
-            else:
-                is_attempted = bool(is_attempted_raw)
+            is_correct = response.get('is_correct', False)
+            if isinstance(is_correct, str):
+                is_correct = is_correct.lower() in ['true', '1', 'yes']
+            
+            is_attempted = response.get('is_attempted', False)
+            if isinstance(is_attempted, str):
+                is_attempted = is_attempted.lower() in ['true', '1', 'yes']
             
             marks = float(response.get('marks_obtained', 0) or 0)
             
-            # Determine status
             if not is_attempted or given_answer == 'Not Answered':
                 status = 'Not Attempted'
             elif is_correct:
@@ -2498,13 +2281,12 @@ def users_analytics_download_result(result_id):
                 ['Status:', status]
             ]
             
-            # Color code the status row
             status_color = colors.lightgreen if status == 'Correct' else colors.lightcoral if status == 'Incorrect' else colors.lightblue
             
             answer_table = Table(answer_data, colWidths=[1.5*inch, 4*inch])
             answer_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (0, -1), colors.lightblue),
-                ('BACKGROUND', (0, 4), (1, 4), status_color),  # Status row
+                ('BACKGROUND', (0, 4), (1, 4), status_color),
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
                 ('PADDING', (0, 0), (-1, -1), 6),
@@ -2515,7 +2297,7 @@ def users_analytics_download_result(result_id):
             story.append(Spacer(1, 20))
             question_num += 1
         
-        # Performance Summary
+        # Summary
         story.append(Paragraph("Performance Summary", heading_style))
         
         summary_data = [
@@ -2538,31 +2320,22 @@ def users_analytics_download_result(result_id):
         ]))
         
         story.append(summary_table)
-        
-        # Footer
         story.append(Spacer(1, 30))
         story.append(Paragraph(f"Generated by Admin Portal on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
         
-        # Build PDF
         doc.build(story)
         
         pdf_bytes = buffer.getvalue()
         buffer.close()
         
-        # Return PDF with proper filename
         student_name = user.get('username', 'student')
         exam_name = str(exam.get('name', 'exam')).replace(' ', '_')
         filename = f"{exam_name}_{student_name}_result_{result_id}.pdf"
         
-        return send_file(
-            BytesIO(pdf_bytes), 
-            as_attachment=True, 
-            download_name=filename, 
-            mimetype='application/pdf'
-        )
-
+        return send_file(BytesIO(pdf_bytes), as_attachment=True, download_name=filename, mimetype='application/pdf')
+    
     except Exception as e:
-        print(f"Error generating PDF for result {result_id}: {e}")
+        print(f"Error generating PDF: {e}")
         import traceback
         traceback.print_exc()
         abort(500)
@@ -2584,236 +2357,181 @@ def _parse_datetime_series(df, candidates):
 @admin_bp.route("/users-analytics/analytics")
 @require_admin_role
 def users_analytics_analytics():
-    """
-    Render analytics page. Provide list of exams (exams.csv) for the filter.
-    """
+    """Render analytics page with exams from Supabase"""
     try:
-        service = get_drive_service()
-        exams_df = load_csv_from_drive(service, EXAMS_FILE_ID)
-
-        exams_list = []
-        if exams_df is not None and not exams_df.empty:
-            # prefer columns: id, name
-            for _, e in exams_df.iterrows():
-                exid = e.get('id', '')
-                name = e.get('name') or e.get('title') or f"Exam {exid}"
-                try:
-                    exid_val = int(exid)
-                except Exception:
-                    exid_val = str(exid)
-                exams_list.append({'id': exid_val, 'name': name})
-
+        exams = get_all_exams()
+        exams_list = [{'id': int(e['id']), 'name': e.get('name', f"Exam {e['id']}")} for e in exams]
         return render_template("admin/users_analytics_analytics.html", exams=exams_list)
-
-    except Exception as exc:
-        print("Error rendering analytics page")
+    except Exception as e:
+        print(f"Error rendering analytics: {e}")
         return render_template("admin/users_analytics_analytics.html", exams=[])
 
 
 @admin_bp.route("/api/users-analytics/data")
 @require_admin_role
 def users_analytics_data_api():
-    """
-    JSON API for analytics.
-    Query params:
-      - timePeriod
-      - exam  (exam id, optional)  <-- changed from subject
-      - startDate, endDate (for custom)
-    """
+    """JSON API for analytics from Supabase"""
     try:
-        service = get_drive_service()
-        results_df = load_csv_from_drive(service, RESULTS_FILE_ID)
-        users_df = load_csv_from_drive(service, USERS_FILE_ID)
-        exams_df = load_csv_from_drive(service, EXAMS_FILE_ID)
-
-        if results_df is None or results_df.empty:
-            empty_payload = {
-                "summary": {"avgScore": 0.0, "totalAttempts": 0, "passRate": 0.0, "activeUsers": 0,
-                            "scoreChange":0.0,"attemptsChange":0.0,"passRateChange":0.0,"usersChange":0.0},
-                "charts": {
-                    "scoreDistribution":[0,0,0,0],
-                    "performanceTrends":{"labels":[],"data":[]},
-                    "examPerformance":{"labels":[],"data":[]},
-                    "userActivity":{"labels":[],"data":[]}
-                },
-                "tables":{"topPerformers":[], "examStats":[], "recentActivity":[]}
-            }
-            return jsonify(empty_payload)
-
-        # params
+        from datetime import datetime as dt, timedelta
+        
+        # Get query params
         time_period = (request.args.get('timePeriod') or 'all').lower()
         exam_filter = (request.args.get('exam') or '').strip()
         start_date = request.args.get('startDate') or ''
         end_date = request.args.get('endDate') or ''
-
-        # attach parsed timestamp (results.csv uses completed_at)
-        completed = _parse_datetime_series(results_df, ['completed_at', 'created_at', 'timestamp', 'submitted_at'])
-        rd = results_df.copy()
-        rd['_completed'] = completed
-
-        # build exam map: id -> name (from exams_df)
-        exam_name_map = {}
-        if exams_df is not None and not exams_df.empty:
-            for _, e in exams_df.iterrows():
-                eid = str(e.get('id',''))
-                en = e.get('name') or e.get('title') or f"Exam {eid}"
-                exam_name_map[eid] = en
-
-        # time window
-        now = pd.Timestamp.now()
-        start, end = None, None
-        if time_period == 'today':
-            start = now.normalize(); end = start + pd.Timedelta(days=1)
-        elif time_period == 'week':
-            start = (now - pd.Timedelta(days=now.weekday())).normalize(); end = start + pd.Timedelta(days=7)
-        elif time_period == 'month':
-            start = now.replace(day=1).normalize(); end = (start + pd.offsets.MonthBegin(1))
-        elif time_period == 'quarter':
-            q = (now.month - 1) // 3
-            start = (now.replace(month=q*3+1, day=1)).normalize(); end = (start + pd.offsets.DateOffset(months=3))
-        elif time_period == 'year':
-            start = now.replace(month=1, day=1).normalize(); end = (start + pd.offsets.DateOffset(years=1))
-        elif time_period == 'custom' and start_date and end_date:
-            try:
-                start = pd.to_datetime(start_date).normalize(); end = pd.to_datetime(end_date).normalize() + pd.Timedelta(days=1)
-            except Exception:
-                start, end = None, None
-
-        mask = pd.Series([True] * len(rd), index=rd.index)
-        if start is not None and end is not None:
-            mask = mask & rd['_completed'].between(start, end, inclusive='left')
-
-        # exam filter (exact match to results.exam_id)
-        if exam_filter:
-            # accept numeric or string exam ids
-            mask = mask & (rd['exam_id'].astype(str) == str(exam_filter))
-
-        filtered = rd[mask].copy()
-
-        # compute row percentage (results.csv has 'percentage' column; fallback compute from score/max_score)
-        def _extract_percentage(row):
-            if 'percentage' in row and pd.notna(row['percentage']):
+        
+        # Get data from Supabase
+        all_results = get_all_results()
+        users = get_all_users()
+        exams = get_all_exams()
+        
+        if not all_results:
+            return jsonify({
+                "summary": {"avgScore": 0.0, "totalAttempts": 0, "passRate": 0.0, "activeUsers": 0,
+                           "scoreChange": 0.0, "attemptsChange": 0.0, "passRateChange": 0.0, "usersChange": 0.0},
+                "charts": {"scoreDistribution": [0,0,0,0], "performanceTrends": {"labels":[], "data":[]},
+                          "examPerformance": {"labels":[], "data":[]}, "userActivity": {"labels":[], "data":[]}},
+                "tables": {"topPerformers": [], "examStats": [], "recentActivity": []}
+            })
+        
+        # Build maps
+        exam_map = {str(e['id']): e.get('name', f"Exam {e['id']}") for e in exams}
+        user_map = {str(u['id']): u for u in users}
+        
+        # Filter by time
+        now = dt.now()
+        filtered = []
+        
+        for r in all_results:
+            completed_at = r.get('completed_at', '')
+            
+            # Time filter
+            if time_period != 'all' and completed_at:
                 try:
-                    return float(row['percentage'])
-                except Exception:
+                    completed_dt = dt.fromisoformat(completed_at.replace('Z', '+00:00'))
+                    
+                    if time_period == 'today':
+                        if completed_dt.date() != now.date():
+                            continue
+                    elif time_period == 'week':
+                        week_start = now - timedelta(days=now.weekday())
+                        if completed_dt < week_start:
+                            continue
+                    elif time_period == 'month':
+                        if completed_dt.month != now.month or completed_dt.year != now.year:
+                            continue
+                    elif time_period == 'custom' and start_date and end_date:
+                        if completed_at < start_date or completed_at > end_date:
+                            continue
+                except:
                     pass
-            try:
-                score = row.get('score')
-                max_score = row.get('max_score') or row.get('max')
-                if pd.notna(score) and pd.notna(max_score) and float(max_score) != 0:
-                    return float(score) / float(max_score) * 100.0
-            except Exception:
-                pass
-            return 0.0
-
-        if not filtered.empty:
-            filtered['_pct'] = filtered.apply(_extract_percentage, axis=1)
-        else:
-            filtered['_pct'] = pd.Series(dtype=float)
-
-        total_attempts = int(len(filtered))
-        avg_score = float(filtered['_pct'].mean()) if total_attempts > 0 else 0.0
-        pass_threshold = 40.0
-        pass_rate = float((filtered['_pct'] >= pass_threshold).sum() / total_attempts * 100.0) if total_attempts > 0 else 0.0
-        active_users = int(filtered['student_id'].astype(str).nunique()) if 'student_id' in filtered.columns else 0
-
-        summary = {"avgScore": round(avg_score,2), "totalAttempts": total_attempts, "passRate": round(pass_rate,2),
-                   "activeUsers": active_users, "scoreChange":0.0,"attemptsChange":0.0,"passRateChange":0.0,"usersChange":0.0}
-
-        # CHARTS
-        buckets = {
-            'excellent': int(((filtered['_pct'] >= 90)).sum()) if not filtered.empty else 0,
-            'good': int((((filtered['_pct'] >= 75) & (filtered['_pct'] < 90))).sum()) if not filtered.empty else 0,
-            'average': int((((filtered['_pct'] >= 60) & (filtered['_pct'] < 75))).sum()) if not filtered.empty else 0,
-            'poor': int(((filtered['_pct'] < 60)).sum()) if not filtered.empty else 0
+            
+            # Exam filter
+            if exam_filter and str(r.get('exam_id')) != exam_filter:
+                continue
+            
+            filtered.append(r)
+        
+        # Calculate stats
+        total_attempts = len(filtered)
+        avg_score = sum(float(r.get('percentage', 0)) for r in filtered) / total_attempts if total_attempts > 0 else 0.0
+        pass_rate = sum(1 for r in filtered if float(r.get('percentage', 0)) >= 40) / total_attempts * 100 if total_attempts > 0 else 0.0
+        active_users = len(set(str(r.get('student_id')) for r in filtered))
+        
+        summary = {
+            "avgScore": round(avg_score, 2),
+            "totalAttempts": total_attempts,
+            "passRate": round(pass_rate, 2),
+            "activeUsers": active_users,
+            "scoreChange": 0.0,
+            "attemptsChange": 0.0,
+            "passRateChange": 0.0,
+            "usersChange": 0.0
         }
-        scoreDistribution = [buckets['excellent'], buckets['good'], buckets['average'], buckets['poor']]
-
-        # performance trends grouped by day
-        if not filtered.empty and filtered['_completed'].notna().any():
-            tmp = filtered.dropna(subset=['_completed']).copy()
-            tmp['_day'] = tmp['_completed'].dt.strftime('%Y-%m-%d')
-            trend = tmp.groupby('_day')['_pct'].mean().reset_index().sort_values('_day')
-            perf_labels = trend['_day'].tolist(); perf_data = [round(float(x),2) for x in trend['_pct'].tolist()]
-        else:
-            perf_labels = []; perf_data = []
-
-        # exam performance (group by exam_id -> exam name)
-        exam_perf_map = {}
-        if not filtered.empty:
-            for _, r in filtered.iterrows():
-                exid = str(r.get('exam_id','') or r.get('exam',''))
-                name = exam_name_map.get(exid, f"Exam {exid}")
-                exam_perf_map.setdefault(name, []).append(r['_pct'])
-            exam_labels = list(exam_perf_map.keys())
-            exam_data = [round(float(pd.Series(vals).mean()),2) for vals in exam_perf_map.values()]
-        else:
-            exam_labels = []; exam_data = []
-
-        # user activity per day
-        if not filtered.empty and filtered['_completed'].notna().any():
-            activity = filtered.dropna(subset=['_completed']).copy()
-            activity['_day'] = activity['_completed'].dt.strftime('%Y-%m-%d')
-            act = activity.groupby('_day').size().reset_index(name='count').sort_values('_day')
-            act_labels = act['_day'].tolist(); act_data = [int(x) for x in act['count'].tolist()]
-        else:
-            act_labels = []; act_data = []
-
-        charts_payload = {
-            "scoreDistribution": scoreDistribution,
-            "performanceTrends": {"labels": perf_labels, "data": perf_data},
-            "examPerformance": {"labels": exam_labels, "data": exam_data},
-            "userActivity": {"labels": act_labels, "data": act_data}
-        }
-
-        # TABLES
+        
+        # Score distribution
+        excellent = sum(1 for r in filtered if float(r.get('percentage', 0)) >= 90)
+        good = sum(1 for r in filtered if 75 <= float(r.get('percentage', 0)) < 90)
+        average = sum(1 for r in filtered if 60 <= float(r.get('percentage', 0)) < 75)
+        poor = sum(1 for r in filtered if float(r.get('percentage', 0)) < 60)
+        
+        # Exam performance
+        exam_perf = {}
+        for r in filtered:
+            exam_id = str(r.get('exam_id', ''))
+            exam_name = exam_map.get(exam_id, f"Exam {exam_id}")
+            if exam_name not in exam_perf:
+                exam_perf[exam_name] = []
+            exam_perf[exam_name].append(float(r.get('percentage', 0)))
+        
+        exam_labels = list(exam_perf.keys())
+        exam_data = [round(sum(scores)/len(scores), 2) if scores else 0 for scores in exam_perf.values()]
+        
+        # Top performers
+        student_scores = {}
+        for r in filtered:
+            sid = str(r.get('student_id', ''))
+            if sid not in student_scores:
+                student_scores[sid] = []
+            student_scores[sid].append(float(r.get('percentage', 0)))
+        
         top_performers = []
-        if not filtered.empty and 'student_id' in filtered.columns:
-            gp = filtered.groupby(filtered['student_id'].astype(str)).agg({'_pct':'mean','id':'count'}).rename(columns={'_pct':'avgPct','id':'attempts'}).reset_index()
-            gp = gp.sort_values('avgPct', ascending=False).head(10)
-            for _, row in gp.iterrows():
-                sid = str(row['student_id']); attempts = int(row['attempts']); avgScoreVal = round(float(row['avgPct']),2)
-                username = sid; full_name = ''
-                if users_df is not None and not users_df.empty:
-                    urow = users_df[users_df['id'].astype(str) == sid]
-                    if not urow.empty:
-                        username = str(urow.iloc[0].get('username') or urow.iloc[0].get('email') or sid)
-                        full_name = str(urow.iloc[0].get('full_name') or '')
-                top_performers.append({"student_id": sid, "username": username, "full_name": full_name, "avgScore": avgScoreVal, "attempts": attempts})
-
+        for sid, scores in sorted(student_scores.items(), key=lambda x: sum(x[1])/len(x[1]) if x[1] else 0, reverse=True)[:10]:
+            user = user_map.get(sid, {})
+            top_performers.append({
+                "student_id": sid,
+                "username": user.get('username', sid),
+                "full_name": user.get('full_name', ''),
+                "avgScore": round(sum(scores)/len(scores), 2) if scores else 0,
+                "attempts": len(scores)
+            })
+        
+        # Exam stats
         exam_stats = []
-        if not filtered.empty:
-            exid_col = 'exam_id' if 'exam_id' in filtered.columns else 'exam'
-            filtered['_exam_id_str'] = filtered[exid_col].astype(str) if exid_col in filtered.columns else filtered.get('exam_id', pd.Series(dtype=str)).astype(str)
-            eg = filtered.groupby('_exam_id_str').agg({'_pct':'mean','id':'count'}).rename(columns={'_pct':'avgPct','id':'attempts'}).reset_index()
-            for _, row in eg.iterrows():
-                exid = str(row['_exam_id_str']); attempts = int(row['attempts']); avgScoreVal = round(float(row['avgPct']),2)
-                exam_name = exam_name_map.get(exid, exid)
-                ex_rows = filtered[filtered['_exam_id_str'] == exid]
-                pass_rate_ex = float((ex_rows['_pct'] >= pass_threshold).sum() / len(ex_rows) * 100.0) if len(ex_rows) > 0 else 0.0
-                exam_stats.append({"id": exid, "name": exam_name, "subject": "", "attempts": attempts, "avgScore": avgScoreVal, "passRate": round(pass_rate_ex,2)})
-
+        for exam_name, scores in exam_perf.items():
+            pass_count = sum(1 for s in scores if s >= 40)
+            exam_stats.append({
+                "name": exam_name,
+                "attempts": len(scores),
+                "avgScore": round(sum(scores)/len(scores), 2) if scores else 0,
+                "passRate": round(pass_count/len(scores)*100, 2) if scores else 0
+            })
+        
+        # Recent activity
         recent_activity = []
-        if not filtered.empty:
-            tmp = filtered.copy().sort_values('_completed', ascending=False).head(10)
-            for _, r in tmp.iterrows():
-                sid = str(r.get('student_id','')); username = sid; full_name = ''
-                if users_df is not None and not users_df.empty:
-                    urow = users_df[users_df['id'].astype(str) == sid]
-                    if not urow.empty:
-                        username = str(urow.iloc[0].get('username') or urow.iloc[0].get('email') or sid)
-                        full_name = str(urow.iloc[0].get('full_name') or '')
-                exid = str(r.get('exam_id','') or r.get('exam',''))
-                exam_name = exam_name_map.get(exid, exid)
-                pct = float(r.get('_pct') or 0.0)
-                recent_activity.append({"created_at": str(r.get('_completed')) if pd.notna(r.get('_completed')) else '', "username": username, "full_name": full_name, "exam_name": exam_name, "subject_name": "", "score": r.get('score') if 'score' in r.index else None, "max_score": r.get('max_score') if 'max_score' in r.index else None, "percentage": round(pct,2)})
-
-        payload = {"summary": summary, "charts": charts_payload, "tables": {"topPerformers": top_performers, "examStats": exam_stats, "recentActivity": recent_activity}}
-        return jsonify(payload)
-
-    except Exception as exc:
-        print("Analytics error")
-        return jsonify({"error":"Failed to compute analytics","message":str(exc)}), 500        
+        for r in sorted(filtered, key=lambda x: x.get('completed_at', ''), reverse=True)[:10]:
+            user = user_map.get(str(r.get('student_id', '')), {})
+            exam_name = exam_map.get(str(r.get('exam_id', '')), 'Unknown')
+            recent_activity.append({
+                "created_at": r.get('completed_at', ''),
+                "username": user.get('username', 'Unknown'),
+                "full_name": user.get('full_name', ''),
+                "exam_name": exam_name,
+                "score": r.get('score'),
+                "max_score": r.get('max_score'),
+                "percentage": round(float(r.get('percentage', 0)), 2)
+            })
+        
+        return jsonify({
+            "summary": summary,
+            "charts": {
+                "scoreDistribution": [excellent, good, average, poor],
+                "performanceTrends": {"labels": [], "data": []},
+                "examPerformance": {"labels": exam_labels, "data": exam_data},
+                "userActivity": {"labels": [], "data": []}
+            },
+            "tables": {
+                "topPerformers": top_performers,
+                "examStats": exam_stats,
+                "recentActivity": recent_activity
+            }
+        })
+    
+    except Exception as e:
+        print(f"Analytics error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Failed to compute analytics", "message": str(e)}), 500       
 
 
 
@@ -2822,6 +2540,11 @@ def users_analytics_data_api():
 @admin_bp.route("/attempts/bulk-modify", methods=["POST"])
 @require_admin_role  
 def attempts_bulk_modify():
+    """Bulk modify attempts using Supabase"""
+    
+    from supabase_db import supabase
+    from datetime import datetime
+    
     try:
         data = request.get_json()
         items = data.get('items', [])
@@ -2831,11 +2554,6 @@ def attempts_bulk_modify():
         if not items or not action:
             return jsonify({'success': False, 'message': 'Missing required data'})
         
-        sa = get_drive_service()
-        attempts_df = load_csv_from_drive(sa, EXAM_ATTEMPTS_FILE_ID)
-        if attempts_df is None: 
-            attempts_df = pd.DataFrame(columns=["id","student_id","exam_id","attempt_number","status","start_time","end_time"])
-        
         processed_count = 0
         errors = []
         
@@ -2844,40 +2562,43 @@ def attempts_bulk_modify():
             exam_id = str(item.get('exam_id'))
             
             try:
-                mask = (attempts_df["student_id"].astype(str)==student_id) & (attempts_df["exam_id"].astype(str)==exam_id)
-                current = attempts_df[mask]
-                used = len(current)
-
+                # Get current attempts
+                response = supabase.table('exam_attempts').select('*').eq('student_id', student_id).eq('exam_id', exam_id).execute()
+                current_attempts = response.data if response.data else []
+                used = len(current_attempts)
+                
                 if action == "reset":
-                    attempts_df = attempts_df[~mask]
+                    for attempt in current_attempts:
+                        supabase.table('exam_attempts').delete().eq('id', attempt['id']).execute()
                     processed_count += 1
+                
                 elif action == "decrease":
                     if used >= amount:
-                        drop_ids = current.tail(amount)["id"].tolist()
-                        attempts_df = attempts_df[~attempts_df["id"].isin(drop_ids)]
+                        sorted_attempts = sorted(current_attempts, key=lambda x: x.get('id', 0))
+                        to_delete = sorted_attempts[-amount:]
+                        for attempt in to_delete:
+                            supabase.table('exam_attempts').delete().eq('id', attempt['id']).execute()
                         processed_count += 1
                     else:
                         errors.append(f"Student {student_id}, Exam {exam_id}: Not enough attempts to remove")
+                
                 elif action == "increase":
-                    start_id = (attempts_df["id"].astype(int).max() + 1) if not attempts_df.empty else 1
                     for i in range(amount):
-                        attempts_df = pd.concat([attempts_df, pd.DataFrame([{
-                            "id": start_id+i,
-                            "student_id": student_id,
-                            "exam_id": exam_id,
-                            "attempt_number": used+i+1,
+                        new_attempt = {
+                            "student_id": int(student_id),
+                            "exam_id": int(exam_id),
+                            "attempt_number": used + i + 1,
                             "status": "manual_add",
-                            "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "end_time": ""
-                        }])], ignore_index=True)
+                            "start_time": datetime.now().isoformat(),
+                            "end_time": None
+                        }
+                        supabase.table('exam_attempts').insert(new_attempt).execute()
                     processed_count += 1
-                    
+            
             except Exception as e:
                 errors.append(f"Student {student_id}, Exam {exam_id}: {str(e)}")
         
-        ok = save_csv_to_drive(sa, attempts_df, EXAM_ATTEMPTS_FILE_ID)
-        if ok and processed_count > 0:
-            clear_cache()
+        if processed_count > 0:
             return jsonify({
                 'success': True, 
                 'processed': processed_count,
@@ -2886,8 +2607,438 @@ def attempts_bulk_modify():
         else:
             return jsonify({
                 'success': False, 
-                'message': f'Failed to save changes. Errors: {"; ".join(errors) if errors else "Unknown error"}'
+                'message': f'Failed to save changes. Errors: {"; ".join(errors)}'
             })
-            
+    
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})    
+        print(f"Bulk modify error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500    
+
+
+
+        
+@admin_bp.route("/questions/export-csv/<int:exam_id>")
+@require_admin_role
+def export_questions_csv(exam_id):
+    """Export questions for selected exam as CSV"""
+    try:
+        import io
+        from flask import Response
+        
+        # Get exam
+        exam = get_exam_by_id(exam_id)
+        if not exam:
+            flash("Exam not found.", "error")
+            return redirect(url_for("admin.questions_index"))
+        
+        # Get questions for this exam
+        questions = get_questions_by_exam(exam_id)
+        
+        if not questions:
+            flash("No questions found for this exam.", "warning")
+            return redirect(url_for("admin.questions_index", exam_id=exam_id))
+        
+        # Create CSV data (WITHOUT question_id - database manages it)
+        csv_data = []
+        for q in questions:
+            row = {
+                'exam_id': int(q.get('exam_id', 0)),
+                'question_text': str(q.get('question_text', '')).strip(),
+                'option_a': str(q.get('option_a', '')).strip(),
+                'option_b': str(q.get('option_b', '')).strip(),
+                'option_c': str(q.get('option_c', '')).strip(),
+                'option_d': str(q.get('option_d', '')).strip(),
+                'correct_answer': str(q.get('correct_answer', '')).strip(),
+                'question_type': str(q.get('question_type', 'MCQ')).strip(),
+                'image_path': str(q.get('image_path', '')).strip(),
+                'positive_marks': int(q.get('positive_marks', 4)),
+                'negative_marks': float(q.get('negative_marks', 1)),
+                'tolerance': float(q.get('tolerance', 0) or 0)
+            }
+            csv_data.append(row)
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(csv_data)
+        
+        # Ensure column order matches import format
+        columns_order = [
+            'exam_id', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d',
+            'correct_answer', 'question_type', 'image_path', 'positive_marks', 
+            'negative_marks', 'tolerance'
+        ]
+        df = df[columns_order]
+        
+        # Create CSV string
+        output = io.StringIO()
+        df.to_csv(output, index=False, encoding='utf-8')
+        csv_string = output.getvalue()
+        output.close()
+        
+        # Create response
+        exam_name = str(exam.get('name', 'exam')).replace(' ', '_').lower()
+        filename = f"questions_{exam_name}_{exam_id}.csv"
+        
+        return Response(
+            csv_string,
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
+        )
+    
+    except Exception as e:
+        print(f"Error exporting questions CSV: {e}")
+        import traceback
+        traceback.print_exc()
+        flash("Failed to export questions.", "error")
+        return redirect(url_for("admin.questions_index"))
+
+
+@admin_bp.route("/questions/import-csv", methods=["POST"])
+@require_admin_role
+def import_questions_csv():
+    """Import questions from CSV file"""
+    try:
+        # Check if file was uploaded
+        if 'csv_file' not in request.files:
+            return jsonify({"success": False, "message": "No file uploaded"}), 400
+        
+        file = request.files['csv_file']
+        
+        if file.filename == '':
+            return jsonify({"success": False, "message": "No file selected"}), 400
+        
+        if not file.filename.endswith('.csv'):
+            return jsonify({"success": False, "message": "File must be a CSV"}), 400
+        
+        # Read CSV
+        try:
+            df = pd.read_csv(file)
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Failed to read CSV: {str(e)}"}), 400
+        
+        # Validate required columns
+        required_columns = [
+            'exam_id', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d',
+            'correct_answer', 'question_type', 'image_path', 'positive_marks',
+            'negative_marks', 'tolerance'
+        ]
+        
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return jsonify({
+                "success": False, 
+                "message": f"Missing required columns: {', '.join(missing_columns)}"
+            }), 400
+        
+        # Validate data
+        if df.empty:
+            return jsonify({"success": False, "message": "CSV file is empty"}), 400
+        
+        # Get all valid exam IDs
+        all_exams = get_all_exams()
+        valid_exam_ids = {int(exam['id']) for exam in all_exams}
+        
+        # Check for invalid exam IDs
+        csv_exam_ids = set(df['exam_id'].dropna().astype(int).unique())
+        invalid_exam_ids = csv_exam_ids - valid_exam_ids
+        
+        if invalid_exam_ids:
+            return jsonify({
+                "success": False,
+                "message": f"Invalid exam IDs found in CSV: {', '.join(map(str, invalid_exam_ids))}. Please ensure exams exist before importing."
+            }), 400
+        
+        # Process and insert questions
+        from supabase_db import supabase
+        
+        inserted_count = 0
+        skipped_count = 0
+        errors = []
+        
+        for idx, row in df.iterrows():
+            try:
+                # Validate exam_id
+                exam_id = int(row['exam_id']) if pd.notna(row['exam_id']) else None
+                if not exam_id or exam_id not in valid_exam_ids:
+                    skipped_count += 1
+                    errors.append(f"Row {idx + 2}: Invalid exam_id {exam_id}")
+                    continue
+                
+                # Validate question_text
+                question_text = str(row['question_text']).strip() if pd.notna(row['question_text']) else ''
+                if not question_text:
+                    skipped_count += 1
+                    errors.append(f"Row {idx + 2}: Empty question_text")
+                    continue
+                
+                # Build question data
+                question_data = {
+                    'exam_id': exam_id,
+                    'question_text': question_text,
+                    'option_a': str(row['option_a']).strip() if pd.notna(row['option_a']) else '',
+                    'option_b': str(row['option_b']).strip() if pd.notna(row['option_b']) else '',
+                    'option_c': str(row['option_c']).strip() if pd.notna(row['option_c']) else '',
+                    'option_d': str(row['option_d']).strip() if pd.notna(row['option_d']) else '',
+                    'correct_answer': str(row['correct_answer']).strip() if pd.notna(row['correct_answer']) else '',
+                    'question_type': str(row['question_type']).strip() if pd.notna(row['question_type']) else 'MCQ',
+                    'image_path': str(row['image_path']).strip() if pd.notna(row['image_path']) else '',
+                    'positive_marks': int(row['positive_marks']) if pd.notna(row['positive_marks']) else 4,
+                    'negative_marks': float(row['negative_marks']) if pd.notna(row['negative_marks']) else 1,
+                    'tolerance': float(row['tolerance']) if pd.notna(row['tolerance']) else 0
+                }
+                
+                # Insert into Supabase
+                supabase.table('questions').insert(question_data).execute()
+                inserted_count += 1
+            
+            except Exception as e:
+                skipped_count += 1
+                errors.append(f"Row {idx + 2}: {str(e)}")
+                continue
+        
+        # Build response message
+        if inserted_count > 0:
+            message = f"Successfully imported {inserted_count} question(s)"
+            if skipped_count > 0:
+                message += f". Skipped {skipped_count} row(s) due to errors."
+            
+            return jsonify({
+                "success": True,
+                "message": message,
+                "inserted": inserted_count,
+                "skipped": skipped_count,
+                "errors": errors[:10] if errors else None  # Return first 10 errors
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"No questions imported. {skipped_count} row(s) had errors.",
+                "errors": errors[:10] if errors else None
+            }), 400
+    
+    except Exception as e:
+        print(f"Error importing CSV: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": f"Import failed: {str(e)}"}), 500    
+
+# ========================
+# AI COMMAND CENTRE ROUTES
+# ========================
+
+@admin_bp.route("/ai-command-centre", methods=["GET"])
+@require_admin_role
+def ai_command_centre():
+    """Main AI Command Centre dashboard"""
+    try:
+        # Get all exams for dropdown
+        exams = get_all_exams()
+        return render_template('admin/ai_command_centre.html', exams=exams)
+    except Exception as e:
+        print(f"Error loading AI Command Centre: {e}")
+        flash('Error loading AI Command Centre', 'error')
+        return redirect(url_for('admin.dashboard'))
+
+
+@admin_bp.route("/ai-command-centre/generate", methods=["POST"])
+@require_admin_role
+def ai_generate_questions():
+    """Generate questions using AI"""
+    try:
+        # Get form data
+        mode = request.form.get('mode')  # 'extract', 'mine', or 'pure'
+        exam_id = int(request.form.get('exam_id'))
+        difficulty = request.form.get('difficulty', 'Medium')
+        
+        # Question counts and marks
+        config = {
+            'exam_id': exam_id,
+            'difficulty': difficulty,
+            'mcq_count': int(request.form.get('mcq_count', 0)),
+            'msq_count': int(request.form.get('msq_count', 0)),
+            'numeric_count': int(request.form.get('numeric_count', 0)),
+            'mcq_plus': float(request.form.get('mcq_plus', 4)),
+            'mcq_minus': float(request.form.get('mcq_minus', 1)),
+            'msq_plus': float(request.form.get('msq_plus', 4)),
+            'msq_minus': float(request.form.get('msq_minus', 2)),
+            'numeric_plus': float(request.form.get('numeric_plus', 3)),
+            'numeric_tolerance': float(request.form.get('numeric_tolerance', 0.01)),
+            'custom_instructions': request.form.get('custom_instructions', '')
+        }
+        
+        # Import AI generator
+        from ai_question_generator import generate_questions
+        
+        # Handle file upload for Card A & B
+        pdf_path = None
+        if mode in ['extract', 'mine']:
+            if 'pdf_file' not in request.files:
+                return jsonify({'success': False, 'message': 'PDF file required'}), 400
+            
+            file = request.files['pdf_file']
+            if file.filename == '':
+                return jsonify({'success': False, 'message': 'No file selected'}), 400
+            
+            # Save temporarily
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+                file.save(tmp.name)
+                pdf_path = tmp.name
+        
+        # Get topic for Card C
+        topic = None
+        if mode == 'pure':
+            topic = request.form.get('topic', '')
+            if not topic:
+                return jsonify({'success': False, 'message': 'Topic required'}), 400
+        
+        try:
+            # Generate questions
+            questions = generate_questions(
+                mode=mode,
+                config=config,
+                pdf_path=pdf_path,
+                topic=topic
+            )
+            
+            return jsonify({
+                'success': True,
+                'questions': questions,
+                'count': len(questions)
+            })
+        
+        finally:
+            # Cleanup temp file
+            if pdf_path and os.path.exists(pdf_path):
+                try:
+                    os.unlink(pdf_path)
+                except:
+                    pass
+    
+    except Exception as e:
+        print(f"AI Generation Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Generation failed: {str(e)}'
+        }), 500
+
+
+@admin_bp.route("/ai-command-centre/save", methods=["POST"])
+@require_admin_role
+def ai_save_questions():
+    """Bulk save generated questions to database"""
+    try:
+        data = request.get_json()
+        questions = data.get('questions', [])
+        
+        if not questions:
+            return jsonify({'success': False, 'message': 'No questions to save'}), 400
+        
+        # Prepare for bulk insert
+        questions_to_insert = []
+        for q in questions:
+            questions_to_insert.append({
+                'exam_id': q['exam_id'],
+                'question_text': q['question_text'],
+                'option_a': q.get('option_a', ''),
+                'option_b': q.get('option_b', ''),
+                'option_c': q.get('option_c', ''),
+                'option_d': q.get('option_d', ''),
+                'correct_answer': q['correct_answer'],
+                'question_type': q.get('question_type', 'MCQ'),
+                'image_path': None,
+                'positive_marks': int(q.get('positive_marks', 4)),
+                'negative_marks': float(q.get('negative_marks', 1)),
+                'tolerance': float(q.get('tolerance', 0))
+            })
+        
+        # Bulk insert to Supabase
+        from supabase_db import supabase
+        response = supabase.table('questions').insert(questions_to_insert).execute()
+        
+        if response.data:
+            return jsonify({
+                'success': True,
+                'message': f'Successfully saved {len(questions_to_insert)} questions',
+                'count': len(questions_to_insert)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to save questions to database'
+            }), 500
+    
+    except Exception as e:
+        print(f"Save Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Save failed: {str(e)}'
+        }), 500
+
+
+@admin_bp.route("/ai-command-centre/export-csv", methods=["POST"])
+@require_admin_role
+def ai_export_csv():
+    """Export generated questions to CSV"""
+    try:
+        data = request.get_json()
+        questions = data.get('questions', [])
+        
+        if not questions:
+            return jsonify({'success': False, 'message': 'No questions to export'}), 400
+        
+        # Create CSV content
+        import io
+        import csv
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'exam_id', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d',
+            'correct_answer', 'question_type', 'image_path', 'positive_marks',
+            'negative_marks', 'tolerance'
+        ])
+        
+        # Write questions
+        for q in questions:
+            writer.writerow([
+                q['exam_id'],
+                q['question_text'],
+                q.get('option_a', ''),
+                q.get('option_b', ''),
+                q.get('option_c', ''),
+                q.get('option_d', ''),
+                q['correct_answer'],
+                q.get('question_type', 'MCQ'),
+                '',  # image_path
+                q.get('positive_marks', 4),
+                q.get('negative_marks', 1),
+                q.get('tolerance', 0)
+            ])
+        
+        # Create response
+        csv_content = output.getvalue()
+        output.close()
+        
+        from flask import Response
+        return Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': 'attachment; filename=ai_generated_questions.csv'
+            }
+        )
+    
+    except Exception as e:
+        print(f"Export Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Export failed: {str(e)}'
+        }), 500

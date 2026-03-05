@@ -1,5 +1,23 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import pandas as pd
+
+# ✅ Supabase imports (complete migration)
+from supabase_db import (
+    get_user_by_username, get_user_by_id, get_user_by_email,
+    get_all_users, create_user, update_user,
+    get_all_exams, get_exam_by_id, create_exam,
+    get_questions_by_exam, create_question,
+    create_session, get_session_by_token, invalidate_session,
+    update_session_last_seen, check_login_attempts,
+    record_failed_login, clear_login_attempts,
+    get_all_results, get_result_by_id, get_results_by_user, get_results_by_exam,
+    get_responses_by_result, create_result, create_response, create_responses_bulk,
+    get_latest_attempt, get_completed_attempts_count, create_exam_attempt, update_exam_attempt,
+    get_password_token, create_password_token as db_create_password_token, mark_token_used,
+    get_chat_history, save_chat_message, delete_user_chat_history,
+    get_today_usage, increment_usage,
+    supabase
+)
 import os
 from datetime import datetime
 from functools import wraps
@@ -15,7 +33,8 @@ import tempfile
 from reportlab.lib.pagesizes import letter
 from dotenv import load_dotenv
 from admin import admin_bp
-import threading
+import queue
+from collections import deque
 import uuid
 from flask_session import Session
 import tempfile
@@ -30,7 +49,6 @@ import math
 import bcrypt
 import secrets
 from datetime import datetime
-from zoneinfo import ZoneInfo
 import re
 from google_drive_service import create_drive_service, load_csv_from_drive, save_csv_to_drive, find_file_by_name, get_public_url, get_drive_service
 from login_attempts_cache import check_login_attempts, record_failed_login, clear_login_attempts
@@ -79,6 +97,16 @@ if IS_PRODUCTION:
     print("🌐 Running on Render (Production)")
 else:
     print("💻 Running locally")
+
+
+# AI Configuration from .env
+AI_MODEL_NAME = os.environ.get('AI_MODEL_NAME', 'llama-3.3-70b-versatile')
+AI_DAILY_LIMIT = int(os.environ.get('AI_DAILY_LIMIT_PER_STUDENT', 50))
+AI_MAX_MESSAGE_LENGTH = int(os.environ.get('AI_MAX_MESSAGE_LENGTH', 500))
+AI_REQUEST_TIMEOUT = int(os.environ.get('AI_REQUEST_TIMEOUT', 30))
+
+print(f"✅ AI Config: Model={AI_MODEL_NAME}, Limit={AI_DAILY_LIMIT}, MaxLen={AI_MAX_MESSAGE_LENGTH}, Timeout={AI_REQUEST_TIMEOUT}")
+
 
 # Import Google Drive service
 
@@ -136,7 +164,15 @@ Session(app)
 
 print(f"✅ Server-side sessions enabled: type={app.config['SESSION_TYPE']}, dir={app.config.get('SESSION_FILE_DIR')}")
 
-
+@app.after_request
+def add_cache_control_headers(response):
+    """Disable browser caching for all pages to prevent back button access after logout"""
+    # Skip cache headers for static files
+    if not request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
 
 # Register admin blueprint
 app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -151,8 +187,8 @@ RESPONSES_CSV = 'responses.csv'
 # CRITICAL: Debug environment variables
 print("🔍 Checking environment variables...")
 required_env_vars = [
-    'SECRET_KEY', 'GOOGLE_SERVICE_ACCOUNT_JSON',
-    'USERS_FILE_ID', 'EXAMS_FILE_ID', 'QUESTIONS_FILE_ID', 'RESULTS_FILE_ID', 'RESPONSES_FILE_ID'
+    'SECRET_KEY', 
+    'GOOGLE_SERVICE_ACCOUNT_JSON',  
 ]
 
 for var in required_env_vars:
@@ -167,28 +203,18 @@ for var in required_env_vars:
     else:
         print(f"❌ {var}: MISSING!")
 
-# Google Drive File IDs
-USERS_FILE_ID = os.environ.get('USERS_FILE_ID')
-EXAMS_FILE_ID = os.environ.get('EXAMS_FILE_ID')
-QUESTIONS_FILE_ID = os.environ.get('QUESTIONS_FILE_ID')
-RESULTS_FILE_ID = os.environ.get('RESULTS_FILE_ID')
-RESPONSES_FILE_ID = os.environ.get('RESPONSES_FILE_ID')
-EXAM_ATTEMPTS_FILE_ID = os.environ.get('EXAM_ATTEMPTS_FILE_ID')
-REQUESTS_RAISED_FILE_ID = os.environ.get("REQUESTS_RAISED_FILE_ID")
+
+
+# Keep only file-based Drive IDs (sessions, login_attempts)
 LOGIN_ATTEMPTS_FILE_ID = os.environ.get('LOGIN_ATTEMPTS_FILE_ID')
-PW_TOKENS_FILE_ID = os.environ.get('PW_TOKENS_FILE_ID')
+SESSIONS_FILE_ID = os.environ.get('SESSIONS_FILE_ID')
 
 DRIVE_FILE_IDS = {
-    'users': USERS_FILE_ID,
-    'exams': EXAMS_FILE_ID,
-    'questions': QUESTIONS_FILE_ID,
-    'results': RESULTS_FILE_ID,
-    'responses': RESPONSES_FILE_ID,
-    'exam_attempts': EXAM_ATTEMPTS_FILE_ID,
-    'requests_raised': REQUESTS_RAISED_FILE_ID,
     'login_attempts': LOGIN_ATTEMPTS_FILE_ID,
-    'pw_tokens': PW_TOKENS_FILE_ID  
+    'sessions': SESSIONS_FILE_ID
 }
+
+
 
 # Google Drive Folder IDs
 ROOT_FOLDER_ID = os.environ.get('ROOT_FOLDER_ID')
@@ -219,6 +245,10 @@ app_cache = {
     'timestamps': {},
     'force_refresh': False   # Flag for forcing reload
 }
+
+
+
+
 
 from flask import current_app
 # Cache optimization
@@ -256,6 +286,10 @@ def debug_logging(func_name):
                 
         return wrapper
     return decorator 
+
+
+
+
 
 
 def cleanup_stale_attempts():
@@ -306,40 +340,57 @@ def cleanup_stale_attempts():
 
 
 def clear_user_cache():
-    """Enhanced cache clearing for immediate data refresh"""
+    """Enhanced cache clearing for Supabase + Drive images"""
     global app_cache
     
     try:
-        # Clear global app cache
-        cache_keys_to_clear = [k for k in app_cache.get('data', {}).keys() if 'users' in k.lower()]
-        for key in cache_keys_to_clear:
+        print("🧹 [CACHE] Clearing user cache...")
+        
+        # ✅ 1. Clear all app cache data
+        cache_keys = list(app_cache.get('data', {}).keys())
+        for key in cache_keys:
             app_cache['data'].pop(key, None)
             app_cache['timestamps'].pop(key, None)
         
-        # Force refresh flag
+        print(f"✅ [CACHE] Cleared {len(cache_keys)} data cache entries")
+        
+        # ✅ 2. Clear image cache
+        image_keys = list(app_cache.get('images', {}).keys())
+        for key in image_keys:
+            app_cache['images'].pop(key, None)
+        
+        print(f"✅ [CACHE] Cleared {len(image_keys)} image cache entries")
+        
+        # ✅ 3. Force refresh flag
         app_cache['force_refresh'] = True
         
-        # Clear session cache if available
+        # ✅ 4. Clear session cache (if in request context)
         try:
-            from flask import session
-            session_keys_to_clear = [k for k in list(session.keys()) if 'csv_users' in k or 'user_data' in k]
-            for k in session_keys_to_clear:
-                session.pop(k, None)
-        except:
-            pass
+            from flask import session, has_request_context
+            if has_request_context():
+                # Clear exam data and cached keys
+                keys_to_clear = [k for k in list(session.keys()) 
+                               if 'exam_data_' in k or 'cached_' in k or 'csv_' in k]
+                for k in keys_to_clear:
+                    session.pop(k, None)
+                print(f"✅ [CACHE] Cleared {len(keys_to_clear)} session keys")
+        except Exception as e:
+            print(f"⚠️ [CACHE] Session clear skipped: {e}")
         
-        # Clear Google Drive service cache if available
+        # ✅ 5. Clear Drive cache
         try:
-            from google_drive_service import clear_csv_cache
-            if DRIVE_FILE_IDS.get('users'):
-                clear_csv_cache(DRIVE_FILE_IDS['users'])
-        except:
-            pass
+            from google_drive_service import clear_cache
+            clear_cache()
+            print("✅ [CACHE] Drive cache cleared")
+        except Exception as e:
+            print(f"⚠️ [CACHE] Drive skip: {e}")
         
-        print("Enhanced cache clearing completed")
+        print("🎉 [CACHE] Cache clear completed!")
         
     except Exception as e:
-        print(f"Error in enhanced cache clearing: {e}")
+        print(f"❌ [CACHE] Error: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 
@@ -350,6 +401,39 @@ def clear_user_cache():
 # Global file locks
 file_locks = {}
 lock_registry = threading.RLock()
+
+
+
+def should_force_refresh():
+    """Check if force refresh is needed - checks multiple sources"""
+    try:
+        # Check 1: App cache flag
+        if app_cache.get('force_refresh', False):
+            print("🔥 [REFRESH] App cache force_refresh=True")
+            return True
+        
+        # Check 2: Session flag
+        if session.get('force_refresh', False):
+            print("🔥 [REFRESH] Session force_refresh=True")
+            return True
+        
+        # Check 3: Global timestamp (within last 5 minutes)
+        try:
+            from flask import current_app
+            global_ts = current_app.config.get('FORCE_REFRESH_TIMESTAMP', 0)
+            if global_ts and (time.time() - global_ts) < 300:  # 5 minutes
+                print("🔥 [REFRESH] Global refresh timestamp active")
+                return True
+        except:
+            pass
+        
+        return False
+        
+    except Exception as e:
+        print(f"⚠️ [REFRESH] Check error: {e}")
+        return False
+    
+
 
 def get_file_lock(file_key):
     """Get or create a lock for a specific file"""
@@ -518,11 +602,8 @@ def ensure_required_files():
         return
 
     required_files = {
-        'users.csv': DRIVE_FILE_IDS['users'],
-        'exams.csv': DRIVE_FILE_IDS['exams'],
-        'questions.csv': DRIVE_FILE_IDS['questions'],
-        'results.csv': DRIVE_FILE_IDS['results'],
-        'responses.csv': DRIVE_FILE_IDS['responses']
+        'login_attempts.csv': LOGIN_ATTEMPTS_FILE_ID,
+        'sessions.csv': SESSIONS_FILE_ID
     }
 
     for filename, file_id in required_files.items():
@@ -531,7 +612,6 @@ def ensure_required_files():
             continue
             
         try:
-            # Try to get file metadata to check if it exists
             meta = drive_service.files().get(fileId=file_id, fields="id,name,size").execute()
             print(f"✅ Verified {filename}: {meta.get('name')} ({meta.get('size', '0')} bytes)")
         except Exception as e:
@@ -592,31 +672,7 @@ def init_drive_service():
         return False
 
 
-def ensure_required_files():
-    """Ensure all required CSV files exist in Google Drive"""
-    global drive_service
 
-    if not drive_service:
-        return
-
-    required_files = {
-        'users.csv': DRIVE_FILE_IDS['users'],
-        'exams.csv': DRIVE_FILE_IDS['exams'],
-        'questions.csv': DRIVE_FILE_IDS['questions'],
-        'results.csv': DRIVE_FILE_IDS['results'],
-        'responses.csv': DRIVE_FILE_IDS['responses']
-    }
-
-    for filename, file_id in required_files.items():
-        try:
-            # Try to load the file to check if it exists
-            test_df = load_csv_from_drive(drive_service, file_id)
-            if test_df is not None:
-                print(f"✅ Verified {filename} exists")
-            else:
-                print(f"⚠️ {filename} may not exist, but ID is configured")
-        except Exception as e:
-            print(f"❌ Error verifying {filename}: {e}")
 
 
 # main.py - replace load_csv_with_cache with this
@@ -792,329 +848,288 @@ def load_csv_from_drive_direct(filename):
 
 
 def process_question_image_fixed_ssl_safe(question):
-    """Process image path using subjects.csv - PERFORMANCE OPTIMIZED"""
+    """Process image path using Supabase subjects - FIXED WITH FORCE REFRESH"""
     global drive_service, app_cache
 
     image_path = question.get("image_path")
-
-    if (
-        image_path is None
-        or pd.isna(image_path)
-        or str(image_path).strip() in ["", "nan", "NaN", "null", "None"]
-    ):
+    
+    # Enhanced validation
+    if not image_path or pd.isna(image_path):
+        return False, None
+    
+    image_path_str = str(image_path).strip()
+    
+    if not image_path_str or image_path_str.lower() in ["", "nan", "none", "null"]:
         return False, None
 
-    image_path = str(image_path).strip()
-    if not image_path:
-        return False, None
+    print(f"\n🖼️ [IMAGE] Processing: {image_path_str}")
 
-    # Cache check first
-    cache_key = f"image_{image_path}"
-    if cache_key in app_cache["images"]:
-        cached_time = app_cache["timestamps"].get(cache_key, 0)
-        if time.time() - cached_time < 3600:  # 1 hour
-            print(f"⚡ Using cached image URL for {image_path}")
-            return True, app_cache["images"][cache_key]
+    # ✅ DON'T check cache here - let get_public_url handle it with force_refresh
+    # This ensures force_refresh works properly
 
-    # PERFORMANCE FIX: Reuse global service
     if drive_service is None:
-        print(f"❌ No drive service for image: {image_path}")
+        print(f"❌ [IMAGE] No Drive service available")
         return False, None
 
     try:
-        filename = os.path.basename(image_path)  # e.g. dt-1.png
-        subject = os.path.dirname(image_path).lower()  # e.g. math
+        # Parse path: "Electrostatics/elec-1.jpg" → subject="Electrostatics", file="elec-1.jpg"
+        if '/' in image_path_str:
+            parts = image_path_str.split('/')
+            subject_raw = parts[0].strip()
+            filename = parts[-1].strip()
+        else:
+            subject_raw = None
+            filename = image_path_str.strip()
 
-        # Find subject folder with SSL-safe retry - using GLOBAL service
+        print(f"📂 [IMAGE] Parsed - Subject: {subject_raw}, File: {filename}")
+
+        # ✅ Get folder ID from Supabase
         folder_id = None
-        subjects_file_id = os.environ.get("SUBJECTS_FILE_ID")
-        if subjects_file_id:
-            for attempt in range(3):
-                try:
-                    print(f"📂 Loading subjects.csv (attempt {attempt + 1})")
-                    # Use global service instead of creating new one
-                    subjects_df = load_csv_from_drive(drive_service, subjects_file_id)
-                    if not subjects_df.empty:
-                        subjects_df["subject_name"] = subjects_df["subject_name"].astype(str).str.strip().str.lower()
-                        match = subjects_df[subjects_df["subject_name"] == subject.strip().lower()]
-                        if not match.empty:
-                            folder_id = str(match.iloc[0]["subject_folder_id"])
-                            print(f"📂 Found folder for subject '{subject}': {folder_id}")
-                            break
-                        else:
-                            print(f"⚠️ No match for subject '{subject}' in subjects.csv")
-                            break
-                    else:
-                        print(f"⚠️ Empty subjects.csv on attempt {attempt + 1}")
-                except Exception as e:
-                    error_msg = str(e).lower()
-                    if 'ssl' in error_msg or 'timeout' in error_msg:
-                        print(f"🔄 SSL/timeout error on attempt {attempt + 1}, retrying...")
-                        time.sleep(1 * (attempt + 1))
-                        continue
-                    else:
-                        print(f"❌ Non-SSL error reading subjects.csv: {e}")
+        
+        if subject_raw:
+            try:
+                from supabase_db import supabase
+                
+                print(f"🔍 [IMAGE] Searching Supabase for subject: {subject_raw}")
+                
+                response = supabase.table('subjects')\
+                    .select('id, subject_name, subject_folder_id')\
+                    .execute()
+                
+                all_subjects = response.data if response.data else []
+                print(f"📋 [IMAGE] Found {len(all_subjects)} subjects in Supabase")
+                
+                # Manual case-insensitive match
+                matched_subject = None
+                for subj in all_subjects:
+                    subj_name = str(subj.get('subject_name', '')).strip()
+                    if subj_name.lower() == subject_raw.lower():
+                        matched_subject = subj
                         break
+                
+                if matched_subject:
+                    folder_id = str(matched_subject.get('subject_folder_id', '')).strip()
+                    print(f"✅ [IMAGE] Found folder for '{matched_subject['subject_name']}': {folder_id}")
+                else:
+                    print(f"⚠️ [IMAGE] Subject '{subject_raw}' not found in Supabase")
+            
+            except Exception as e:
+                print(f"❌ [IMAGE] Supabase query error: {e}")
+                import traceback
+                traceback.print_exc()
 
-        # Fallback to IMAGES_FOLDER_ID if subject folder not found
-        if not folder_id and os.environ.get("IMAGES_FOLDER_ID"):
-            folder_id = os.environ.get("IMAGES_FOLDER_ID")
-            print(f"📂 Fallback to IMAGES folder for subject {subject}: {folder_id}")
-
+        # Fallback to IMAGES_FOLDER_ID
         if not folder_id:
-            print(f"❌ No folder ID found for subject: {subject}")
+            folder_id = os.environ.get("IMAGES_FOLDER_ID", "").strip()
+            if folder_id:
+                print(f"📂 [IMAGE] Using fallback IMAGES_FOLDER_ID: {folder_id}")
+            else:
+                print(f"❌ [IMAGE] No folder ID available")
+                return False, None
+
+        # Search for file in Drive
+        print(f"🔍 [IMAGE] Searching Drive folder {folder_id} for: {filename}")
+        
+        try:
+            image_file_id = find_file_by_name(drive_service, filename, folder_id)
+            
+            if not image_file_id:
+                print(f"❌ [IMAGE] File not found in Drive: {filename}")
+                return False, None
+            
+            print(f"✅ [IMAGE] Found file ID: {image_file_id}")
+            
+        except Exception as e:
+            print(f"❌ [IMAGE] Drive search error: {e}")
+            import traceback
+            traceback.print_exc()
             return False, None
 
-        # Find file inside resolved folder with SSL-safe retry - using GLOBAL service
-        image_file_id = None
-        for attempt in range(3):
-            try:
-                print(f"🔍 Finding image file (attempt {attempt + 1}): {filename}")
-                # Use global service instead of creating new one
-                image_file_id = find_file_by_name(drive_service, filename, folder_id)
-                if image_file_id:
-                    break
-            except Exception as e:
-                error_msg = str(e).lower()
-                if 'ssl' in error_msg or 'timeout' in error_msg:
-                    print(f"🔄 SSL/timeout error finding file, attempt {attempt + 1}")
-                    time.sleep(1 * (attempt + 1))
-                    continue
-                else:
-                    print(f"❌ Non-SSL error finding file: {e}")
-                    break
-
-        if image_file_id:
-            # Get public URL with retry - using GLOBAL service
-            image_url = None
-            for attempt in range(3):
-                try:
-                    print(f"🔗 Getting public URL (attempt {attempt + 1})")
-                    # Use global service instead of creating new one
-                    image_url = get_public_url(drive_service, image_file_id)
-                    if image_url:
-                        break
-                except Exception as e:
-                    error_msg = str(e).lower()
-                    if 'ssl' in error_msg or 'timeout' in error_msg:
-                        print(f"🔄 SSL/timeout error getting URL, attempt {attempt + 1}")
-                        time.sleep(1 * (attempt + 1))
-                        continue
-                    else:
-                        print(f"❌ Non-SSL error getting URL: {e}")
-                        break
+        # Get public URL with force refresh check
+        try:
+            print(f"🔗 [IMAGE] Getting public URL for file: {image_file_id}")
             
-            if image_url:
-                app_cache["images"][cache_key] = image_url
-                app_cache["timestamps"][cache_key] = time.time()
-                print(f"✅ Cached image URL: {image_path} -> {image_url}")
-                return True, image_url
-
-        print(f"❌ Image file not found: {filename} in folder {folder_id}")
-        return False, None
+            # ✅ Check if force refresh is active
+            force_refresh = should_force_refresh()
+            
+            # ✅ CRITICAL: Pass force_refresh to get_public_url
+            image_url = get_public_url(drive_service, image_file_id, force_refresh=force_refresh)
+            
+            if not image_url:
+                print(f"❌ [IMAGE] Failed to generate public URL")
+                return False, None
+            
+            print(f"✅ [IMAGE] SUCCESS! URL: {image_url[:80]}...")
+            return True, image_url
+            
+        except Exception as e:
+            print(f"❌ [IMAGE] URL generation error: {e}")
+            import traceback
+            traceback.print_exc()
+            return False, None
 
     except Exception as e:
-        print(f"❌ Error processing image {image_path}: {e}")
+        print(f"❌ [IMAGE] Critical error: {e}")
+        import traceback
+        traceback.print_exc()
         return False, None
+    
 
-@debug_logging("preload_exam_data_fixed")
+
 def preload_exam_data_fixed(exam_id):
-    """
-    FIXED: Exam data preloading with proper error handling and validation
-    """
+    """Exam data preloading from Supabase - WITH ENHANCED FORCE REFRESH"""
     start_time = time.time()
-    print(f"Preloading exam data for exam_id: {exam_id}")
+    print(f"🔄 Preloading exam data for exam_id: {exam_id}")
 
     try:
-        # CRITICAL: Load questions first with explicit validation
-        questions_df = None
-        for attempt in range(3):  # Retry loading questions
+        # ✅ CHECK FORCE REFRESH from multiple sources
+        force_refresh = should_force_refresh()
+        
+        if force_refresh:
+            print(f"🔥 [PRELOAD] Force refresh ACTIVE - clearing all caches")
+            
+            # Clear exam session cache
+            cache_key = f'exam_data_{exam_id}'
+            session.pop(cache_key, None)
+            
+            # Clear ALL image caches
             try:
-                print(f"Loading questions.csv (attempt {attempt + 1})")
-                questions_df = load_csv_with_cache('questions.csv', force_reload=(attempt > 0))
-                
-                # Validate questions DataFrame
-                if questions_df is None:
-                    print(f"questions.csv returned None on attempt {attempt + 1}")
-                    continue
-                elif not hasattr(questions_df, 'empty'):
-                    print(f"Invalid questions DataFrame type: {type(questions_df)}")
-                    continue
-                elif questions_df.empty:
-                    print(f"questions.csv is empty on attempt {attempt + 1}")
-                    if attempt == 2:  # Last attempt
-                        return False, "Questions database is empty"
-                    continue
-                else:
-                    print(f"Successfully loaded {len(questions_df)} questions")
-                    break
-                    
+                from google_drive_service import clear_image_cache_immediate
+                clear_image_cache_immediate()
+                print(f"🧹 [PRELOAD] Cleared ALL image caches")
             except Exception as e:
-                print(f"Error loading questions.csv (attempt {attempt + 1}): {e}")
-                if attempt == 2:  # Last attempt
-                    return False, f"Failed to load questions: {str(e)}"
-                time.sleep(0.5)  # Brief delay before retry
+                print(f"⚠️ [PRELOAD] Cache clear error: {e}")
+        else:
+            print(f"ℹ️ [PRELOAD] Normal load (no force refresh)")
+            
+            # Check if already cached
+            cache_key = f'exam_data_{exam_id}'
+            cached_data = session.get(cache_key)
+            if cached_data:
+                print(f"💾 [PRELOAD] Using cached data")
+                return True, "Using cached data"
 
-        if questions_df is None or questions_df.empty:
-            return False, "Questions data is unavailable or empty"
-
-        # Load exams data with validation
-        exams_df = None
+        # Load questions from Supabase
         try:
-            exams_df = load_csv_with_cache('exams.csv')
-            if exams_df is None or exams_df.empty:
-                return False, "Exams data is unavailable"
+            questions = get_questions_by_exam(exam_id)
+            
+            if not questions:
+                print(f"❌ No questions found for exam {exam_id}")
+                return False, f"No questions found for exam ID {exam_id}"
+            
+            print(f"✅ Loaded {len(questions)} questions")
+            
         except Exception as e:
-            print(f"Error loading exams.csv: {e}")
+            print(f"❌ Error loading questions: {e}")
+            return False, f"Failed to load questions: {str(e)}"
+
+        # Load exam info
+        try:
+            exam_data = get_exam_by_id(exam_id)
+            if not exam_data:
+                return False, "Exam metadata not found"
+            print(f"✅ Loaded exam metadata")
+        except Exception as e:
+            print(f"❌ Error loading exam: {e}")
             return False, f"Failed to load exam metadata: {str(e)}"
 
-        # Filter questions for this exam
-        exam_id_str = str(exam_id)
-        try:
-            # Ensure exam_id column exists
-            if 'exam_id' not in questions_df.columns:
-                return False, "Questions file missing exam_id column"
-                
-            exam_questions = questions_df[questions_df['exam_id'].astype(str) == exam_id_str]
-            print(f"Found {len(exam_questions)} questions for exam {exam_id}")
-        except Exception as e:
-            print(f"Error filtering questions: {e}")
-            return False, f"Error filtering questions for exam {exam_id}"
-
-        if exam_questions.empty:
-            # Debug: Show available exam IDs
-            try:
-                available_ids = sorted(questions_df['exam_id'].unique().tolist())
-                print(f"Available exam_ids in questions.csv: {available_ids}")
-            except:
-                pass
-            return False, f"No questions found for exam ID {exam_id}"
-
-        # Get exam info with validation
-        try:
-            if 'id' not in exams_df.columns:
-                return False, "Exams file missing id column"
-                
-            exam_info = exams_df[exams_df['id'].astype(str) == exam_id_str]
-            if exam_info.empty:
-                return False, f"Exam metadata not found for ID {exam_id}"
-        except Exception as e:
-            print(f"Error getting exam info: {e}")
-            return False, f"Error accessing exam metadata: {str(e)}"
-
-        # Process questions with images
+        # Process questions WITH FORCE REFRESH
         processed_questions = []
-        image_urls = {}
-        failed_images = []
-
-        for _, question in exam_questions.iterrows():
+        
+        for question in questions:
             try:
-                question_dict = question.to_dict()
-                
-                # Validate required fields
-                if 'id' not in question_dict or not question_dict['id']:
-                    print(f"Skipping question with missing ID")
+                if 'id' not in question or not question['id']:
                     continue
 
-                # Process image with timeout protection
-                try:
-                    image_path = question_dict.get('image_path')
-                    if image_path and str(image_path).strip() not in ['', 'nan', 'NaN', 'null', 'None']:
-                        print(f"Processing image for Q{question_dict.get('id')}: {image_path}")
-                        has_image, image_url = process_question_image_fixed_ssl_safe(question_dict)
-                        question_dict['has_image'] = bool(has_image)
-                        question_dict['image_url'] = image_url
-
-                        if has_image and image_url:
-                            image_urls[str(question_dict.get('id', ''))] = image_url
-                        else:
-                            failed_images.append(str(image_path))
+                processed_question = {
+                    'id': question.get('id'),
+                    'question_text': question.get('question_text', ''),
+                    'option_a': question.get('option_a', ''),
+                    'option_b': question.get('option_b', ''),
+                    'option_c': question.get('option_c', ''),
+                    'option_d': question.get('option_d', ''),
+                    'question_type': question.get('question_type', 'MCQ'),
+                    'correct_answer': question.get('correct_answer', ''),
+                    'positive_marks': question.get('positive_marks', 1),
+                    'negative_marks': question.get('negative_marks', 0),
+                    'image_path': question.get('image_path', '')
+                }
+                
+                # ✅ PROCESS IMAGES
+                image_path = question.get('image_path')
+                if image_path and str(image_path).strip() not in ['', 'nan', 'None']:
+                    print(f"🖼️ [PRELOAD] Q{question.get('id')}: {image_path} (force={force_refresh})")
+                    
+                    # Process image (force_refresh already handled in get_public_url)
+                    has_image, image_url = process_question_image_fixed_ssl_safe(question)
+                    processed_question['has_image'] = has_image
+                    processed_question['image_url'] = image_url
+                    
+                    if has_image:
+                        print(f"✅ [PRELOAD] Image URL: {image_url[:80]}...")
                     else:
-                        question_dict['has_image'] = False
-                        question_dict['image_url'] = None
-                except Exception as e:
-                    print(f"Non-critical image error for Q{question_dict.get('id')}: {e}")
-                    question_dict['has_image'] = False
-                    question_dict['image_url'] = None
-
-                # Parse correct answers
-                try:
-                    question_dict['parsed_correct_answer'] = parse_correct_answers(
-                        question_dict.get('correct_answer'),
-                        question_dict.get('question_type', 'MCQ')
-                    )
-                except Exception as e:
-                    print(f"Error parsing correct answer for Q{question_dict.get('id')}: {e}")
-                    question_dict['parsed_correct_answer'] = None
-
-                processed_questions.append(question_dict)
+                        print(f"❌ [PRELOAD] Failed to get image URL")
+                else:
+                    processed_question['has_image'] = False
+                    processed_question['image_url'] = None                
+                
+                processed_questions.append(processed_question)
 
             except Exception as e:
-                print(f"Error processing question: {e}")
+                print(f"❌ Error processing question: {e}")
                 continue
 
         if not processed_questions:
-            return False, "No questions could be processed successfully"
+            return False, "No questions could be processed"
 
-        # Store in session with validation
+        # Store in session
         try:
             cache_key = f'exam_data_{exam_id}'
             session_data = {
-                'exam_info': exam_info.iloc[0].to_dict(),
+                'exam_info': exam_data,
                 'questions': processed_questions,
-                'image_urls': image_urls,
-                'failed_images': failed_images,
                 'total_questions': len(processed_questions),
-                'loaded_at': datetime.now().isoformat(),
                 'exam_id': exam_id
             }
             
-            # Validate session data before storing
-            if not session_data['exam_info']:
-                return False, "Exam info validation failed"
-            if not session_data['questions']:
-                return False, "Questions validation failed"
-                
-            try:
-                # Limit session data size to prevent crashes
-                if len(processed_questions) > 50:
-                    # Store only essential data for large exams
-                    session_data['questions'] = processed_questions[:50]  # Limit to 50 questions
-                    print(f"Limited session storage to 50 questions (total: {len(processed_questions)})")
-                
-                session[cache_key] = session_data
-            except Exception as e:
-                print(f"Session storage error: {e}")
-                # Try storing minimal data
-                try:
-                    minimal_data = {
-                        'exam_info': exam_info.iloc[0].to_dict(),
-                        'questions': processed_questions,
-                        'total_questions': len(processed_questions),
-                        'exam_id': exam_id
-                    }
-                    session[cache_key] = minimal_data
-                except:
-                    return False, "Failed to cache exam data"
+            session[cache_key] = session_data
             session.permanent = True
             
-            print(f"Successfully stored exam data in session for exam {exam_id}")
+            print(f"✅ Cached exam data in session")
 
         except Exception as e:
-            print(f"Error storing session data: {e}")
+            print(f"❌ Error storing session data: {e}")
             return False, f"Error caching exam data: {str(e)}"
 
+        # ✅ CLEAR FORCE REFRESH FLAGS AFTER SUCCESSFUL PRELOAD
+        if force_refresh:
+            app_cache['force_refresh'] = False
+            session.pop('force_refresh', None)
+            
+            # Clear global timestamp
+            try:
+                from flask import current_app
+                current_app.config.pop('FORCE_REFRESH_TIMESTAMP', None)
+                print("✅ [PRELOAD] Cleared global refresh timestamp")
+            except:
+                pass
+            
+            session.modified = True
+            print(f"✅ [PRELOAD] Cleared all force_refresh flags")
+
         load_time = time.time() - start_time
-        print(f"Successfully preloaded exam data in {load_time:.2f}s: {len(processed_questions)} questions")
+        print(f"⚡ Preloaded exam in {load_time:.2f}s")
 
         return True, f"Successfully loaded {len(processed_questions)} questions"
 
     except Exception as e:
-        print(f"Critical error in preload_exam_data_fixed: {e}")
+        print(f"❌ Critical error: {e}")
         import traceback
         traceback.print_exc()
-        return False, f"Critical system error: {str(e)}"
-
+        return False, f"Critical error: {str(e)}"
+    
+    
+    
 
 def safe_csv_load_with_recovery(filename, max_retries=2):
     """
@@ -1168,6 +1183,24 @@ def get_cached_exam_data(exam_id):
     cache_key = f'exam_data_{exam_id}'
     cached_data = session.get(cache_key)
 
+    # Respect force-refresh flags: if a cache-clear was requested (publish/upload),
+    # invalidate session cache so preload will rebuild fresh URLs.
+    try:
+        if app_cache.get('force_refresh', False) or session.get('force_refresh', False):
+            print(f"🔥 Force refresh requested - invalidating cached exam data for {exam_id}")
+            session.pop(cache_key, None)
+            # Clear flags to avoid repeated invalidations
+            try:
+                session.pop('force_refresh', None)
+            except Exception:
+                pass
+            try:
+                app_cache['force_refresh'] = False
+            except Exception:
+                pass
+            return None
+    except Exception as e:
+        print(f"⚠️ get_cached_exam_data force-refresh check failed: {e}")
     if not cached_data:
         print(f"No cached data found for exam {exam_id}")
         return None
@@ -1419,48 +1452,36 @@ def force_drive_initialization():
 
 
 def get_active_attempt(user_id, exam_id):
-    """Get active (in_progress) attempt for a user and exam"""
+    """Get active attempt from Supabase"""
     try:
-        attempts_df = safe_csv_load_with_recovery('exam_attempts.csv')
+        # Get in_progress attempts
+        response = supabase.table('exam_attempts').select('*')\
+            .eq('student_id', user_id)\
+            .eq('exam_id', exam_id)\
+            .eq('status', 'in_progress')\
+            .order('id', desc=True)\
+            .limit(1)\
+            .execute()
         
-        if attempts_df is None or attempts_df.empty:
-            print(f"No attempts data found for user {user_id}, exam {exam_id}")
-            return None
-
-        # Ensure proper data types
-        attempts_df['student_id'] = attempts_df['student_id'].astype(str)
-        attempts_df['exam_id'] = attempts_df['exam_id'].astype(str)
-        attempts_df['status'] = attempts_df['status'].astype(str)
-        
-        # Find active attempts
-        mask = (
-            (attempts_df['student_id'] == str(user_id)) &
-            (attempts_df['exam_id'] == str(exam_id)) &
-            (attempts_df['status'].str.lower() == 'in_progress')
-        )
-        
-        active_attempts = attempts_df[mask]
-        
-        if active_attempts.empty:
-            print(f"No active attempt found for user {user_id}, exam {exam_id}")
+        if not response.data:
             return None
         
-        # Get the most recent active attempt
-        latest_attempt = active_attempts.iloc[-1].to_dict()
-        print(f"Found active attempt {latest_attempt.get('id')} for user {user_id}, exam {exam_id}")
+        attempt = response.data[0]
         
         return {
-            'id': latest_attempt.get('id'),
-            'student_id': latest_attempt.get('student_id'),
-            'exam_id': latest_attempt.get('exam_id'),
-            'attempt_number': latest_attempt.get('attempt_number', 1),
-            'status': latest_attempt.get('status'),
-            'start_time': latest_attempt.get('start_time'),
-            'end_time': latest_attempt.get('end_time')
+            'id': int(attempt.get('id', 0)),
+            'student_id': int(attempt.get('student_id', user_id)),
+            'exam_id': int(attempt.get('exam_id', exam_id)),
+            'attempt_number': int(attempt.get('attempt_number', 1)),
+            'status': str(attempt.get('status', 'in_progress')),
+            'start_time': str(attempt.get('start_time', '')),
+            'end_time': str(attempt.get('end_time', '')) if attempt.get('end_time') else None
         }
         
     except Exception as e:
         print(f"Error getting active attempt: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
@@ -1853,36 +1874,7 @@ def initialize_requests_raised_csv():
         print(f"Error initializing requests_raised.csv: {e}")
         return False
 
-# Update the ensure_required_files function to include the new CSV
-def ensure_required_files():
-    """Ensure all required CSV files exist in Google Drive"""
-    global drive_service
 
-    if not drive_service:
-        print("❌ No Google Drive service for file verification")
-        return
-
-    required_files = {
-        'users.csv': DRIVE_FILE_IDS['users'],
-        'exams.csv': DRIVE_FILE_IDS['exams'],
-        'questions.csv': DRIVE_FILE_IDS['questions'],
-        'results.csv': DRIVE_FILE_IDS['results'],
-        'responses.csv': DRIVE_FILE_IDS['responses'],
-        'exam_attempts.csv': DRIVE_FILE_IDS.get('exam_attempts'),
-        'requests_raised.csv': DRIVE_FILE_IDS.get('requests_raised')  # Add this line
-    }
-
-    for filename, file_id in required_files.items():
-        if not file_id or file_id.startswith('YOUR_'):
-            print(f"⚠️ {filename}: File ID not configured properly")
-            continue
-            
-        try:
-            # Try to get file metadata to check if it exists
-            meta = drive_service.files().get(fileId=file_id, fields="id,name,size").execute()
-            print(f"✅ Verified {filename}: {meta.get('name')} ({meta.get('size', '0')} bytes)")
-        except Exception as e:
-            print(f"❌ Error verifying {filename} (ID: {file_id}): {e}")
 
 # Update the force_drive_initialization function to include the new CSV
 def force_drive_initialization():
@@ -1990,63 +1982,50 @@ def validate_password_strength(password: str) -> tuple:
     return True, "Password is strong"
 
 def create_password_token(email: str, token_type: str) -> str:
-    """Create a secure token for password operations."""
+    """Create a secure token for password operations - SUPABASE VERSION"""
+    from datetime import timedelta
+    from supabase_db import create_password_token_db
+    
     token = secrets.token_urlsafe(32)
-    expires_at = datetime.now() + timedelta(hours=1)
+    expires_at = (datetime.now() + timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
     
-    # Load existing tokens
-    tokens_df = load_csv_with_cache('pw_tokens.csv')
-    if tokens_df is None or tokens_df.empty:
-        tokens_df = pd.DataFrame(columns=['token', 'email', 'expires_at', 'used', 'created_at', 'type'])
-    
-    # Add new token
-    new_token = {
-        'token': token,
-        'email': email.lower(),
-        'expires_at': expires_at.strftime('%Y-%m-%d %H:%M:%S'),
-        'used': False,
-        'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'type': token_type
-    }
-    
-    tokens_df = pd.concat([tokens_df, pd.DataFrame([new_token])], ignore_index=True)
-    
-    if safe_csv_save_with_retry(tokens_df, 'pw_tokens'):
+    if create_password_token_db(email, token_type, token, expires_at):
+        print(f"✅ Created {token_type} token for {email}")
         return token
     else:
-        raise Exception("Failed to save token")
+        raise Exception("Failed to save token to database")
 
 def validate_and_use_token(token: str) -> tuple:
-    """Validate a token and mark it as used."""
+    """Validate a token and mark it as used - SUPABASE VERSION"""
+    from supabase_db import get_password_token_db, mark_token_used_db
+    
     try:
-        tokens_df = load_csv_with_cache('pw_tokens.csv')
-        if tokens_df is None or tokens_df.empty:
-            return False, "Invalid token", {}
+        # Get token from Supabase
+        token_data = get_password_token_db(token)
         
-        # Find token
-        token_row = tokens_df[tokens_df['token'] == token]
-        if token_row.empty:
+        if not token_data:
             return False, "Invalid token", {}
-        
-        token_data = token_row.iloc[0].to_dict()
         
         # Check if already used
-        if token_data['used']:
+        if token_data.get('used'):
             return False, "Token has already been used", {}
         
         # Check expiration
-        expires_at = pd.to_datetime(token_data['expires_at'])
+        expires_at = datetime.fromisoformat(token_data['expires_at'])
         if datetime.now() > expires_at:
             return False, "Token has expired", {}
         
         # Mark as used
-        tokens_df.loc[tokens_df['token'] == token, 'used'] = True
-        safe_csv_save_with_retry(tokens_df, 'pw_tokens')
-        
-        return True, "Token valid", token_data
+        if mark_token_used_db(token):
+            print(f"✅ Token validated and marked as used")
+            return True, "Token valid", token_data
+        else:
+            return False, "Failed to mark token as used", {}
         
     except Exception as e:
-        print(f"Error validating token: {e}")
+        print(f"❌ Error validating token: {e}")
+        import traceback
+        traceback.print_exc()
         return False, "Token validation error", {}
 
 
@@ -2116,17 +2095,22 @@ def update_exam_attempt_by_id(attempt_id, status):
         return False, str(e)
 
 
-def calculate_student_analytics(results_df, exams_df, user_id):
-    """Calculate analytics data for student"""
+def calculate_student_analytics(results_list, exams_list, user_id):
+    """Calculate analytics data for student - Supabase version"""
     try:
         analytics = {}
         
-        if results_df.empty:
+        if not results_list:
             return {}
         
-        results_df = results_df.copy()
+        # Convert to DataFrame for easier analysis
+        results_df = pd.DataFrame(results_list)
         results_df['completed_at'] = pd.to_datetime(results_df['completed_at'], errors='coerce')
+        results_df['percentage'] = results_df['percentage'].astype(float)
         results_df = results_df.sort_values('completed_at')
+        
+        # ✅ Convert exams_list to DataFrame
+        exams_df = pd.DataFrame(exams_list) if exams_list else pd.DataFrame()
         
         analytics['total_exams'] = len(results_df)
         analytics['average_score'] = round(results_df['percentage'].mean(), 2)
@@ -2146,7 +2130,7 @@ def calculate_student_analytics(results_df, exams_df, user_id):
         analytics['score_trend'] = []
         for _, row in results_df.iterrows():
             exam_name = 'Unknown Exam'
-            if exams_df is not None and not exams_df.empty:
+            if not exams_df.empty:
                 exam_info = exams_df[exams_df['id'].astype(str) == str(row['exam_id'])]
                 if not exam_info.empty:
                     exam_name = exam_info.iloc[0]['name']
@@ -2162,7 +2146,7 @@ def calculate_student_analytics(results_df, exams_df, user_id):
         analytics['recent_performance'] = []
         for _, row in recent_results.iterrows():
             exam_name = 'Unknown Exam'
-            if exams_df is not None and not exams_df.empty:
+            if not exams_df.empty:
                 exam_info = exams_df[exams_df['id'].astype(str) == str(row['exam_id'])]
                 if not exam_info.empty:
                     exam_name = exam_info.iloc[0]['name']
@@ -2187,6 +2171,186 @@ def calculate_student_analytics(results_df, exams_df, user_id):
     except Exception as e:
         print(f"Error calculating analytics: {e}")
         return {}
+
+
+# =============================================
+# AI ASSISTANT HELPER FUNCTIONS
+# =============================================
+
+def get_user_chat_limits(user_id):
+    """Get user's chat usage and limits from Supabase"""
+    try:
+        today = datetime.now().strftime('%Y-%m-%d')
+        usage_data = get_today_usage(user_id)
+        
+        questions_used = 0
+        if usage_data:
+            questions_used = int(usage_data.get('questions_used', 0))
+        
+        return {
+            'daily_limit': AI_DAILY_LIMIT,
+            'questions_used': questions_used,
+            'reset_date': today
+        }
+        
+    except Exception as e:
+        print(f"Error getting chat limits: {e}")
+        return {
+            'daily_limit': AI_DAILY_LIMIT,
+            'questions_used': 0,
+            'reset_date': datetime.now().strftime('%Y-%m-%d')
+        }
+
+
+def get_user_chat_history(user_id, limit=50):
+    """Get user's chat history from Supabase"""
+    try:
+        user_chats = get_chat_history(user_id, limit=limit)
+        
+        if not user_chats:
+            return []
+        
+        user_chats.sort(key=lambda x: x.get('timestamp', ''))
+        
+        history = []
+        for chat in user_chats:
+            history.append({
+                'text': chat.get('message', ''),
+                'isUser': bool(chat.get('is_user', False)),
+                'timestamp': chat.get('timestamp', '')
+            })
+        
+        return history
+        
+    except Exception as e:
+        print(f"Error getting chat history: {e}")
+        return []
+
+
+def get_groq_response(user_message, chat_history=None):
+    """Get AI response from Groq API"""
+    try:
+        import requests
+        
+        groq_api_key = os.environ.get('GROQ_API_KEY')
+        if not groq_api_key:
+            return "AI service is currently unavailable. Please contact administrator to configure GROQ_API_KEY."
+        
+        messages = [
+            {
+                "role": "system",
+                "content": """You are an expert tutor specializing in physics, chemistry, mathematics, biology, computer science, and engineering.
+
+═══════════════════════════════════════════════════
+LATEX NOTATION GUIDE (Auto-detect subject)
+═══════════════════════════════════════════════════
+
+MATHEMATICS:
+- Inline: $x^2$, $\\frac{a}{b}$, $\\sqrt{x}$, $\\int_a^b f(x)dx$
+- Display: $$E = mc^2$$
+- Greek: $\\alpha$, $\\beta$, $\\gamma$, $\\theta$, $\\mu$, $\\Delta$, $\\Sigma$, $\\pi$
+- Vectors: $\\vec{F}$, $\\vec{v}$, $\\hat{i}$, $\\hat{j}$, $\\hat{k}$
+
+CHEMISTRY:
+- Formulas: \\ce{H2O}, \\ce{C6H5CHO}, \\ce{CH3COOH}
+- Reactions: \\ce{A + B -> C}, \\ce{2H2 + O2 -> 2H2O}
+- Equilibrium: \\ce{A <=> B}
+- Ions: \\ce{Na+}, \\ce{SO4^2-}
+
+PHYSICS:
+- Units: $5\\text{ m/s}$, $10\\text{ kg}$, $9.8\\text{ m/s}^2$
+- Vectors: $\\vec{F} = m\\vec{a}$
+
+═══════════════════════════════════════════════════
+RESPONSE FORMAT
+═══════════════════════════════════════════════════
+
+━━━ FINAL ANSWER ━━━
+[Direct answer]
+
+━━━ GIVEN INFORMATION ━━━
+[Known values]
+
+━━━ SOLUTION STEPS ━━━
+[Step-by-step with equations]
+
+━━━ EXPLANATION ━━━
+[Brief concept summary]
+
+RULES:
+1. NEVER use ** for bold
+2. Always write complete LaTeX
+3. Show ALL steps
+4. Explain WHY, not just HOW"""
+            }
+        ]
+        
+        if chat_history:
+            for msg in chat_history[-4:]:
+                messages.append({
+                    "role": "user" if msg.get('isUser') else "assistant",
+                    "content": msg.get('text', '')
+                })
+        
+        messages.append({
+            "role": "user",
+            "content": user_message
+        })
+        
+        response = requests.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {groq_api_key}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': AI_MODEL_NAME,
+                'messages': messages,
+                'temperature': 0.2,
+                'max_tokens': 4000,
+                'top_p': 0.95,
+                'frequency_penalty': 0.5,
+                'presence_penalty': 0.3
+            },
+            timeout=AI_REQUEST_TIMEOUT
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data['choices'][0]['message']['content']
+        else:
+            print(f"Groq API error: {response.status_code} - {response.text}")
+            return "I'm having trouble connecting to my AI service. Please try again."
+            
+    except requests.exceptions.Timeout:
+        return "Request timed out. Please try asking your question again."
+    except Exception as e:
+        print(f"Error getting Groq response: {e}")
+        return "I encountered an error. Please try again."
+
+
+
+def ensure_ai_csv_structure():
+    """Ensure AI Supabase tables have correct structure - NO-OP for Supabase"""
+    try:
+        # Supabase tables are already created with proper schemas
+        # This function is kept for compatibility but does nothing
+        print("✅ AI Supabase tables structure check (using existing schema)")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error in AI structure check: {e}")
+        return False
+
+
+def safe_int(value, default=0):
+    """Safely convert to int"""
+    if value is None or str(value).strip() in ['', 'None', 'null']:
+        return default
+    try:
+        return int(float(value))  # Handle "5.0" strings
+    except (ValueError, TypeError):
+        return default
 
 # -------------------------
 # Routes - Add explicit initialization before first route
@@ -2352,177 +2516,109 @@ def home():
     
     return render_template('index.html')
 
-@app.route("/login", methods=["GET", "POST"])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    if session.get('admin_id') and session.get('user_id'):
-        flash("You are already logged in as Admin. Please logout first to access User portal.", "warning")
-        return redirect(url_for("admin.dashboard"))
-    
-    if request.method == "POST":
-        try:
-            identifier = request.form["username"].strip().lower()
-            password = request.form["password"].strip()
-            client_ip = get_client_ip()
-
-            if not identifier or not password:
-                flash("Both username/email and password are required!", "error")
-                return redirect(url_for("login"))
-
-            is_allowed, limit_message, attempts_remaining = check_login_attempts(identifier, client_ip)
-            if not is_allowed:
-                flash(limit_message, "error")
-                return redirect(url_for("login"))
-
-            users_df = load_csv_with_cache("users.csv")
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        ip_address = request.remote_addr
+        
+        if not username or not password:
+            flash('Username and password required!', 'error')
+            return redirect(url_for('login'))
+        
+        # ✅ Check login attempts
+        allowed, error_msg, remaining = check_login_attempts(username, ip_address)
+        if not allowed:
+            flash(error_msg, 'error')
+            return redirect(url_for('login'))
+        
+        # ✅ Get user from Supabase
+        user = get_user_by_username(username)
+        
+        if not user:
+            record_failed_login(username, ip_address)
+            flash('Invalid username or password!', 'error')
+            return redirect(url_for('login'))
+        
+        # ✅ VERIFY PASSWORD - Handle both hashed and plain
+        stored_password = str(user.get('password', '')).strip()
+        
+        if not stored_password:
+            flash('Account setup incomplete. Please check your email for setup link.', 'warning')
+            return redirect(url_for('login'))
+        
+        # Check if password is hashed (bcrypt format)
+        password_valid = False
+        
+        if is_password_hashed(stored_password):
+            # ✅ BCRYPT VERIFICATION
+            password_valid = verify_password(password, stored_password)
+            print(f"🔐 [LOGIN] Bcrypt verification for {username}: {password_valid}")
+        else:
+            # ✅ PLAIN TEXT (backward compatibility - will be removed after migration)
+            password_valid = (stored_password == password)
+            print(f"⚠️ [LOGIN] Plain text verification for {username}: {password_valid}")
+        
+        if not password_valid:
+            record_failed_login(username, ip_address)
             
-            if users_df is None or users_df.empty:
-                flash("User database unavailable!", "error")
-                return redirect(url_for("login"))
-
-            users_df = users_df.fillna('')
-            users_df[['username', 'email', 'role']] = users_df[['username', 'email', 'role']].astype(str)
-
-            user_row = users_df[
-                (users_df["username"].str.lower() == identifier) |
-                (users_df["email"].str.lower() == identifier)
-            ]
-
-            if user_row.empty:
-                record_failed_login(identifier, client_ip)
-                attempts_remaining = check_login_attempts(identifier, client_ip)[2]
-                flash(f"Invalid credentials! {max(0, attempts_remaining - 1)} attempts remaining.", "error")
-                return redirect(url_for("login"))
-
-            user = user_row.iloc[0].to_dict()
-            stored_password = str(user.get("password", ""))
+            # ✅ Get updated remaining attempts AFTER recording
+            allowed, error_msg, remaining = check_login_attempts(username, ip_address)
             
-            if not stored_password:
-                flash("Your account has no password set. Contact system administrator.", "error")
-                return redirect(url_for("login"))
-            
-            password_valid = False
-            if is_password_hashed(stored_password):
-                password_valid = verify_password(password, stored_password)
+            if not allowed:
+                # Account locked
+                flash(error_msg, 'error')
+            elif remaining > 0:
+                flash(f'Invalid username or password! {remaining} attempts remaining.', 'error')
             else:
-                password_valid = (stored_password == password)
-
-            if not password_valid:
-                record_failed_login(identifier, client_ip)
-                attempts_remaining = check_login_attempts(identifier, client_ip)[2]
-                flash(f"Invalid credentials! {max(0, attempts_remaining - 1)} attempts remaining.", "error")
-                return redirect(url_for("login"))
-
-            clear_login_attempts(identifier, client_ip)
-
-            role = str(user.get("role", "")).lower()
-            if "user" not in role:
-                flash("You don't have User portal access. Contact admin if you need access.", "error")
-                return redirect(url_for("login"))
-
-            user_id = int(user["id"])
+                flash('Invalid username or password!', 'error')
             
-            def background_session_setup():
-                try:
-                    invalidate_session(user_id)
-                    token = generate_session_token()
-                    save_session_record({
-                        "user_id": user_id,
-                        "token": token,
-                        "device_info": request.headers.get("User-Agent", "unknown"),
-                        "is_exam_active": False
-                    })
-                    return token
-                except Exception as e:
-                    print(f"[login] Background session setup error: {e}")
-                    return generate_session_token()
-
-            token = background_session_setup()
-
-            session.clear()
-            session['user_id'] = user_id
-            session['token'] = token
-            session['username'] = user.get("username")
-            session['full_name'] = user.get("full_name", user.get("username"))
-            session.permanent = True
-            session.modified = True
-
-            flash("Login successful!", "success")
-            return redirect(url_for("dashboard"))
-
-        except KeyError as e:
-            print(f"[login] Missing form field: {e}")
-            flash("Login form error. Please try again.", "error")
-            return redirect(url_for("login"))
-        except Exception as e:
-            print(f"[login] Unexpected error: {e}")
-            flash("A system error occurred. Please try again.", "error")
-            return redirect(url_for("login"))
-
-    return render_template("login.html")
-
-
-
-
-
-
-
-@app.route('/api/verify-user', methods=['POST'])
-def api_verify_user():
-    """API endpoint to verify if user exists"""
-    try:
-        data = request.get_json()
-        if not data or not data.get('username'):
-            return jsonify({
-                'success': False,
-                'message': 'Username or email is required'
-            }), 400
-
-        username_or_email = data['username'].strip().lower()
+            return redirect(url_for('login'))
         
-        # Load users data with force reload to get latest data
-        users_df = load_csv_with_cache('users.csv', force_reload=True)
-        if users_df.empty:
-            return jsonify({
-                'success': False,
-                'message': 'User database is unavailable'
-            }), 500
+        # ✅ Clear failed attempts
+        clear_login_attempts(username, ip_address)
+        
+        # ✅ Check if admin trying to login as user
+        role = str(user.get('role', '')).lower()
+        if 'admin' in role:
+            flash('Please use admin login portal.', 'error')
+            return redirect(url_for('admin.admin_login'))
+        
+        # ✅ Invalidate old sessions
+        invalidate_session(int(user['id']))
+        
+        # ✅ Create new session
+        import secrets
+        token = secrets.token_urlsafe(32)
+        
+        session_data = {
+            'token': token,
+            'user_id': int(user['id']),
+            'device_info': request.headers.get('User-Agent', 'unknown'),
+            'is_exam_active': False,
+            'admin_session': False,
+            'active': True
+        }
+        
+        create_session(session_data)
+        
+        # ✅ Set Flask session
+        session.permanent = True
+        session['user_id'] = int(user['id'])
+        session['token'] = token
+        session['username'] = user.get('username')
+        session['full_name'] = user.get('full_name', user.get('username'))
+        session['role'] = user.get('role', 'user')
+        session.modified = True
+        
+        flash(f'Welcome {user.get("full_name")}!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('login.html')
 
-        # Search for user by username or email
-        users_df['username_lower'] = users_df['username'].astype(str).str.strip().str.lower()
-        users_df['email_lower'] = users_df['email'].astype(str).str.strip().str.lower()
-        
-        user_row = users_df[
-            (users_df['username_lower'] == username_or_email) |
-            (users_df['email_lower'] == username_or_email)
-        ]
-        
-        if user_row.empty:
-            return jsonify({
-                'success': False,
-                'message': 'User does not exist'
-            }), 404
-        
-        user = user_row.iloc[0]
-        
-        # Return user info (without sensitive data)
-        return jsonify({
-            'success': True,
-            'user': {
-                'id': int(user['id']),
-                'username': user['username'],
-                'email': user['email'],
-                'full_name': user['full_name']
-            }
-        })
-        
-    except Exception as e:
-        print(f"Error verifying user: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'message': 'System error occurred'
-        }), 500
+
+
 
 
 
@@ -2578,7 +2674,7 @@ def verify_email_exists(email):
 
 @app.route('/create_account', methods=['GET', 'POST'])
 def create_account():
-    """Enhanced user registration with secure password setup via email."""
+    """Enhanced user registration with Supabase and secure password setup via email."""
     if request.method == 'POST':
         try:
             # Get form data
@@ -2589,15 +2685,15 @@ def create_account():
             # Validate inputs
             if not email:
                 flash('Please enter your email address.', 'error')
-                return redirect(url_for('create_account'))  # Redirect instead of render
+                return redirect(url_for('create_account'))
 
             if not first_name:
                 flash('Please enter your first name.', 'error')
-                return redirect(url_for('create_account'))  # Redirect instead of render
+                return redirect(url_for('create_account'))
 
             if not last_name:
                 flash('Please enter your last name.', 'error')
-                return redirect(url_for('create_account'))  # Redirect instead of render
+                return redirect(url_for('create_account'))
 
             # Create full name from first and last name
             full_name = f"{first_name} {last_name}".strip()
@@ -2605,85 +2701,85 @@ def create_account():
             is_valid, error_message = verify_email_exists(email)
             if not is_valid:
                 flash(f'Invalid email: {error_message}', 'error')
-                return redirect(url_for('create_account'))  # Redirect instead of render
+                return redirect(url_for('create_account'))
 
-            # Use safe registration with file locking
-            with get_file_lock('users'):
-                users_df = safe_csv_load_with_recovery('users.csv')
-
+            # ✅ USE SUPABASE FUNCTIONS
+            try:
+                from supabase_db import get_all_users, create_user
+                
                 # Check if email exists
-                if not users_df.empty and email.lower() in users_df['email'].str.lower().values:
-                    # Email already exists - don't reveal this, just say setup link sent
-                    flash('If this email is not already registered, a setup link has been sent. Please check your inbox and spam folder.', 'success')
-                    return redirect(url_for('registration_success_generic'))  # Already redirecting
+                all_users = get_all_users()
+                
+                for u in all_users:
+                    if str(u.get('email', '')).lower() == email.lower():
+                        flash('If this email is not already registered, a setup link has been sent. Please check your inbox and spam folder.', 'success')
+                        return redirect(url_for('registration_success_generic'))
 
-                # Get existing usernames for uniqueness check
-                existing_usernames = set()
-                if not users_df.empty and 'username' in users_df.columns:
-                    existing_usernames = set(users_df['username'].astype(str).str.lower())
-
-                # Generate next ID
-                next_id = 1
-                if not users_df.empty and 'id' in users_df.columns:
-                    next_id = int(users_df['id'].fillna(0).astype(int).max()) + 1
+                # Get existing usernames
+                existing_usernames = set(str(u.get('username', '')).lower() for u in all_users)
 
                 # Generate unique username using firstname.lastname format
                 username = generate_username(full_name, existing_usernames)
 
-                # Create new user data
-                new_user = {
-                    'id': next_id,
+                # ✅ CREATE USER IN SUPABASE
+                new_user_data = {
                     'username': username,
                     'email': email,
-                    'full_name': full_name,  # Keep storing full_name in CSV as before
-                    'password': '',  # Empty password - will be set via email link
-                    'role': 'user',
-                    'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'last_login': ''  # Add last_login field for consistency
+                    'full_name': full_name,
+                    'password': '',  # Empty until setup
+                    'role': 'user'
                 }
 
-                # Add user to dataframe
-                if users_df.empty:
-                    users_df = pd.DataFrame([new_user])
-                else:
-                    users_df = pd.concat([users_df, pd.DataFrame([new_user])], ignore_index=True)
-
-                # Save to CSV
-                if safe_csv_save_with_retry(users_df, 'users'):
+                created_user = create_user(new_user_data)
+                
+                if created_user:
                     try:
-                        # Generate setup token
+                        # ✅ GENERATE SETUP TOKEN
                         setup_token = create_password_token(email, 'setup')
 
-                        # Send setup email (now includes username)
+                        # ✅ SEND SETUP EMAIL WITH USERNAME
+                        from email_utils import send_password_setup_email
                         email_sent, email_message = send_password_setup_email(email, full_name, username, setup_token)
 
                         if email_sent:
+                            print(f"✅ Setup email sent to {email} with username: {username}")
                             flash('Account created successfully! Please check your email for setup instructions.', 'success')
                         else:
-                            print(f"Failed to send setup email to {email}: {email_message}")
+                            print(f"❌ Failed to send setup email to {email}: {email_message}")
                             flash('Account created, but email sending failed. Please contact admin.', 'warning')
 
-                        return redirect(url_for('registration_success_generic'))  # Already redirecting
+                        return redirect(url_for('registration_success_generic'))
 
                     except Exception as e:
-                        print(f"Error sending setup email: {e}")
+                        print(f"❌ Error sending setup email: {e}")
+                        import traceback
+                        traceback.print_exc()
                         flash('Account created, but email sending failed. Please contact admin.', 'warning')
-                        return redirect(url_for('registration_success_generic'))  # Already redirecting
+                        return redirect(url_for('registration_success_generic'))
                 else:
                     flash('Registration failed. Please try again.', 'error')
-                    return redirect(url_for('create_account'))  # Redirect instead of render
+                    return redirect(url_for('create_account'))
+
+            except Exception as e:
+                print(f"❌ Registration error: {e}")
+                import traceback
+                traceback.print_exc()
+                flash('System error occurred. Please try again.', 'error')
+                return redirect(url_for('create_account'))
 
         except Exception as e:
-            print(f"Registration error: {e}")
+            print(f"❌ Registration error: {e}")
+            import traceback
+            traceback.print_exc()
             flash('System error occurred. Please try again.', 'error')
-            return redirect(url_for('create_account'))  # Redirect instead of render
-    
+            return redirect(url_for('create_account'))
+
     # GET request - render form with any preserved values
     return render_template('create_account.html',
-                         email=request.args.get('email', ''),
-                         first_name=request.args.get('first_name', ''),
-                         last_name=request.args.get('last_name', ''))
+                          email=request.args.get('email', ''),
+                          first_name=request.args.get('first_name', ''),
+                          last_name=request.args.get('last_name', ''))
+
     
     
     
@@ -2701,7 +2797,7 @@ def registration_success_generic():
 
 @app.route('/setup-password/<token>', methods=['GET', 'POST'])
 def setup_password(token):
-    """Password setup route for new users."""
+    """Password setup route for new users - SUPABASE VERSION"""
     if request.method == 'POST':
         try:
             new_password = request.form.get('new_password', '').strip()
@@ -2732,25 +2828,24 @@ def setup_password(token):
                 flash('Invalid setup token.', 'error')
                 return redirect(url_for('login'))
 
-            # Update user password
-            users_df = load_csv_with_cache('users.csv')
-            if users_df is None or users_df.empty:
-                flash('User database error.', 'error')
-                return redirect(url_for('login'))
-
+            # ✅ UPDATE: Get user from Supabase
+            from supabase_db import get_user_by_email, update_user
+            
             email = token_data['email']
-            user_mask = users_df['email'].str.lower() == email.lower()
-            if not user_mask.any():
+            user = get_user_by_email(email)
+            
+            if not user:
                 flash('User not found.', 'error')
                 return redirect(url_for('login'))
 
             # Hash new password and update
             hashed_password = hash_password(new_password)
-            users_df.loc[user_mask, 'password'] = hashed_password
-            users_df.loc[user_mask, 'updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-            if safe_csv_save_with_retry(users_df, 'users'):
-                user = users_df[user_mask].iloc[0]
+            
+            # ✅ UPDATE: Save to Supabase
+            if update_user(user['id'], {
+                'password': hashed_password,
+                'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }):
                 flash(f'Password set successfully! You can now login with username: {user["username"]}', 'success')
                 return redirect(url_for('login'))
             else:
@@ -2759,29 +2854,32 @@ def setup_password(token):
 
         except Exception as e:
             print(f"Error setting up password: {e}")
+            import traceback
+            traceback.print_exc()
             flash('An error occurred. Please try again.', 'error')
             return render_template('password_setup_form.html', token=token)
 
     # GET request - show form
     # Validate token first (but don't mark as used)
     try:
-        tokens_df = load_csv_with_cache('pw_tokens.csv')
-        if tokens_df is None or tokens_df.empty:
+        from supabase_db import get_password_token_db
+        
+        token_data = get_password_token_db(token)
+        
+        if not token_data:
             flash('Invalid setup link.', 'error')
             return redirect(url_for('login'))
         
-        token_row = tokens_df[tokens_df['token'] == token]
-        if token_row.empty:
-            flash('Invalid setup link.', 'error')
-            return redirect(url_for('login'))
-        
-        token_data = token_row.iloc[0].to_dict()
-        
-        if token_data['used']:
+        if token_data.get('used'):
             flash('This setup link has already been used.', 'error')
             return redirect(url_for('login'))
         
-        expires_at = pd.to_datetime(token_data['expires_at'])
+        # ✅ FIX: Handle datetime parsing
+        try:
+            expires_at = datetime.fromisoformat(token_data['expires_at'])
+        except:
+            expires_at = datetime.strptime(token_data['expires_at'], '%Y-%m-%d %H:%M:%S')
+        
         if datetime.now() > expires_at:
             flash('This setup link has expired.', 'error')
             return redirect(url_for('login'))
@@ -2792,6 +2890,8 @@ def setup_password(token):
     
     except Exception as e:
         print(f"Error validating setup token: {e}")
+        import traceback
+        traceback.print_exc()
         flash('Error validating setup link.', 'error')
         return redirect(url_for('login'))
     
@@ -2801,7 +2901,7 @@ def setup_password(token):
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password_with_token(token):
-    """Password reset route for existing users."""
+    """Password reset route for existing users - SUPABASE VERSION"""
     if request.method == 'POST':
         try:
             new_password = request.form.get('new_password', '').strip()
@@ -2833,24 +2933,24 @@ def reset_password_with_token(token):
                 flash('Invalid reset token.', 'error')
                 return redirect(url_for('login'))
 
-            # Update user password
-            users_df = load_csv_with_cache('users.csv')
-            if users_df is None or users_df.empty:
-                flash('User database error.', 'error')
-                return redirect(url_for('login'))
-
+            # ✅ UPDATE: Get user from Supabase
+            from supabase_db import get_user_by_email, update_user
+            
             email = token_data['email']
-            user_mask = users_df['email'].str.lower() == email.lower()
-            if not user_mask.any():
+            user = get_user_by_email(email)
+            
+            if not user:
                 flash('User not found.', 'error')
                 return redirect(url_for('login'))
 
             # Hash new password and update
             hashed_password = hash_password(new_password)
-            users_df.loc[user_mask, 'password'] = hashed_password
-            users_df.loc[user_mask, 'updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-            if safe_csv_save_with_retry(users_df, 'users'):
+            
+            # ✅ UPDATE: Save to Supabase
+            if update_user(user['id'], {
+                'password': hashed_password,
+                'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }):
                 flash('Password updated successfully! You can now login with your new password.', 'success')
                 return redirect(url_for('login'))
             else:
@@ -2859,29 +2959,32 @@ def reset_password_with_token(token):
 
         except Exception as e:
             print(f"Error resetting password: {e}")
+            import traceback
+            traceback.print_exc()
             flash('An error occurred. Please try again.', 'error')
             return render_template('password_reset_form.html', token=token)
 
     # GET request - show form
     # Validate token first (but don't mark as used)
     try:
-        tokens_df = load_csv_with_cache('pw_tokens.csv')
-        if tokens_df is None or tokens_df.empty:
+        from supabase_db import get_password_token_db
+        
+        token_data = get_password_token_db(token)
+        
+        if not token_data:
             flash('Invalid reset link.', 'error')
             return redirect(url_for('login'))
         
-        token_row = tokens_df[tokens_df['token'] == token]
-        if token_row.empty:
-            flash('Invalid reset link.', 'error')
-            return redirect(url_for('login'))
-        
-        token_data = token_row.iloc[0].to_dict()
-        
-        if token_data['used']:
+        if token_data.get('used'):
             flash('This reset link has already been used.', 'error')
             return redirect(url_for('login'))
         
-        expires_at = pd.to_datetime(token_data['expires_at'])
+        # ✅ FIX: Handle datetime parsing
+        try:
+            expires_at = datetime.fromisoformat(token_data['expires_at'])
+        except:
+            expires_at = datetime.strptime(token_data['expires_at'], '%Y-%m-%d %H:%M:%S')
+        
         if datetime.now() > expires_at:
             flash('This reset link has expired.', 'error')
             return redirect(url_for('login'))
@@ -2892,6 +2995,8 @@ def reset_password_with_token(token):
     
     except Exception as e:
         print(f"Error validating reset token: {e}")
+        import traceback
+        traceback.print_exc()
         flash('Error validating reset link.', 'error')
         return redirect(url_for('login'))
     
@@ -2940,54 +3045,285 @@ def registration_success():
 @app.route('/dashboard')
 @require_user_role
 def dashboard():
-    """User dashboard route"""
+    """User dashboard route - Supabase version"""
     try:
         user_id = session.get('user_id')
         print(f"[DASHBOARD] User ID: {user_id}")
         
-        # Your existing dashboard code here
-        exams_df = load_csv_with_cache('exams.csv')
-        results_df = load_csv_with_cache('results.csv')
-
-        upcoming_exams, ongoing_exams, completed_exams = [], [], []
-
-        if not exams_df.empty:
-            if 'status' not in exams_df.columns:
-                exams_df['status'] = 'upcoming'
-
-            upcoming_exams = exams_df[exams_df['status'] == 'upcoming'].to_dict('records')
-            ongoing_exams = exams_df[exams_df['status'] == 'ongoing'].to_dict('records')
-            completed_exams = exams_df[exams_df['status'] == 'completed'].to_dict('records')
-
-            # Process results for completed exams
-            if not results_df.empty:
-                for exam in completed_exams:
-                    exam_id = int(exam.get('id', 0))
-                    r = results_df[
-                        (results_df['student_id'].astype(str) == str(session['user_id'])) &
-                        (results_df['exam_id'].astype(str) == str(exam_id))
-                        ]
-                    if not r.empty:
-                        score = r.iloc[0].get('score', 0)
-                        max_score = r.iloc[0].get('max_score', 0)
-                        grade = r.iloc[0].get('grade', 'N/A')
-                        exam['result'] = f"{score}/{max_score} ({grade})" if pd.notna(score) and pd.notna(
-                            max_score) else 'Recorded'
+        # ✅ Get exams from Supabase
+        all_exams = get_all_exams()
+        
+        # ✅ Get user results from Supabase
+        user_results = get_results_by_user(user_id)
+        
+        upcoming_exams = []
+        ongoing_exams = []
+        completed_exams = []
+        
+        if not all_exams:
+            print("[DASHBOARD] No exams found in database")
+            return render_template('dashboard.html',
+                                 upcoming_exams=[],
+                                 ongoing_exams=[],
+                                 completed_exams=[])
+        
+        # ✅ Categorize exams by status (matching CSV logic)
+        for exam in all_exams:
+            exam_status = str(exam.get('status', 'draft')).lower().strip()
+            
+            # Convert to dict for template compatibility
+            exam_dict = {
+                'id': int(exam.get('id', 0)),
+                'name': exam.get('name', 'Unnamed Exam'),
+                'date': exam.get('date', ''),
+                'start_time': exam.get('start_time', ''),
+                'duration': exam.get('duration', 60),
+                'total_questions': exam.get('total_questions', 0),
+                'status': exam_status,
+                'instructions': exam.get('instructions', ''),
+                'positive_marks': exam.get('positive_marks', '1'),
+                'negative_marks': exam.get('negative_marks', '0')
+            }
+            
+            # Categorize based on status column
+            if exam_status == 'upcoming':
+                upcoming_exams.append(exam_dict)
+            elif exam_status == 'ongoing':
+                ongoing_exams.append(exam_dict)
+            elif exam_status == 'completed':
+                completed_exams.append(exam_dict)
+        
+        # ✅ Process results for completed exams (matching CSV logic)
+        if user_results:
+            # Build result map: exam_id -> result data
+            result_map = {}
+            for result in user_results:
+                exam_id = int(result.get('exam_id', 0))
+                if exam_id not in result_map:
+                    result_map[exam_id] = result
+                else:
+                    # Keep latest result (by completed_at)
+                    if result.get('completed_at', '') > result_map[exam_id].get('completed_at', ''):
+                        result_map[exam_id] = result
+            
+            # Add result info to completed exams
+            for exam in completed_exams:
+                exam_id = int(exam.get('id', 0))
+                if exam_id in result_map:
+                    result = result_map[exam_id]
+                    score = result.get('score', 0)
+                    max_score = result.get('max_score', 0)
+                    grade = result.get('grade', 'N/A')
+                    
+                    # Match CSV format: "score/max_score (grade)"
+                    if score is not None and max_score is not None:
+                        exam['result'] = f"{score}/{max_score} ({grade})"
                     else:
-                        exam['result'] = 'Pending'
-            else:
-                for exam in completed_exams:
+                        exam['result'] = 'Recorded'
+                else:
                     exam['result'] = 'Pending'
-
+        else:
+            # No results - mark all as pending
+            for exam in completed_exams:
+                exam['result'] = 'Pending'
+        
+        print(f"[DASHBOARD] Categorized: {len(upcoming_exams)} upcoming, {len(ongoing_exams)} ongoing, {len(completed_exams)} completed")
+        
         return render_template('dashboard.html',
-                               upcoming_exams=upcoming_exams,
-                               ongoing_exams=ongoing_exams,
-                               completed_exams=completed_exams)
+                             upcoming_exams=upcoming_exams,
+                             ongoing_exams=ongoing_exams,
+                             completed_exams=completed_exams)
         
     except Exception as e:
         print(f"[DASHBOARD] Error: {e}")
+        import traceback
+        traceback.print_exc()
         flash("Error loading dashboard. Please try again.", "error")
         return redirect(url_for('login'))
+
+
+
+
+# =============================================
+# AI ASSISTANT ROUTES
+# =============================================
+
+@app.route('/ai-assistant')
+@require_user_role
+def ai_assistant():
+    """AI Study Assistant page"""
+    try:
+        user_id = session.get('user_id')
+        username = session.get('username', 'Student')
+        full_name = session.get('full_name', username)
+        
+        return render_template('ai_assistant.html',
+                             username=username,
+                             full_name=full_name)
+        
+    except Exception as e:
+        print(f"[AI_ASSISTANT] Error: {e}")
+        flash("Error loading AI Assistant. Please try again.", "error")
+        return redirect(url_for('dashboard'))
+
+
+@app.route('/api/study-chat', methods=['POST'])
+@require_user_role
+def api_study_chat():
+    """API endpoint for AI chat interactions"""
+    try:
+        data = request.get_json()
+        if not data or not data.get('message'):
+            return jsonify({
+                'success': False,
+                'message': 'No message provided'
+            }), 400
+
+        user_message = data['message'].strip()
+        
+        if len(user_message) > AI_MAX_MESSAGE_LENGTH:
+            return jsonify({
+                'success': False,
+                'message': f'Message too long. Maximum {AI_MAX_MESSAGE_LENGTH} characters allowed.'
+            }), 400
+
+        if len(user_message) < 3:
+            return jsonify({
+                'success': False,
+                'message': 'Message too short. Minimum 3 characters required.'
+            }), 400
+            
+        user_id = session.get('user_id')
+        
+        limits = get_user_chat_limits(user_id)
+        if limits['questions_used'] >= limits['daily_limit']:
+            return jsonify({
+                'success': False,
+                'message': 'Daily limit reached. Resets at midnight.',
+                'limit_reached': True
+            }), 429
+
+        chat_history = get_user_chat_history(user_id, limit=6)
+        
+        print(f"💬 [CHAT] User {user_id} asking: {user_message[:50]}...")
+        
+        user_msg_data = {
+            'user_id': user_id,
+            'message': user_message,
+            'is_user': True,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        if not save_chat_message(user_msg_data):
+            print(f"⚠️ [CHAT] Failed to save user message")
+
+        ai_response = get_groq_response(user_message, chat_history)
+        
+        print(f"🤖 [CHAT] AI responding: {ai_response[:50]}...")
+
+        ai_msg_data = {
+            'user_id': user_id,
+            'message': ai_response,
+            'is_user': False,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        if not save_chat_message(ai_msg_data):
+            print(f"⚠️ [CHAT] Failed to save AI message")
+        
+        if not increment_usage(user_id):
+            print(f"⚠️ [CHAT] Failed to increment usage")
+        
+        updated_limits = get_user_chat_limits(user_id)
+        
+        print(f"✅ [CHAT] Chat completed. Usage: {updated_limits['questions_used']}/{updated_limits['daily_limit']}")
+        
+        return jsonify({
+            'success': True,
+            'response': ai_response,
+            'questions_remaining': updated_limits['daily_limit'] - updated_limits['questions_used']
+        })
+        
+    except Exception as e:
+        print(f"[API_STUDY_CHAT] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': 'Error processing your request'
+        }), 500
+
+
+@app.route('/api/get-chat-history')
+@require_user_role
+def api_get_chat_history():
+    """Get user's chat history"""
+    try:
+        user_id = session.get('user_id')
+        history = get_user_chat_history(user_id, limit=50)
+        
+        return jsonify({
+            'success': True,
+            'history': history
+        })
+        
+    except Exception as e:
+        print(f"[API_GET_CHAT_HISTORY] Error: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error fetching history'
+        }), 500
+
+
+@app.route('/api/clear-chat-history', methods=['POST'])
+@require_user_role
+def api_clear_chat_history():
+    """Clear user's chat history from Supabase"""
+    try:
+        user_id = session.get('user_id')
+        
+        if delete_user_chat_history(user_id):
+            return jsonify({
+                'success': True,
+                'message': 'Chat history cleared successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to clear history'
+            }), 500
+        
+    except Exception as e:
+        print(f"[API_CLEAR_CHAT_HISTORY] Error: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error clearing history'
+        }), 500
+
+
+@app.route('/api/get-user-limits')
+@require_user_role
+def api_get_user_limits():
+    """Get user's daily chat limits"""
+    try:
+        user_id = session.get('user_id')
+        limits = get_user_chat_limits(user_id)
+        
+        return jsonify({
+            'success': True,
+            'dailyLimit': limits['daily_limit'],
+            'questionsUsed': limits['questions_used'],
+            'questionsRemaining': limits['daily_limit'] - limits['questions_used']
+        })
+        
+    except Exception as e:
+        print(f"[API_GET_USER_LIMITS] Error: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Error fetching limits'
+        }), 500
+
+
 
 @app.route('/analytics')
 @require_user_role
@@ -2997,24 +3333,17 @@ def student_analytics():
         user_id = session.get('user_id')
         username = session.get('username', 'Student')
         
-        results_df = load_csv_with_cache('results.csv')
-        exams_df = load_csv_with_cache('exams.csv')
+        # ✅ Get data from Supabase
+        results = get_results_by_user(user_id)
+        exams = get_all_exams()
         
-        if results_df is None or results_df.empty:
+        if not results:
             flash("No results data available yet.", "info")
             return render_template('student_analytics.html', 
                                  analytics_data={}, 
                                  has_data=False)
         
-        student_results = results_df[results_df['student_id'].astype(str) == str(user_id)]
-        
-        if student_results.empty:
-            flash("No exam results found for your account.", "info")
-            return render_template('student_analytics.html', 
-                                 analytics_data={}, 
-                                 has_data=False)
-        
-        analytics_data = calculate_student_analytics(student_results, exams_df, user_id)
+        analytics_data = calculate_student_analytics(results, exams, user_id)
         
         return render_template('student_analytics.html', 
                              analytics_data=analytics_data, 
@@ -3034,75 +3363,52 @@ def results_history():
         return redirect(url_for("login"))
 
     try:
-        # Use cache-loading helper (consistent behaviour across app)
-        results_df = load_csv_with_cache('results.csv')
-        exams_df = load_csv_with_cache('exams.csv')
-
-        # Defensive: if either DataFrame is None or empty, render page with empty results list
-        if results_df is None or (hasattr(results_df, "empty") and results_df.empty):
-            # render an empty results page with informative flash
+        user_id = session["user_id"]
+        
+        # ✅ Get results from Supabase
+        results = get_results_by_user(user_id)
+        
+        if not results:
             flash("No results found for your account yet.", "info")
             return render_template("results_history.html", results=[])
 
-        if exams_df is None or (hasattr(exams_df, "empty") and exams_df.empty):
-            # We can still show results but won't have exam names; show message and render empty
+        # ✅ Get exams from Supabase
+        exams = get_all_exams()
+
+        if not exams:
             flash("Exam metadata missing. Contact admin.", "warning")
             return render_template("results_history.html", results=[])
 
-        student_id = str(session["user_id"])
+        # ✅ Create exam dictionary for fast lookup
+        exam_dict = {int(e.get('id')): e for e in exams}
 
-        # safe column checks
-        if "student_id" not in results_df.columns or "exam_id" not in results_df.columns:
-            flash("Results file is missing required columns. Contact admin.", "error")
-            return render_template("results_history.html", results=[])
-
-        # filter results for this user
-        student_results = results_df[results_df["student_id"].astype(str) == student_id]
-        if student_results.empty:
-            flash("No results found for your account yet.", "info")
-            return render_template("results_history.html", results=[])
-
-        # merge with exams to get exam names (safe merge - fill missing names)
-        merged = student_results.merge(
-            exams_df.rename(columns={"id": "exam_id", "name": "exam_name"}),
-            left_on="exam_id", right_on="exam_id", how="left", suffixes=("_result", "_exam")
-        )
-
-        results = []
-        for _, row in merged.iterrows():
-            # safe extraction using .get / fallback defaults
-            completed_at = row.get("completed_at") or row.get("completed_at_result") or ""
-            exam_name = row.get("exam_name") or row.get("name") or f"Exam {row.get('exam_id')}"
-            # other numeric fields may be missing; coerce to sensible defaults
-            score = row.get("score") if row.get("score") is not None else 0
-            max_score = row.get("max_score") if row.get("max_score") is not None else row.get("total_questions", 0)
-            percentage = float(row.get("percentage") or 0.0)
-            results.append({
-                "id": int(row.get("id_result") or row.get("id") or 0),
-                "exam_id": int(row.get("exam_id") or 0),
+        # ✅ Build result list
+        result_list = []
+        for result in results:
+            exam_id = int(result.get("exam_id", 0))
+            exam_data = exam_dict.get(exam_id, {})
+            exam_name = exam_data.get("name") or f"Exam {exam_id}"
+            
+            result_list.append({
+                "id": int(result.get("id", 0)),
+                "exam_id": exam_id,
                 "exam_name": exam_name,
-                "subject": row.get("name") or exam_name,
-                "completed_at": completed_at,
-                "score": score,
-                "max_score": max_score,
-                "percentage": round(percentage, 2),
-                "grade": row.get("grade") or "N/A",
-                "time_taken_minutes": row.get("time_taken_minutes") or 0,
-                "correct_answers": int(row.get("correct_answers") or 0),
-                "incorrect_answers": int(row.get("incorrect_answers") or 0),
-                "unanswered_questions": int(row.get("unanswered_questions") or 0),
+                "subject": exam_name,
+                "completed_at": result.get("completed_at", ""),
+                "score": result.get("score", 0),
+                "max_score": result.get("max_score", 0),
+                "percentage": round(float(result.get("percentage", 0)), 2),
+                "grade": result.get("grade", "N/A"),
+                "time_taken_minutes": result.get("time_taken_minutes", 0),
+                "correct_answers": int(result.get("correct_answers", 0)),
+                "incorrect_answers": int(result.get("incorrect_answers", 0)),
+                "unanswered_questions": int(result.get("unanswered_questions", 0)),
             })
 
-        # Sort by completed_at (safe parsing)
-        def _parse_date_safe(s):
-            try:
-                return datetime.strptime(str(s), "%Y-%m-%d %H:%M:%S")
-            except Exception:
-                return datetime.min
+        # Sort by completed_at
+        result_list.sort(key=lambda r: r.get("completed_at", ""), reverse=True)
 
-        results.sort(key=lambda r: _parse_date_safe(r.get("completed_at", "")), reverse=True)
-
-        return render_template("results_history.html", results=results)
+        return render_template("results_history.html", results=result_list)
 
     except Exception as e:
         print("Error in results_history:", str(e))
@@ -3117,72 +3423,83 @@ def results_history():
 @app.route('/exam-instructions/<int:exam_id>')
 @require_user_role
 def exam_instructions(exam_id):
-    exams_df = load_csv_with_cache('exams.csv')
-    if exams_df.empty:
-        flash('No exams available.', 'error')
-        return redirect(url_for('dashboard'))
-
-    exam = exams_df[exams_df['id'].astype(str) == str(exam_id)]
-    if exam.empty:
-        flash('Exam not found!', 'error')
-        return redirect(url_for('dashboard'))
-
-    exam_data = exam.iloc[0].to_dict()
-
-    # defaults
-    if 'positive_marks' not in exam_data or pd.isna(exam_data.get('positive_marks')):
-        exam_data['positive_marks'] = 1
-    if 'negative_marks' not in exam_data or pd.isna(exam_data.get('negative_marks')):
-        exam_data['negative_marks'] = 0
-
-    user_id = session.get('user_id')
-    active_attempt = get_active_attempt(user_id, exam_id)
-
-    # compute attempts left using exam_attempts.csv (safe load)
-    attempts_df = load_csv_with_cache('exam_attempts.csv')
-    if attempts_df is None or attempts_df.empty:
-        attempts_df = pd.DataFrame(columns=['id','student_id','exam_id','attempt_number','status','start_time','end_time'])
-
-    # normalize
-    attempts_df = attempts_df.fillna('')
-    user_exam_mask = (attempts_df['student_id'].astype(str) == str(user_id)) & (attempts_df['exam_id'].astype(str) == str(exam_id))
-    completed_count = 0
-    if not attempts_df.empty and user_exam_mask.any():
-        completed_count = int(attempts_df.loc[user_exam_mask & (attempts_df['status'].astype(str).str.lower()=='completed')].shape[0])
-
     try:
-        max_attempts = int(exam_data.get('max_attempts') or 0)
-    except Exception:
-        max_attempts = 0  # 0 = unlimited
+        # Load exam from Supabase
+        try:
+            exam_data = get_exam_by_id(exam_id)
+        except Exception as e:
+            print(f"Error loading exam: {e}")
+            flash('Error loading exam.', 'error')
+            return redirect(url_for('dashboard'))
 
-    attempts_left = None
-    attempts_exhausted = False
-    can_start = True
+        if not exam_data:
+            flash('Exam not found!', 'error')
+            return redirect(url_for('dashboard'))
 
-    if max_attempts > 0:
-        attempts_left = max_attempts - completed_count
-        if attempts_left <= 0:
-            attempts_exhausted = True
-            attempts_left = 0
-            can_start = False
-    else:
-        # max_attempts = 0 means unlimited
-        attempts_left = None  # Will show as unlimited
+        # Set defaults
+        if 'positive_marks' not in exam_data or exam_data.get('positive_marks') is None:
+            exam_data['positive_marks'] = 1
+        if 'negative_marks' not in exam_data or exam_data.get('negative_marks') is None:
+            exam_data['negative_marks'] = 0
+
+        user_id = session.get('user_id')
+        
+        # Check for active attempt
+        active_attempt = get_active_attempt(user_id, exam_id)
+        
+        print(f"📋 Instructions: user={user_id}, exam={exam_id}, active_attempt={active_attempt}")
+
+        # Count completed attempts
+        try:
+            completed_count = get_completed_attempts_count(user_id, exam_id)
+            print(f"📊 Completed attempts: {completed_count}")
+            
+        except Exception as e:
+            print(f"Error counting attempts: {e}")
+            completed_count = 0
+
+        try:
+            max_attempts = safe_int(exam_data.get('max_attempts'), 0)
+        except Exception:
+            max_attempts = 0
+
+        attempts_left = None
+        attempts_exhausted = False
         can_start = True
 
-    # Override can_start if there's already an active attempt
-    if active_attempt:
-        can_start = False  # Should show resume instead
+        if max_attempts > 0:
+            attempts_left = max_attempts - completed_count
+            if attempts_left <= 0:
+                attempts_exhausted = True
+                attempts_left = 0
+                can_start = False
+        else:
+            attempts_left = None
+            can_start = True
 
-    return render_template(
-        'exam_instructions.html',
-        exam=exam_data,
-        active_attempt=active_attempt,
-        attempts_left=attempts_left,
-        max_attempts=max_attempts,
-        attempts_exhausted=attempts_exhausted,
-        can_start=can_start  # Add this new variable
-    )
+        # Override if active attempt exists
+        if active_attempt:
+            can_start = False
+            print(f"✅ Active attempt found - showing RESUME button")
+        else:
+            print(f"✅ No active attempt - showing START button (can_start={can_start})")
+
+        return render_template(
+            'exam_instructions.html',
+            exam=exam_data,
+            active_attempt=active_attempt,
+            attempts_left=attempts_left,
+            max_attempts=max_attempts,
+            attempts_exhausted=attempts_exhausted,
+            can_start=can_start
+        )
+        
+    except Exception as e:
+        print(f"Error in exam_instructions: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error loading exam instructions.', 'error')
+        return redirect(url_for('dashboard'))
 
 
 
@@ -3194,17 +3511,14 @@ def start_exam(exam_id):
         return jsonify({"success": False, "message": "Authentication error."})
 
     try:
-        exams_df = load_csv_with_cache('exams.csv')
-        if exams_df.empty:
-            return jsonify({"success": False, "message": "No exams available."})
-
-        exam = exams_df[exams_df['id'].astype(str) == str(exam_id)]
-        if exam.empty:
+        # Load exam from Supabase
+        exam_data = get_exam_by_id(exam_id)
+        if not exam_data:
             return jsonify({"success": False, "message": "Exam not found."})
 
-        exam_data = exam.iloc[0].to_dict()
-
+        # Check for active attempt
         active_attempt = get_active_attempt(user_id, exam_id)
+        
         if active_attempt:
             session['latest_attempt_id'] = int(active_attempt.get('id', 0))
             session['exam_start_time'] = active_attempt.get('start_time')
@@ -3220,92 +3534,75 @@ def start_exam(exam_id):
                 "attempt_id": active_attempt.get('id')
             })
 
-        attempts_df = load_csv_with_cache('exam_attempts.csv')
-        if attempts_df is None or attempts_df.empty:
-            attempts_df = pd.DataFrame(columns=['id','student_id','exam_id','attempt_number','status','start_time','end_time'])
-
-        try:
-            max_attempts = int(exam_data.get('max_attempts', 0))
-        except:
-            max_attempts = 0
-
-        if max_attempts > 0:
-            user_exam_attempts = attempts_df[
-                (attempts_df['student_id'].astype(str) == str(user_id)) &
-                (attempts_df['exam_id'].astype(str) == str(exam_id)) &
-                (attempts_df['status'].astype(str).str.lower() == 'completed')
-            ]
-            if len(user_exam_attempts) >= max_attempts:
-                return jsonify({
-                    "success": False,
-                    "message": f"Maximum attempts ({max_attempts}) reached for this exam."
-                })
-
-        try:
-            user_exam_mask = (attempts_df['student_id'].astype(str) == str(user_id)) & (attempts_df['exam_id'].astype(str) == str(exam_id))
-            if user_exam_mask.any():
-                attempt_number = int(attempts_df.loc[user_exam_mask, 'attempt_number'].max()) + 1
-            else:
-                attempt_number = 1
-
-            next_id = 1 if attempts_df.empty else int(attempts_df['id'].max()) + 1
-            start_iso = pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%d %H:%M:%S")
-
-            new_attempt = pd.DataFrame([{
-                'id': next_id,
-                'student_id': str(user_id),
-                'exam_id': str(exam_id),
-                'attempt_number': attempt_number,
-                'status': 'in_progress',
-                'start_time': start_iso,
-                'end_time': None
-            }])
-
-            attempts_df = pd.concat([attempts_df, new_attempt], ignore_index=True)
-            
-            with get_file_lock('exam_attempts'):
-                persist_attempts_df(attempts_df)
-
-            session_data = {
-                'latest_attempt_id': int(next_id),
-                'exam_start_time': start_iso,
-                'exam_answers': {},
-                'marked_for_review': [],
-                'timer_reset_flag': True,
-                'attempt_number': attempt_number
-            }
-            
-            for key, value in session_data.items():
-                session[key] = value
-            session.permanent = True
-            session.modified = True
-
-            try:
-                set_exam_active(user_id, session.get('token'), exam_id=exam_id, result_id=next_id, is_active=True)
-            except Exception as e:
-                print(f"Error setting exam active: {e}")
-
-            print(f"Successfully created new attempt {next_id} (#{attempt_number}) for user {user_id}, exam {exam_id}")
-            
+        # Check max attempts
+        completed_count = get_completed_attempts_count(user_id, exam_id)
+        max_attempts = safe_int(exam_data.get('max_attempts'), 0)
+        
+        if max_attempts > 0 and completed_count >= max_attempts:
             return jsonify({
-                "success": True, 
-                "redirect_url": url_for('exam_page', exam_id=exam_id), 
-                "resumed": False,
-                "message": "Exam started successfully",
-                "attempt_id": next_id,
-                "attempt_number": attempt_number,
-                "fresh_start": True
+                "success": False,
+                "message": f"Maximum attempts ({max_attempts}) reached."
             })
 
-        except Exception as e:
-            print(f"Error creating new attempt: {e}")
-            import traceback
-            traceback.print_exc()
+        # Calculate next IDs
+        all_attempts_response = supabase.table('exam_attempts').select('id, attempt_number')\
+            .eq('student_id', user_id)\
+            .eq('exam_id', exam_id)\
+            .execute()
+        
+        existing_attempts = all_attempts_response.data if all_attempts_response.data else []
+        
+        next_attempt_number = max([int(a.get('attempt_number', 0)) for a in existing_attempts], default=0) + 1
+        
+        # Create new attempt
+        start_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        new_attempt = {
+            'student_id': int(user_id),
+            'exam_id': int(exam_id),
+            'attempt_number': int(next_attempt_number),
+            'status': 'in_progress',
+            'start_time': start_iso,
+            'end_time': None
+        }
+
+        created_attempt = create_exam_attempt(new_attempt)
+        
+        if not created_attempt:
             return jsonify({
                 "success": False, 
-                "message": f"Error creating exam attempt: {str(e)}",
-                "error_type": "attempt_creation_failed"
+                "message": "Failed to create exam attempt"
             }), 500
+
+        new_attempt_id = int(created_attempt['id'])
+
+        # Set session data
+        session['latest_attempt_id'] = new_attempt_id
+        session['exam_start_time'] = start_iso
+        session['exam_answers'] = {}
+        session['marked_for_review'] = []
+        session['timer_reset_flag'] = True
+        session['attempt_number'] = int(next_attempt_number)
+        session.permanent = True
+        session.modified = True
+
+        # Mark exam as active
+        try:
+            set_exam_active(user_id, session.get('token'), exam_id=exam_id, result_id=new_attempt_id, is_active=True)
+        except Exception as e:
+            print(f"Error setting exam active: {e}")
+
+        print(f"✅ Created attempt {new_attempt_id} (#{next_attempt_number}) for user {user_id}, exam {exam_id}")
+        
+        return jsonify({
+            "success": True, 
+            "redirect_url": url_for('exam_page', exam_id=exam_id), 
+            "resumed": False,
+            "message": "Exam started successfully",
+            "attempt_id": new_attempt_id,
+            "attempt_number": next_attempt_number,
+            "fresh_start": True
+        })
 
     except Exception as e:
         print(f"Critical error in start_exam: {e}")
@@ -3313,113 +3610,62 @@ def start_exam(exam_id):
         traceback.print_exc()
         return jsonify({
             "success": False, 
-            "message": "System error occurred. Please try again or contact support."
+            "message": "System error occurred"
         }), 500
 
 
 @app.route('/api/exam-attempts-status/<int:exam_id>')
 @require_user_role
 def api_exam_attempts_status(exam_id):
-    """
-    CRASH-SAFE API endpoint for exam attempts status
-    """
+    """Get exam attempts status from Supabase"""
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'error': 'not_authenticated'}), 401
 
     try:
-        # SAFE: Load exam info
-        try:
-            exams_df = load_csv_with_cache('exams.csv')
-            if exams_df is None or exams_df.empty:
-                return jsonify({'error': 'exam_data_unavailable'}), 500
-            
-            exam_row = exams_df[exams_df['id'].astype(str) == str(exam_id)]
-            if exam_row.empty:
-                return jsonify({'error': 'exam_not_found'}), 404
-            
-            exam_info = exam_row.iloc[0].to_dict()
-            max_attempts = int(exam_info.get('max_attempts', 0) or 0)
-            
-        except Exception as e:
-            print(f"Error loading exam info: {e}")
-            return jsonify({'error': 'exam_info_error', 'message': str(e)}), 500
+        # Get exam data
+        exam_data = get_exam_by_id(exam_id)
+        if not exam_data:
+            return jsonify({'error': 'exam_not_found'}), 404
 
-        # SAFE: Load attempts with reduced retries
-        completed_attempts = 0
-        active_exists = False
+        max_attempts = safe_int(exam_data.get('max_attempts'), 0)
+
+        # Get latest attempt
+        latest_attempt = get_latest_attempt(user_id, exam_id)
         
-        try:
-            attempts_df = safe_csv_load_with_recovery('exam_attempts.csv', max_retries=1)
-            
-            if attempts_df is not None and hasattr(attempts_df, 'empty'):
-                if attempts_df.empty and len(attempts_df.columns) > 0:
-                    # Header-only file
-                    print("Header-only exam_attempts file - no attempts yet")
-                    completed_attempts = 0
-                    active_exists = False
-                elif not attempts_df.empty:
-                    # Has data rows
-                    try:
-                        attempts_df = attempts_df.fillna('')
-                        attempts_df['student_id'] = attempts_df['student_id'].astype(str)
-                        attempts_df['exam_id'] = attempts_df['exam_id'].astype(str)
-                        attempts_df['status'] = attempts_df['status'].astype(str)
+        # Get completed attempts count
+        completed_count = get_completed_attempts_count(user_id, exam_id)
 
-                        completed_mask = (
-                            (attempts_df['student_id'] == str(user_id)) &
-                            (attempts_df['exam_id'] == str(exam_id)) &
-                            (attempts_df['status'].str.lower() == 'completed')
-                        )
-                        completed_attempts = int(completed_mask.sum())
+        # Check if latest attempt is in_progress
+        has_active = False
+        if latest_attempt and latest_attempt.get('status') == 'in_progress':
+            has_active = True
 
-                        inprog_mask = (
-                            (attempts_df['student_id'] == str(user_id)) &
-                            (attempts_df['exam_id'] == str(exam_id)) &
-                            (attempts_df['status'].str.lower() == 'in_progress')
-                        )
-                        active_exists = bool(inprog_mask.any())
-                        
-                    except Exception as e:
-                        print(f"Error processing attempts data: {e}")
-                        completed_attempts = 0
-                        active_exists = False
-                else:
-                    # Completely empty
-                    completed_attempts = 0
-                    active_exists = False
-            else:
-                completed_attempts = 0
-                active_exists = False
-                
-        except Exception as e:
-            print(f"Error loading attempts: {e}")
-            completed_attempts = 0
-            active_exists = False
+        if has_active:
+            return jsonify({
+                'has_active_attempt': True,
+                'attempt_id': int(latest_attempt.get('id')),
+                'attempt_number': int(latest_attempt.get('attempt_number', 0)),
+                'start_time': latest_attempt.get('start_time'),
+                'completed_count': completed_count,
+                'max_attempts': max_attempts,
+                'attempts_remaining': max_attempts - completed_count if max_attempts > 0 else -1
+            })
 
-        # SAFE: Calculate attempts left
-        attempts_left = None
-        if max_attempts <= 0:
-            attempts_left = -1  # unlimited
-        else:
-            attempts_left = max(0, max_attempts - completed_attempts)
-
+        # No active attempt
         return jsonify({
-            'attempts_left': attempts_left,
+            'has_active_attempt': False,
+            'completed_count': completed_count,
             'max_attempts': max_attempts,
-            'completed_attempts': completed_attempts,
-            'active_attempt_exists': bool(active_exists)
+            'attempts_remaining': max_attempts - completed_count if max_attempts > 0 else -1,
+            'can_start_new': (max_attempts == 0 or completed_count < max_attempts)
         })
 
     except Exception as e:
-        print(f"Critical error in api_exam_attempts_status: {e}")
+        print(f"Error in api_exam_attempts_status: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({
-            'error': 'server_error', 
-            'message': 'System error occurred'
-        }), 500
-
+        return jsonify({'error': 'server_error'}), 500
 
 
 
@@ -3477,20 +3723,32 @@ def mark_exam_abandoned(exam_id):
 @app.route('/preload-exam/<int:exam_id>')
 @require_user_role
 def preload_exam_route(exam_id):
-    """API endpoint to preload exam data - ENHANCED with better error handling"""
+    """API endpoint to preload exam data - WITH FORCE REFRESH SUPPORT"""
     try:
-        # Check if already cached and valid
-        cached_data = get_cached_exam_data(exam_id)
-        if cached_data and cached_data.get('exam_id') == exam_id:
-            return jsonify({
-                'success': True,
-                'message': f"Using cached data with {cached_data['total_questions']} questions",
-                'exam_id': exam_id,
-                'cached': True,
-                'question_count': cached_data['total_questions']
-            })
+        # ✅ CHECK FORCE REFRESH FLAG FIRST!
+        force_refresh = app_cache.get('force_refresh', False) or session.get('force_refresh', False)
+        
+        if force_refresh:
+            print(f"🔥 [PRELOAD_ROUTE] Force refresh detected - skipping cache check")
+            # Clear session cache
+            cache_key = f'exam_data_{exam_id}'
+            session.pop(cache_key, None)
+            session.modified = True
+        else:
+            # ✅ ONLY CHECK CACHE IF NOT FORCE REFRESH
+            cached_data = get_cached_exam_data(exam_id)
+            if cached_data and cached_data.get('exam_id') == exam_id:
+                print(f"💾 [PRELOAD_ROUTE] Using cached data for exam {exam_id}")
+                return jsonify({
+                    'success': True,
+                    'message': f"Using cached data with {cached_data['total_questions']} questions",
+                    'exam_id': exam_id,
+                    'cached': True,
+                    'question_count': cached_data['total_questions']
+                })
 
-        # Attempt preload with detailed error reporting
+        # ✅ CALL PRELOAD FUNCTION (will handle force refresh internally)
+        print(f"🔄 [PRELOAD_ROUTE] Calling preload_exam_data_fixed for exam {exam_id}")
         success, message = preload_exam_data_fixed(exam_id)
         
         status_code = 200 if success else 400
@@ -3498,12 +3756,12 @@ def preload_exam_route(exam_id):
             'success': success,
             'message': message,
             'exam_id': exam_id,
-            'cached': False
+            'cached': False,
+            'force_refresh': force_refresh
         }
         
         # Add diagnostic info for failures
         if not success:
-            # Check if questions file exists
             try:
                 questions_df = load_csv_with_cache('questions.csv')
                 if questions_df is not None and not questions_df.empty:
@@ -3518,7 +3776,7 @@ def preload_exam_route(exam_id):
         return jsonify(response_data), status_code
         
     except Exception as e:
-        print(f"Error in preload route: {e}")
+        print(f"❌ Error in preload route: {e}")
         import traceback
         traceback.print_exc()
         
@@ -3595,12 +3853,13 @@ def exam_page(exam_id):
     user_id = session.get('user_id')
     
     try:
-        print(f"Loading SPA exam page for exam_id: {exam_id}, user_id: {user_id}")
+        print(f"📄 Loading exam page for exam_id: {exam_id}, user_id: {user_id}")
 
         # Check for active attempt
         active_attempt = get_active_attempt(user_id, exam_id)
+        
         if active_attempt:
-            print(f"Found active attempt: {active_attempt}")
+            print(f"✅ Found active attempt: {active_attempt}")
             session['latest_attempt_id'] = int(active_attempt.get('id', 0))
             session['exam_start_time'] = active_attempt.get('start_time')
             if 'exam_answers' not in session:
@@ -3608,76 +3867,80 @@ def exam_page(exam_id):
             if 'marked_for_review' not in session:
                 session['marked_for_review'] = []
             session.modified = True
+        else:
+            print(f"⚠️ No active attempt - redirect to instructions")
+            flash("Please start the exam first.", "warning")
+            return redirect(url_for('exam_instructions', exam_id=exam_id))
 
         # Get cached exam data
         cached_data = get_cached_exam_data(exam_id)
         if not cached_data:
-            print(f"No cached data found, preloading for exam {exam_id}")
+            print(f"❌ No cached data, preloading...")
             success, message = preload_exam_data_fixed(exam_id)
             if not success:
-                flash(f"Unable to load exam data: {message}", "error")
+                flash(f"Unable to load exam: {message}", "error")
                 return redirect(url_for('dashboard'))
             cached_data = get_cached_exam_data(exam_id)
 
         if not cached_data:
-            flash("Unable to load exam data. Please restart the exam.", "error")
+            flash("Unable to load exam data.", "error")
             return redirect(url_for('dashboard'))
 
         exam_data = cached_data.get('exam_info', {})
         questions = cached_data.get('questions', [])
 
         if not questions:
-            flash("No questions found for this exam.", "error") 
+            flash("No questions found.", "error") 
             return redirect(url_for('dashboard'))
 
-        # Initialize session data if needed
+        # Initialize session data
         if 'exam_answers' not in session:
             session['exam_answers'] = {}
         if 'marked_for_review' not in session:
             session['marked_for_review'] = []
 
         # Calculate remaining time
-        remaining_seconds = 3600
+        duration_mins = int(float(exam_data.get('duration', 60)))
+        duration_secs = duration_mins * 60
+        remaining_seconds = duration_secs
         is_fresh_start = False
         
-        session_attempt_id = session.get('latest_attempt_id')
         session_start_time = session.get('exam_start_time')
         
         if active_attempt and session_start_time:
             try:
-                start_dt = pd.to_datetime(session_start_time)
-                if start_dt.tzinfo is None:
-                    start_dt = start_dt.tz_localize("UTC")
-                now = pd.Timestamp.now(tz="UTC")
+                # ✅ Handle both ISO and datetime formats
+                try:
+                    # Try ISO format first (Supabase)
+                    start_dt = datetime.fromisoformat(session_start_time.replace('Z', '+00:00'))
+                except:
+                    # Fallback to standard format
+                    start_dt = datetime.strptime(session_start_time, '%Y-%m-%d %H:%M:%S')
                 
-                duration_secs = int(float(exam_data.get('duration', 60)) * 60)
-                elapsed = (now - start_dt).total_seconds()
-                remaining_seconds = max(0, duration_secs - int(elapsed))
-                print(f"Resume: calculated remaining time: {remaining_seconds}s")
+                now_dt = datetime.now()
+                
+                elapsed_secs = (now_dt - start_dt).total_seconds()
+                remaining_seconds = max(0, duration_secs - int(elapsed_secs))
+                
+                print(f"⏱️ Timer: duration={duration_mins}m, elapsed={int(elapsed_secs)}s, remaining={remaining_seconds}s")
                 
                 if remaining_seconds <= 0:
-                    print("Exam time expired - auto submitting")
-                    try:
-                        update_exam_attempt_status(user_id, exam_id, 'completed')
-                        session.pop('latest_attempt_id', None)
-                        session.pop('exam_start_time', None)
-                        flash("Your exam time has expired.", "warning")
-                        return redirect(url_for('exam_instructions', exam_id=exam_id))
-                    except Exception as e:
-                        print(f"Error auto-submitting expired exam: {e}")
-                        
+                    print("❌ Time expired - auto submitting")
+                    update_exam_attempt(int(active_attempt['id']), {
+                        'status': 'completed',
+                        'end_time': now_dt.strftime('%Y-%m-%d %H:%M:%S')
+                    })
+                    session.pop('latest_attempt_id', None)
+                    session.pop('exam_start_time', None)
+                    flash("Your exam time has expired.", "warning")
+                    return redirect(url_for('exam_instructions', exam_id=exam_id))
+                    
             except Exception as e:
-                print(f"Error calculating remaining time: {e}")
-                duration_secs = int(float(exam_data.get('duration', 60)) * 60)
+                print(f"⚠️ Timer calculation error: {e}")
                 remaining_seconds = duration_secs
+                is_fresh_start = True
         else:
-            duration_secs = int(float(exam_data.get('duration', 60)) * 60)
-            remaining_seconds = duration_secs
             is_fresh_start = True
-
-        # Start from first question for SPA
-        current_index = 0
-        selected_answer = session.get('exam_answers', {}).get(str(questions[0].get('id'))) if questions else None
 
         # Build question palette
         palette = {}
@@ -3690,14 +3953,14 @@ def exam_page(exam_id):
             else:
                 palette[i] = 'not-visited'
 
-        print(f"Successfully loaded SPA exam page: {len(questions)} questions, remaining: {remaining_seconds}s")
+        print(f"✅ Loaded exam: {len(questions)} questions, {remaining_seconds}s remaining")
 
         return render_template(
             'exam_page.html',
             exam=exam_data,
             question=questions[0] if questions else {},
-            current_index=current_index,
-            selected_answer=selected_answer,
+            current_index=0,
+            selected_answer=session.get('exam_answers', {}).get(str(questions[0].get('id'))) if questions else None,
             total_questions=len(questions),
             palette=palette,
             questions=questions,
@@ -3711,339 +3974,222 @@ def exam_page(exam_id):
         )
 
     except Exception as e:
-        print(f"ERROR in exam_page: {e}")
+        print(f"❌ ERROR in exam_page: {e}")
         import traceback
         traceback.print_exc()
-        flash("Error loading exam page.", "error")
-        return redirect(url_for('dashboard'))        
+        flash("Error loading exam.", "error")
+        return redirect(url_for('dashboard'))   
 
 
 
-
-
-
-
-
-
-@app.route('/submit-exam/<int:exam_id>', methods=['GET', 'POST'])
+@app.route('/submit-exam/<int:exam_id>', methods=['POST'])
 @require_user_role
 def submit_exam(exam_id):
-    if request.method == 'GET':
-        return redirect(url_for('exam_page', exam_id=exam_id))
-    
-    user_id = session.get('user_id')
-    token = session.get('token')
-    
-    if not user_id:
-        flash("Authentication error. Please login again.", "error")
-        return redirect(url_for('login'))
-
     try:
-        cached_data = None
-        try:
-            cached_data = get_cached_exam_data(exam_id)
-            if not cached_data:
-                success, message = preload_exam_data_fixed(exam_id)
-                if success:
-                    cached_data = get_cached_exam_data(exam_id)
-        except Exception as e:
-            print(f"Error getting cached exam data: {e}")
-            
-        if not cached_data:
-            flash("Exam session expired. Please contact administrator.", "error")
-            return redirect(url_for('dashboard'))
-            
-        try:
-            exam_data = cached_data['exam_info']
-            questions = cached_data['questions']
-        except (KeyError, TypeError) as e:
-            print(f"Error extracting exam data: {e}")
-            flash("Invalid exam data. Please contact support.", "error")
-            return redirect(url_for('dashboard'))
-
-        if not questions:
-            flash("No questions found for this exam.", "error")
-            return redirect(url_for('dashboard'))
-
-        answers = session.get('exam_answers', {})
+        user_id = session.get('user_id')
+        username = session.get('username', 'Student')
+        full_name = session.get('full_name', username)
         
+        print(f"📝 [SUBMIT] Starting exam submission for user {user_id}, exam {exam_id}")
+        
+        # ✅ Get exam from Supabase
+        exam = get_exam_by_id(exam_id)
+        if not exam:
+            print(f"❌ [SUBMIT] Exam {exam_id} not found")
+            flash('Exam not found.', 'error')
+            return redirect(url_for('dashboard'))
+
+        # ✅ Get questions from Supabase
+        questions = get_questions_by_exam(exam_id)
+        if not questions:
+            print(f"❌ [SUBMIT] No questions for exam {exam_id}")
+            flash('No questions found for this exam.', 'error')
+            return redirect(url_for('dashboard'))
+
+        print(f"✅ [SUBMIT] Loaded {len(questions)} questions")
+
+        # ✅ Calculate results
+        answers = session.get('exam_answers', {})
         total_questions = len(questions)
         correct_answers = 0
         incorrect_answers = 0
-        unanswered_questions = 0
         total_score = 0.0
-        max_possible_score = 0.0
+        max_score = 0.0
+
+        positive_marks_str = str(exam.get('positive_marks', '1')).strip()
+        negative_marks_str = str(exam.get('negative_marks', '0')).strip()
+
+        response_batch = []
 
         for question in questions:
-            question_id = str(question.get('id', ''))
-            correct_answer = str(question.get('correct_answer', '')).strip()
-            user_answer = answers.get(question_id)
-            question_type = question.get('question_type', 'MCQ')
-            
-            try:
-                question_positive_marks = float(question.get('positive_marks', 1) or 1)
-            except (ValueError, TypeError):
-                question_positive_marks = 1.0
-                
-            try:
-                question_negative_marks = float(question.get('negative_marks', 0) or 0)
-            except (ValueError, TypeError):
-                question_negative_marks = 0.0
-            
-            max_possible_score += question_positive_marks
-            
-            if not user_answer:
-                unanswered_questions += 1
-            else:
-                is_correct = False
-                
-                if question_type == 'MCQ':
-                    is_correct = user_answer.strip().upper() == correct_answer.upper()
-                elif question_type == 'MSQ':
-                    if isinstance(user_answer, list):
-                        user_set = set(ans.strip().upper() for ans in user_answer)
-                    else:
-                        user_set = set(user_answer.strip().upper().split(','))
-                    correct_set = set(correct_answer.upper().split(','))
-                    is_correct = user_set == correct_set
-                elif question_type == 'NUMERIC':
+            qid = str(question.get('id'))
+            qtype = question.get('question_type', 'MCQ')
+            marks = float(question.get('positive_marks', 1) or 1)
+            max_score += marks
+
+            given_answer = answers.get(qid)
+            correct_answer = question.get('correct_answer')
+
+            is_attempted = given_answer is not None and given_answer != ''
+            is_correct = False
+            marks_obtained = 0.0
+
+            if is_attempted:
+                # Check answer correctness
+                if qtype == 'MSQ':
+                    given_set = set(given_answer) if isinstance(given_answer, list) else set()
                     try:
-                        user_val = float(user_answer)
-                        correct_val = float(correct_answer)
-                        tolerance = float(question.get('tolerance', 0.1) or 0.1)
-                        is_correct = abs(user_val - correct_val) <= tolerance
-                    except (ValueError, TypeError):
-                        is_correct = False
-                
+                        correct_set = set(json.loads(correct_answer)) if isinstance(correct_answer, str) else set(correct_answer)
+                    except:
+                        correct_set = set(str(correct_answer).split(','))
+                    is_correct = (given_set == correct_set)
+                else:
+                    is_correct = (str(given_answer).strip() == str(correct_answer).strip())
+
                 if is_correct:
                     correct_answers += 1
-                    total_score += question_positive_marks
+                    marks_obtained = marks
                 else:
                     incorrect_answers += 1
-                    total_score -= question_negative_marks
+                    try:
+                        neg_marks = float(negative_marks_str.split(',')[0]) if ',' in negative_marks_str else float(negative_marks_str)
+                    except:
+                        neg_marks = 0.0
+                    marks_obtained = -neg_marks
 
-        total_score = max(0, total_score)
-        
+                total_score += marks_obtained
+
+            # ✅ Build response record with exam_id
+            response_batch.append({
+                'question_id': int(qid),
+                'exam_id': int(exam_id),  # ✅ CRITICAL: Include exam_id
+                'question_type': qtype,
+                'given_answer': json.dumps(given_answer) if isinstance(given_answer, list) else str(given_answer or ''),
+                'correct_answer': json.dumps(correct_answer) if isinstance(correct_answer, list) else str(correct_answer or ''),
+                'is_correct': is_correct,
+                'is_attempted': is_attempted,
+                'marks_obtained': round(float(marks_obtained), 2)
+            })
+
+        unanswered = total_questions - (correct_answers + incorrect_answers)
+        percentage = (total_score / max_score * 100) if max_score > 0 else 0
+
+        # Calculate grade
+        if percentage >= 90:
+            grade = 'A+'
+        elif percentage >= 80:
+            grade = 'A'
+        elif percentage >= 70:
+            grade = 'B'
+        elif percentage >= 60:
+            grade = 'C'
+        elif percentage >= 50:
+            grade = 'D'
+        else:
+            grade = 'F'
+
+        print(f"📊 [SUBMIT] Results: {correct_answers}/{total_questions} correct, Score: {total_score}/{max_score} ({percentage:.2f}%)")
+
+        # ✅ Calculate time taken
         start_time_str = session.get('exam_start_time')
-        time_taken_minutes = 0
-        
         if start_time_str:
             try:
-                start_ts = pd.to_datetime(start_time_str)
-                now_ts = pd.Timestamp.now(tz="UTC")
-                if start_ts.tz is None or start_ts.tzinfo is None:
-                    start_ts = start_ts.tz_localize("UTC")
-                time_taken_seconds = max(0, (now_ts - start_ts).total_seconds())
-                time_taken_minutes = round(time_taken_seconds / 60, 2)
+                # Handle both ISO and datetime formats
+                try:
+                    start_dt = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                except:
+                    start_dt = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S")
+                
+                time_taken_minutes = int((datetime.now() - start_dt).total_seconds() / 60)
             except Exception as e:
-                print(f"Error calculating time taken: {e}")
+                print(f"⚠️ [SUBMIT] Error calculating time: {e}")
                 time_taken_minutes = 0
+        else:
+            time_taken_minutes = 0
 
-        percentage = round((total_score / max_possible_score) * 100, 2) if max_possible_score > 0 else 0.0
-        
-        def calculate_grade(p):
-            if p >= 90: return "A+"
-            elif p >= 85: return "A"
-            elif p >= 80: return "A-"
-            elif p >= 75: return "B+"
-            elif p >= 70: return "B"
-            elif p >= 65: return "B-"
-            elif p >= 60: return "C+"
-            elif p >= 55: return "C"
-            elif p >= 50: return "C-"
-            elif p >= 40: return "D"
-            else: return "F"
-        
-        grade = calculate_grade(percentage)
-        completed_at = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M:%S")
-        
-        results_df = safe_csv_load_with_recovery('results.csv')
-        if results_df is None:
-            results_df = pd.DataFrame()
-
-        responses_df = safe_csv_load_with_recovery('responses.csv')
-        if responses_df is None:
-            responses_df = pd.DataFrame()
-
-        new_result_id = 1 if results_df.empty else int(results_df['id'].max()) + 1
-        
+        # ✅ Create result record
         new_result = {
-            "id": new_result_id,
-            "student_id": user_id,
-            "exam_id": exam_id,
-            "score": int(total_score),
-            "total_questions": float(total_questions),
-            "correct_answers": correct_answers,
-            "incorrect_answers": incorrect_answers,
-            "unanswered_questions": unanswered_questions,
-            "max_score": int(max_possible_score),
-            "percentage": float(percentage),
-            "grade": str(grade),
-            "time_taken_minutes": float(time_taken_minutes),
-            "completed_at": completed_at
+            'student_id': int(user_id),
+            'exam_id': int(exam_id),
+            'score': int(round(total_score)),  # ✅ INTEGER BHEJO
+            'max_score': int(round(max_score)),  # ✅ INTEGER BHEJO
+            'percentage': round(percentage, 2), 
+            'grade': grade,
+            'completed_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'time_taken_minutes': int(time_taken_minutes),
+            'correct_answers': int(correct_answers),
+            'incorrect_answers': int(incorrect_answers),
+            'unanswered_questions': int(unanswered),
+            'total_questions': int(total_questions)
         }
 
-        new_result_df = pd.DataFrame([new_result])
-        results_df = pd.concat([results_df, new_result_df], ignore_index=True)
+        print(f"💾 [SUBMIT] Saving result to Supabase...")
 
-        for question in questions:
-            question_id = str(question.get('id', ''))
-            user_answer = answers.get(question_id, '')
-            correct_answer = str(question.get('correct_answer', ''))
-            question_type = question.get('question_type', 'MCQ')
-            
-            try:
-                q_positive = float(question.get('positive_marks', 1) or 1)
-            except (ValueError, TypeError):
-                q_positive = 1.0
-                
-            try:
-                q_negative = float(question.get('negative_marks', 0) or 0)
-            except (ValueError, TypeError):
-                q_negative = 0.0
-            
-            is_correct = False
-            if user_answer:
-                if question_type == 'MCQ':
-                    is_correct = user_answer.strip().upper() == correct_answer.upper()
-                elif question_type == 'MSQ':
-                    if isinstance(user_answer, list):
-                        user_set = set(ans.strip().upper() for ans in user_answer)
-                    else:
-                        user_set = set(user_answer.strip().upper().split(','))
-                    correct_set = set(correct_answer.upper().split(','))
-                    is_correct = user_set == correct_set
-                elif question_type == 'NUMERIC':
-                    try:
-                        user_val = float(user_answer)
-                        correct_val = float(correct_answer)
-                        tolerance = float(question.get('tolerance', 0.1) or 0.1)
-                        is_correct = abs(user_val - correct_val) <= tolerance
-                    except (ValueError, TypeError):
-                        is_correct = False
-            
-            response_id = 1 if responses_df.empty else int(responses_df['id'].max()) + 1
-            
-            response_record = {
-                "id": response_id,
-                "result_id": new_result_id,
-                "exam_id": exam_id,
-                "question_id": int(question_id),
-                "given_answer": str(user_answer) if user_answer else '',
-                "correct_answer": str(correct_answer),
-                "is_correct": str(is_correct).lower(),
-                "marks_obtained": float(q_positive if is_correct else (-q_negative if user_answer else 0)),
-                "question_type": str(question_type),
-                "is_attempted": str(bool(user_answer)).lower()
-            }
-            
-            responses_df = pd.concat([responses_df, pd.DataFrame([response_record])], ignore_index=True)
-
-        try:
-            persist_results_df(results_df)
-            persist_responses_df(responses_df)
-            print(f"Successfully saved results and responses for user {user_id}, exam {exam_id}")
-        except Exception as e:
-            print(f"Error in atomic save: {e}")
-            flash("Critical error saving results. Please contact support immediately.", "error")
+        # ✅ Save result to Supabase
+        created_result = create_result(new_result)
+        if not created_result:
+            print(f"❌ [SUBMIT] Failed to save result")
+            flash('Error saving result. Please contact support.', 'error')
             return redirect(url_for('exam_page', exam_id=exam_id))
 
-        try:
-            session['latest_result_id'] = int(new_result_id)
-        except Exception as e:
-            print(f"Error setting latest_result_id in session: {e}")
+        new_result_id = int(created_result['id'])
+        print(f"✅ [SUBMIT] Result saved with ID: {new_result_id}")
 
-        try:
-            attempt_id_for_update = session.get('latest_attempt_id')
-            if attempt_id_for_update:
-                try:
-                    ok, info = update_exam_attempt_by_id(attempt_id_for_update, 'completed')
-                    if not ok:
-                        update_exam_attempt_status(user_id, exam_id, 'completed')
-                except Exception as e:
-                    print(f"Error updating attempt status: {e}")
-                    update_exam_attempt_status(user_id, exam_id, 'completed')
-            else:
-                update_exam_attempt_status(user_id, exam_id, 'completed')
-        except Exception as e:
-            print(f"CRITICAL: Failed to update attempt status: {e}")
+        # ✅ Add result_id to all responses
+        for resp in response_batch:
+            resp['result_id'] = int(new_result_id)
 
-        try:
-            set_exam_active(user_id, token, is_active=False)
-        except Exception as e:
-            print(f"Error updating session active flag: {e}")
+        print(f"💾 [SUBMIT] Saving {len(response_batch)} responses...")
 
-        try:
-            session_keys_to_clear = [
-                'exam_answers', 'marked_for_review', 'exam_start_time', 
-                'exam_remaining_time', 'latest_attempt_id'
-            ]
-            for key in session_keys_to_clear:
-                session.pop(key, None)
-                
-            keys_to_remove = []
-            for key in list(session.keys()):
-                if key.startswith('exam_data_') or key.startswith(f'exam_{exam_id}'):
-                    keys_to_remove.append(key)
-            for key in keys_to_remove:
-                session.pop(key, None)
-            session.modified = True
-        except Exception as e:
-            print(f"Error clearing session: {e}")
+        # ✅ Save responses to Supabase
+        if not create_responses_bulk(response_batch):
+            print(f"❌ [SUBMIT] Failed to save responses")
+            flash('Error saving responses. Please contact support.', 'error')
+            return redirect(url_for('exam_page', exam_id=exam_id))
 
+        print(f"✅ [SUBMIT] Responses saved successfully")
+
+        # ✅ Update attempt status
+        attempt_id = session.get('latest_attempt_id')
+        if attempt_id:
+            try:
+                print(f"📝 [SUBMIT] Marking attempt {attempt_id} as completed")
+                success = update_exam_attempt(int(attempt_id), {
+                    'status': 'completed',
+                    'end_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                })
+                if success:
+                    print(f"✅ [SUBMIT] Attempt marked as completed")
+                else:
+                    print(f"⚠️ [SUBMIT] Failed to update attempt status")
+            except Exception as e:
+                print(f"❌ [SUBMIT] Error updating attempt: {e}")
+
+        # ✅ Clear session data
+        session['latest_result_id'] = int(new_result_id)
+        session.pop('exam_answers', None)
+        session.pop('marked_for_review', None)
+        session.pop('exam_start_time', None)
+        session.pop('timer_reset_flag', None)
+        session.pop('latest_attempt_id', None)
+        session.modified = True
+
+        # ✅ Mark exam as inactive
+        try:
+            set_exam_active(user_id, session.get('token'), exam_id=exam_id, is_active=False)
+        except Exception as e:
+            print(f"⚠️ [SUBMIT] Error setting exam inactive: {e}")
+
+        print(f"🎉 [SUBMIT] Exam submission completed successfully!")
         flash('Exam submitted successfully!', 'success')
-        return redirect(url_for('result', exam_id=exam_id, result_id=new_result_id))
-        
+        return redirect(url_for('result', exam_id=exam_id))
+
     except Exception as e:
-        print(f"Critical error in submit_exam: {e}")
+        print(f"❌ [SUBMIT] Critical error: {e}")
         import traceback
         traceback.print_exc()
-        flash('Critical error during submission. Please contact support.', 'error')
-        try:
-            return redirect(url_for('dashboard'))
-        except:
-            return render_template('error.html', error_code=500, error_message="Critical system error"), 500
-
-
-
-@app.route('/api/emergency-sync-exam/<int:exam_id>', methods=['POST'])
-@require_user_role
-def emergency_sync_exam(exam_id):
-    try:
-        user_id = session.get('user_id')
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-            
-        # Update session with latest data
-        session['exam_answers'] = data.get('answers', {})
-        session['marked_for_review'] = data.get('markedForReview', [])
-        
-        # Update remaining time if provided
-        if 'timeRemaining' in data:
-            # Get exam duration from cached data
-            cached_data = get_cached_exam_data(exam_id)
-            if cached_data and 'exam_info' in cached_data:
-                exam_duration_minutes = int(float(cached_data['exam_info'].get('duration', 60)))
-                elapsed_time = (exam_duration_minutes * 60) - data['timeRemaining']
-                new_start_time = pd.Timestamp.now(tz="UTC") - pd.Timedelta(seconds=elapsed_time)
-                session['exam_start_time'] = new_start_time.isoformat()
-        
-        # Ensure attempt remains active
-        active_attempt = get_active_attempt(user_id, exam_id)
-        if active_attempt and active_attempt['status'] != 'completed':
-            # Keep attempt alive
-            print(f"Emergency sync for user {user_id}, exam {exam_id} - keeping attempt active")
-        
-        # Mark session as modified to ensure persistence
-        session.modified = True
-        
-        return jsonify({'success': True, 'message': 'Emergency sync completed'})
-        
-    except Exception as e:
-        print(f"Emergency sync error: {e}")
-        return jsonify({'error': 'Emergency sync failed'}), 500
+        flash('Error submitting exam. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
 
 
 
@@ -4052,170 +4198,142 @@ def emergency_sync_exam(exam_id):
 @require_user_role
 def result(exam_id, result_id):
     try:
-        results_df = safe_csv_load_with_recovery('results.csv')
-        exams_df = load_csv_with_cache('exams.csv')
-        if results_df is None or exams_df is None:
-            flash('Result not found!', 'error')
-            return redirect(url_for('dashboard'))
         user_id = int(session['user_id'])
-        if result_id:
-            r = results_df[
-                (results_df['id'].astype('Int64') == int(result_id)) &
-                (results_df['student_id'].astype('Int64') == user_id) &
-                (results_df['exam_id'].astype('Int64') == int(exam_id))
-            ]
-        else:
-            latest_result_id = session.get('latest_result_id')
-            if latest_result_id:
-                r = results_df[
-                    (results_df['id'].astype('Int64') == int(latest_result_id)) &
-                    (results_df['student_id'].astype('Int64') == user_id) &
-                    (results_df['exam_id'].astype('Int64') == int(exam_id))
-                ]
-            else:
-                r = results_df[
-                    (results_df['student_id'].astype('Int64') == user_id) &
-                    (results_df['exam_id'].astype('Int64') == int(exam_id))
-                ].sort_values('id', ascending=False).head(1)
-        if r is None or r.empty:
-            flash('Result not found!', 'error')
-            return redirect(url_for('dashboard'))
-        r = r.reset_index(drop=True)
-        result_data = r.iloc[0].to_dict()
-        exam = exams_df[exams_df['id'].astype(str) == str(exam_id)]
-        if exam is None or exam.empty:
+        
+        # ✅ Load exam from Supabase
+        exam_data = get_exam_by_id(exam_id)
+        if not exam_data:
             flash("Exam details not found.", "error")
             return redirect(url_for('dashboard'))
-        exam_data = exam.iloc[0].to_dict()
-        return render_template('result.html', result=result_data, exam=exam_data, from_history=(request.args.get("from_history", "0") == "1"))
+        
+        # Find result
+        result_data = None
+        
+        if result_id:
+            # Specific result ID provided
+            result_data = get_result_by_id(result_id)
+            if result_data and int(result_data.get('student_id')) != user_id:
+                flash('Unauthorized access.', 'error')
+                return redirect(url_for('dashboard'))
+        else:
+            # Get latest result for this user and exam
+            latest_result_id = session.get('latest_result_id')
+            
+            if latest_result_id:
+                result_data = get_result_by_id(latest_result_id)
+                if result_data and int(result_data.get('exam_id')) != exam_id:
+                    result_data = None
+            
+            if not result_data:
+                # Get most recent result for this exam
+                all_results = get_results_by_user(user_id)
+                exam_results = [r for r in all_results if int(r.get('exam_id')) == exam_id]
+                if exam_results:
+                    exam_results.sort(key=lambda x: x.get('completed_at', ''), reverse=True)
+                    result_data = exam_results[0]
+        
+        if not result_data:
+            flash('Result not found!', 'error')
+            return redirect(url_for('dashboard'))
+        
+        return render_template('result.html', 
+                             result=result_data, 
+                             exam=exam_data, 
+                             from_history=(request.args.get("from_history", "0") == "1"))
+                             
     except Exception as e:
-        print("Error loading result:", e)
+        print(f"Error loading result: {e}")
+        import traceback
+        traceback.print_exc()
         flash("Error loading result page.", "error")
         return redirect(url_for('dashboard'))
-
 
 
 @app.route('/response/<int:exam_id>', defaults={'result_id': None})
 @app.route('/response/<int:exam_id>/<int:result_id>')
 @require_user_role
 def response_page(exam_id, result_id):
-    """Response analysis page using existing CSV columns only"""
     from_history = request.args.get("from_history", "0") == "1"
+    
     try:
-        results_df = load_csv_with_cache('results.csv')
-        responses_df = load_csv_with_cache('responses.csv')
-        exams_df = load_csv_with_cache('exams.csv')
-
-        # Defensive checks
-        if results_df is None or (hasattr(results_df, "empty") and results_df.empty):
-            flash('No results available.', 'info')
-            return redirect(url_for('dashboard'))
-        if responses_df is None or (hasattr(responses_df, "empty") and responses_df.empty):
-            flash('No responses available.', 'info')
-            return redirect(url_for('dashboard'))
-        if exams_df is None or (hasattr(exams_df, "empty") and exams_df.empty):
-            flash('Exam metadata missing. Contact admin.', 'warning')
-            return redirect(url_for('dashboard'))
-
         user_id = int(session['user_id'])
-
-        # If specific attempt (from history)
-        if result_id:
-            user_results = results_df[
-                (results_df['id'].astype('Int64') == int(result_id)) &
-                (results_df['student_id'].astype('Int64') == user_id) &
-                (results_df['exam_id'].astype('Int64') == int(exam_id))
-            ]
-        else:
-            # Otherwise latest attempt
-            user_results = results_df[
-                (results_df['student_id'].astype('Int64') == user_id) &
-                (results_df['exam_id'].astype('Int64') == int(exam_id))
-            ].sort_values('id', ascending=False).head(1)
-
-        if user_results.empty:
-            flash('Response not found!', 'error')
-            return redirect(url_for('dashboard'))
-
-        result_record = user_results.iloc[0]
-        result_id = int(result_record['id'])
-        result_data = result_record.to_dict()
-
-        # Get exam data
-        exam_record = exams_df[exams_df['id'].astype('Int64') == int(exam_id)]
-        if exam_record.empty:
+        
+        # ✅ Load exam from Supabase
+        exam_data = get_exam_by_id(exam_id)
+        if not exam_data:
             flash('Exam not found!', 'error')
             return redirect(url_for('dashboard'))
-        exam_data = exam_record.iloc[0].to_dict()
+        
+        # ✅ Determine result_id
+        actual_result_id = result_id or session.get('latest_result_id')
+        
+        if not actual_result_id:
+            # Fallback: Get latest result
+            user_results = get_results_by_exam(exam_id)
+            user_results = [r for r in user_results if int(r.get('student_id')) == user_id]
+            
+            if user_results:
+                user_results.sort(key=lambda x: x.get('completed_at', ''), reverse=True)
+                actual_result_id = int(user_results[0].get('id'))
+                session['latest_result_id'] = actual_result_id
+            else:
+                flash('No results found.', 'error')
+                return redirect(url_for('results_history'))
+        
+        # ✅ Load result from Supabase
+        result_data = get_result_by_id(actual_result_id)
+        
+        if not result_data or int(result_data.get('student_id')) != user_id:
+            flash('Result not found!', 'error')
+            return redirect(url_for('results_history'))
+        
+        # ✅ Load responses from Supabase
+        user_responses = get_responses_by_result(actual_result_id)
+        
+        if not user_responses:
+            flash('No responses found.', 'info')
+            return redirect(url_for('results_history'))
+        
+        user_responses.sort(key=lambda x: int(x.get('question_id', 0)))
+        
+        # ✅ Load questions from Supabase
+        questions = get_questions_by_exam(exam_id)
+        questions_dict = {int(q.get('id')): q for q in questions}
 
-        # Get responses for this result - using EXISTING columns
-        user_responses = responses_df[
-            responses_df['result_id'].astype('Int64') == result_id
-        ].sort_values('question_id')
-
-        if user_responses.empty:
-            flash('No detailed responses saved for this result.', 'info')
-            return redirect(url_for('dashboard'))
-
-        # Get questions data
-        questions_df = load_csv_with_cache('questions.csv')
-        questions_dict = {}
-        if questions_df is not None and not questions_df.empty:
-            for _, q in questions_df.iterrows():
-                questions_dict[int(q['id'])] = q.to_dict()
-
-        # Build response data using EXISTING columns only
+        # Build response data
         question_responses = []
-        for _, response in user_responses.iterrows():
-            qid = int(response['question_id'])
+        for response in user_responses:
+            qid = int(response.get('question_id', 0))
             qdata = questions_dict.get(qid, {})
-
             if not qdata:
                 continue
 
-            # Sanitize question + options
-            qdata['question_text'] = sanitize_for_display(qdata.get('question_text', ''))
-            qdata['option_a'] = sanitize_for_display(qdata.get('option_a', ''))
-            qdata['option_b'] = sanitize_for_display(qdata.get('option_b', ''))
-            qdata['option_c'] = sanitize_for_display(qdata.get('option_c', ''))
-            qdata['option_d'] = sanitize_for_display(qdata.get('option_d', ''))
-
-            # Use existing CSV column names: given_answer, correct_answer, question_type, is_correct, marks_obtained, is_attempted
             given_answer_str = str(response.get('given_answer') or '')
             correct_answer_str = str(response.get('correct_answer') or '')
             qtype = str(response.get('question_type') or 'MCQ')
-            
-            print(f"Question {qid}: question_type = {qtype}, given_answer = {given_answer_str}")
 
             # Parse answers
             try:
                 if qtype == 'MSQ' and given_answer_str.strip():
-                    if given_answer_str.startswith('[') and given_answer_str.endswith(']'):
-                        given_answer = json.loads(given_answer_str)
-                    else:
-                        given_answer = [ans.strip() for ans in given_answer_str.split(',') if ans.strip()]
+                    given_answer = json.loads(given_answer_str) if given_answer_str.startswith('[') else [ans.strip() for ans in given_answer_str.split(',')]
                 else:
                     given_answer = given_answer_str if given_answer_str not in ['None', '', None] else None
-            except Exception:
-                given_answer = given_answer_str if given_answer_str not in ['None', '', None] else None
+            except:
+                given_answer = given_answer_str
 
             try:
                 if qtype == 'MSQ' and correct_answer_str.strip():
-                    if correct_answer_str.startswith('[') and correct_answer_str.endswith(']'):
-                        correct_answer = json.loads(correct_answer_str)
-                    else:
-                        correct_answer = [ans.strip() for ans in correct_answer_str.split(',') if ans.strip()]
+                    correct_answer = json.loads(correct_answer_str) if correct_answer_str.startswith('[') else [ans.strip() for ans in correct_answer_str.split(',')]
                 else:
                     correct_answer = correct_answer_str if correct_answer_str not in ['None', '', None] else None
-            except Exception:
-                correct_answer = correct_answer_str if correct_answer_str not in ['None', '', None] else None
+            except:
+                correct_answer = correct_answer_str
 
-            # Get values from existing columns
-            is_attempted = str(response.get('is_attempted', 'true')).lower() == 'true'
-            is_correct = str(response.get('is_correct', 'false')).lower() == 'true'
+            is_attempted = bool(response.get('is_attempted', True))
+            is_correct = bool(response.get('is_correct', False))
             marks_obtained = float(response.get('marks_obtained', 0) or 0)
 
-            response_data = {
+            question_responses.append({
                 'question': qdata,
                 'given_answer': given_answer,
                 'correct_answer': correct_answer,
@@ -4223,8 +4341,7 @@ def response_page(exam_id, result_id):
                 'is_attempted': is_attempted,
                 'marks_obtained': marks_obtained,
                 'question_type': qtype
-            }
-            question_responses.append(response_data)
+            })
 
         return render_template(
             'response.html',
@@ -4238,14 +4355,14 @@ def response_page(exam_id, result_id):
         print(f"Error in response page: {e}")
         import traceback
         traceback.print_exc()
-        flash('Error loading response analysis.', 'error')
-        return redirect(url_for('dashboard'))
+        flash('Error loading responses.', 'error')
+        return redirect(url_for('results_history'))
 
 
 @app.route('/response-pdf/<int:exam_id>')
 @require_user_role
 def response_pdf(exam_id):
-    """Complete PDF using ReportLab - handles all Unicode"""
+    """Complete PDF using ReportLab with BigQuery - FIXED VERSION"""
     try:
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -4259,40 +4376,62 @@ def response_pdf(exam_id):
         username = session.get('username', 'Student')
         full_name = session.get('full_name', username)
         
-        # Get all your data (same as before)
-        exams_df = load_csv_with_cache('exams.csv')
-        exam_info = exams_df[exams_df['id'] == exam_id]
-        if exam_info.empty:
+        # Get exam data
+        # ✅ Get exam data from Supabase
+        exam = get_exam_by_id(exam_id)
+        if not exam:
             flash('Exam not found.', 'error')
             return redirect(url_for('dashboard'))
         
-        exam = exam_info.iloc[0]
+        # ✅ FIX: Get result_id from session
+        result_id = session.get('latest_result_id')
         
-        results_df = load_csv_with_cache('results.csv')
-        user_result = results_df[
-            (results_df['student_id'] == user_id) & 
-            (results_df['exam_id'] == exam_id)
-        ].tail(1)
+        if not result_id:
+            flash('Result ID not found. Please view responses first.', 'error')
+            return redirect(url_for('results_history'))
         
-        if user_result.empty:
-            flash('No results found.', 'error')
+        print(f"📊 Generating PDF for result_id: {result_id}")
+        
+        # Get result data
+        # ✅ Get result data from Supabase
+        result_data = get_result_by_id(result_id)
+
+        if not result_data or int(result_data.get('student_id')) != user_id:
+            flash('Result not found.', 'error')
+            return redirect(url_for('dashboard'))
+
+        result = result_data
+        
+        # ✅ Get responses for THIS specific result
+        try:
+            print(f"📊 Loading responses for result_id: {result_id}")
+            user_responses = get_responses_by_result(result_id)
+            
+            if not user_responses:
+                flash('No responses found.', 'error')
+                return redirect(url_for('dashboard'))
+            
+            user_responses.sort(key=lambda x: int(x.get('question_id', 0)))
+            print(f"✅ Loaded {len(user_responses)} responses")
+            
+        except Exception as e:
+            print(f"Error loading responses: {e}")
+            flash('No responses found.', 'error')
             return redirect(url_for('dashboard'))
         
-        result = user_result.iloc[0]
-        result_id = result['id']
-        
-        responses_df = load_csv_with_cache('responses.csv')
-        user_responses = responses_df[
-            responses_df['result_id'] == result_id
-        ].sort_values('question_id')
-        
-        questions_df = load_csv_with_cache('questions.csv')
+        # Get questions
+        # ✅ Get questions from Supabase
+        try:
+            questions = get_questions_by_exam(exam_id)
+            questions_dict = {int(q.get('id')): q for q in questions}
+        except Exception as e:
+            print(f"Error loading questions: {e}")
+            questions_dict = {}
         
         # Create PDF
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
         
-        # Styles
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle('CustomTitle', parent=styles['Title'], fontSize=18, textColor=colors.HexColor('#2c3e50'), spaceAfter=20, alignment=TA_CENTER)
         heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], fontSize=14, textColor=colors.HexColor('#2c3e50'), spaceAfter=10)
@@ -4304,10 +4443,10 @@ def response_pdf(exam_id):
         
         # Header info
         header_data = [
-            ['Exam:', str(exam['name'])],
+            ['Exam:', str(exam.get('name', 'Unknown'))],
             ['Student:', str(full_name)],
-            ['Score:', f"{result['score']}/{result['max_score']} ({result['percentage']:.1f}%)"],
-            ['Grade:', str(result['grade'])]
+            ['Score:', f"{result.get('score', 0)}/{result.get('max_score', 0)} ({result.get('percentage', 0):.1f}%)"],
+            ['Grade:', str(result.get('grade', 'N/A'))]
         ]
         
         header_table = Table(header_data, colWidths=[1.5*inch, 4*inch])
@@ -4323,24 +4462,19 @@ def response_pdf(exam_id):
         story.append(Spacer(1, 20))
         
         # Questions and responses
-        for idx, response in user_responses.iterrows():
-            question_id = response['question_id']
-            question_row = questions_df[questions_df['id'] == question_id]
+        for response in user_responses:
+            question_id = int(response.get('question_id', 0))
+            question = questions_dict.get(question_id, {})
             
-            if question_row.empty:
+            if not question:
                 continue
                 
-            question = question_row.iloc[0]
-            
-            # Question header
             story.append(Paragraph(f"Question {question_id}", heading_style))
             
-            # Question text - ReportLab handles Unicode automatically
             question_text = str(question.get('question_text', ''))
             story.append(Paragraph(f"<b>Question:</b> {question_text}", styles['Normal']))
             story.append(Spacer(1, 10))
             
-            # Options for MCQ/MSQ
             question_type = question.get('question_type', '')
             if question_type in ['MCQ', 'MSQ']:
                 story.append(Paragraph("<b>Options:</b>", styles['Normal']))
@@ -4353,12 +4487,11 @@ def response_pdf(exam_id):
                 ]
                 
                 for label, option_text in options:
-                    if option_text and str(option_text).strip() and str(option_text) != 'nan':
+                    if option_text and str(option_text).strip() and str(option_text) not in ['nan', 'None', '']:
                         story.append(Paragraph(f"<b>{label}.</b> {option_text}", styles['Normal']))
                 
                 story.append(Spacer(1, 10))
             
-            # Answers
             given_answer = str(response.get('given_answer', 'Not Answered'))
             if given_answer in ['nan', 'None', '']:
                 given_answer = 'Not Answered'
@@ -4368,7 +4501,7 @@ def response_pdf(exam_id):
                 correct_answer = 'N/A'
             
             marks = response.get('marks_obtained', 0)
-            is_correct = response.get('is_correct', False)
+            is_correct = str(response.get('is_correct', 'false')).lower() == 'true'
             
             answer_data = [
                 ['Your Answer:', given_answer],
@@ -4393,12 +4526,12 @@ def response_pdf(exam_id):
         story.append(Paragraph("Performance Summary", heading_style))
         
         summary_data = [
-            ['Total Questions:', str(result['total_questions'])],
-            ['Correct Answers:', str(result['correct_answers'])],
-            ['Incorrect Answers:', str(result['incorrect_answers'])],
-            ['Unanswered:', str(result['unanswered_questions'])],
-            ['Final Score:', f"{result['score']}/{result['max_score']}"],
-            ['Percentage:', f"{result['percentage']:.1f}%"]
+            ['Total Questions:', str(result.get('total_questions', 0))],
+            ['Correct Answers:', str(result.get('correct_answers', 0))],
+            ['Incorrect Answers:', str(result.get('incorrect_answers', 0))],
+            ['Unanswered:', str(result.get('unanswered_questions', 0))],
+            ['Final Score:', f"{result.get('score', 0)}/{result.get('max_score', 0)}"],
+            ['Percentage:', f"{result.get('percentage', 0):.1f}%"]
         ]
         
         summary_table = Table(summary_data, colWidths=[2*inch, 2*inch])
@@ -4412,7 +4545,6 @@ def response_pdf(exam_id):
         
         story.append(summary_table)
         
-        # Build PDF
         doc.build(story)
         
         pdf_bytes = buffer.getvalue()
@@ -4473,32 +4605,22 @@ This is a basic completion record for your exam attempt.
 @app.route('/logout')
 def logout():
     try:
-        uid = session.get("user_id")
-        tok = session.get("token")
+        user_id = session.get('user_id')
+        token = session.get('token')
+        
+        if user_id and token:
+            invalidate_session(user_id, token)
         
         session.clear()
+        flash('Logged out successfully!', 'success')
         
-        if uid and tok:
-            def cleanup():
-                try:
-                    from sessions import invalidate_session, set_exam_active
-                    set_exam_active(uid, tok, is_active=False)
-                    invalidate_session(uid, token=tok)
-                except Exception as e:
-                    print(f"[logout] Background cleanup error: {e}")
-            
-            import threading
-            cleanup_thread = threading.Thread(target=cleanup, daemon=True)
-            cleanup_thread.start()
-        
-        flash("Logout successful!", "success")
-        return redirect(url_for("home"))
-        
+        # ✅ Use render_template with redirect JavaScript (prevents back button)
+        return render_template('logout_redirect.html')
+    
     except Exception as e:
-        print(f"[logout] Error: {e}")
+        print(f"Logout error: {e}")
         session.clear()
-        flash("Logout successful.", "success")
-        return redirect(url_for("home"))
+        return render_template('logout_redirect.html')
 
 
 
@@ -4629,6 +4751,7 @@ def request_admin_access_page():
 
 @app.route('/api/validate-user-for-request', methods=['POST'])
 def api_validate_user_for_request():
+    """Validate user for access request - PURE SUPABASE"""
     try:
         data = request.get_json()
         if not data or not data.get('username') or not data.get('email'):
@@ -4637,72 +4760,60 @@ def api_validate_user_for_request():
         username = data['username'].strip()
         email = data['email'].strip().lower()
 
-        users_df = load_csv_with_cache('users.csv', force_reload=True)
-        if users_df.empty:
-            return jsonify({'success': False, 'message': 'User database is unavailable'}), 500
+        print(f"🔍 Validating user: {username}, {email}")
 
-        users_df['username_lower'] = users_df['username'].astype(str).str.strip().str.lower()
-        users_df['email_lower'] = users_df['email'].astype(str).str.strip().str.lower()
+        # ✅ GET USER FROM SUPABASE (NO CSV!)
+        from supabase_db import supabase
+        
+        try:
+            user_response = supabase.table('users').select('*')\
+                .eq('username', username)\
+                .eq('email', email)\
+                .execute()
+            
+            if not user_response.data:
+                print(f"❌ User not found in Supabase")
+                return jsonify({
+                    'success': False, 
+                    'message': 'User does not exist with provided username and email combination'
+                }), 404
+            
+            user = user_response.data[0]
+            print(f"✅ User found: {user.get('username')}")
+            
+        except Exception as e:
+            print(f"❌ Supabase user query error: {e}")
+            return jsonify({'success': False, 'message': 'Database error'}), 500
 
-        user_row = users_df[
-            (users_df['username_lower'] == username.lower()) &
-            (users_df['email_lower'] == email.lower())
-        ]
-
-        if user_row.empty:
-            return jsonify({'success': False, 'message': 'User does not exist with provided username and email combination'}), 404
-
-        user = user_row.iloc[0]
         current_access = str(user.get('role', 'user')).strip().lower()
         
-        
-        init_requests_raised_if_needed()
-        requests_df = load_csv_with_cache('requests_raised.csv', force_reload=True)
-        if requests_df is None:
-            requests_df = pd.DataFrame(columns=[
-                'request_id', 'username', 'email', 'current_access',
-                'requested_access', 'request_date', 'request_status', 'reason'
-            ])
+        # ✅ GET REQUESTS FROM SUPABASE (NO CSV!)
+        try:
+            requests_response = supabase.table('requests_raised').select('*')\
+                .eq('username', username)\
+                .eq('email', email)\
+                .order('request_date', desc=True)\
+                .execute()
+            
+            user_requests_data = requests_response.data if requests_response.data else []
+            print(f"✅ Found {len(user_requests_data)} existing requests")
+            
+        except Exception as e:
+            print(f"⚠️ Error loading requests: {e}")
+            user_requests_data = []
 
+        # Format requests
         user_requests = []
-        if not requests_df.empty:
-            user_requests_df = requests_df[
-                (requests_df['username'].astype(str).str.strip().str.lower() == username.lower()) &
-                (requests_df['email'].astype(str).str.strip().str.lower() == email.lower())
-            ]
+        for req in user_requests_data:
+            user_requests.append({
+                'request_id': int(req.get('request_id', 0)),
+                'requested_access': req.get('requested_access', ''),
+                'request_date': str(req.get('request_date', '')),
+                'status': req.get('request_status', ''),
+                'reason': req.get('reason') or ''
+            })
 
-            for _, req in user_requests_df.iterrows():
-                reason_val = req.get('reason', None)
-                try:
-                    if pd.isna(reason_val):
-                        reason_safe = None
-                    else:
-                        reason_safe = reason_val if reason_val != '' else None
-                except Exception:
-                    try:
-                        if isinstance(reason_val, float) and math.isnan(reason_val):
-                            reason_safe = None
-                        else:
-                            reason_safe = reason_val if reason_val != '' else None
-                    except Exception:
-                        reason_safe = None
-
-                try:
-                    req_id = int(req['request_id'])
-                except Exception:
-                    try:
-                        req_id = int(pd.to_numeric(req['request_id'], errors='coerce'))
-                    except Exception:
-                        req_id = None
-
-                user_requests.append({
-                    'request_id': req_id,
-                    'requested_access': req.get('requested_access', ''),
-                    'request_date': str(req.get('request_date', '')),
-                    'status': req.get('request_status', ''),
-                    'reason': reason_safe
-                })
-
+        # Determine available requests
         available_requests = []
         if current_access == 'user':
             available_requests = ['admin', 'user,admin']
@@ -4713,9 +4824,9 @@ def api_validate_user_for_request():
         else:
             available_requests = ['admin', 'user,admin']
 
-        has_pending = any((str(req.get('status', '')).lower() == 'pending') for req in user_requests)
+        has_pending = any(str(req.get('status', '')).lower() == 'pending' for req in user_requests)
 
-        response_payload = {
+        response_data = {
             'success': True,
             'user': {
                 'username': str(user['username']),
@@ -4728,10 +4839,12 @@ def api_validate_user_for_request():
             'has_pending_request': has_pending,
             'can_request': len(available_requests) > 0 and not has_pending
         }
+        
+        print(f"✅ Validation successful. Can request: {response_data['can_request']}")
+        return jsonify(response_data)
 
-        return jsonify(response_payload)
     except Exception as e:
-        print(f"Error validating user for request: {e}")
+        print(f"❌ Validation error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': 'System error occurred'}), 500
@@ -4741,149 +4854,134 @@ def api_validate_user_for_request():
 
 @app.route('/api/submit-access-request', methods=['POST'])
 def api_submit_access_request():
+    """Submit access request - PURE SUPABASE"""
     try:
         data = request.get_json()
         required_fields = ['username', 'email', 'current_access', 'requested_access']
 
         for field in required_fields:
             if not data or not data.get(field):
-                return jsonify({'success': False, 'message': f'{field.replace("_", " ").title()} is required'}), 400
+                return jsonify({
+                    'success': False, 
+                    'message': f'{field.replace("_", " ").title()} is required'
+                }), 400
 
         username = data['username'].strip()
         email = data['email'].strip().lower()
         current_access = data['current_access'].strip().lower()
         requested_access = data['requested_access'].strip().lower()
 
-        users_df = load_csv_with_cache('users.csv')
-        if users_df.empty:
-            return jsonify({'success': False, 'message': 'User database unavailable'}), 500
+        print(f"📝 Submitting request: {username} → {requested_access}")
 
-        users_df['username_lower'] = users_df['username'].astype(str).str.strip().str.lower()
-        users_df['email_lower'] = users_df['email'].astype(str).str.strip().str.lower()
-
-        user_exists = not users_df[
-            (users_df['username_lower'] == username.lower()) &
-            (users_df['email_lower'] == email.lower())
-        ].empty
-
-        if not user_exists:
-            return jsonify({'success': False, 'message': 'User validation failed'}), 400
-
+        # ✅ VERIFY USER EXISTS IN SUPABASE (NO CSV!)
+        from supabase_db import supabase
+        
         try:
-            init_requests_raised_if_needed()
-            requests_df = load_csv_with_cache('requests_raised.csv')
-            if requests_df is None or requests_df.empty:
-                requests_df = pd.DataFrame(columns=[
-                    'request_id', 'username', 'email', 'current_access',
-                    'requested_access', 'request_date', 'request_status', 'reason'
-                ])
+            user_response = supabase.table('users').select('*')\
+                .eq('username', username)\
+                .eq('email', email)\
+                .execute()
+            
+            if not user_response.data:
+                return jsonify({'success': False, 'message': 'User validation failed'}), 400
+            
+            print(f"✅ User verified: {username}")
+            
         except Exception as e:
-            print(f"Error loading requests_raised.csv: {e}")
-            requests_df = pd.DataFrame(columns=[
-                'request_id', 'username', 'email', 'current_access',
-                'requested_access', 'request_date', 'request_status', 'reason'
-            ])
+            print(f"❌ User verification error: {e}")
+            return jsonify({'success': False, 'message': 'Database error'}), 500
 
-        if not requests_df.empty:
-            pending_requests = requests_df[
-                (requests_df['username'].astype(str).str.strip().str.lower() == username.lower()) &
-                (requests_df['email'].astype(str).str.strip().str.lower() == email.lower()) &
-                (requests_df['request_status'].astype(str).str.lower() == 'pending')
-            ]
-
-            if not pending_requests.empty:
-                return jsonify({'success': False, 'message': 'You already have a pending request. Please wait for admin approval.'}), 400
-
+        # ✅ CHECK FOR EXISTING PENDING REQUEST
         try:
-            if requests_df.empty or 'request_id' not in requests_df.columns:
-                next_id = 1
-            else:
-                numeric_ids = pd.to_numeric(requests_df['request_id'], errors='coerce')
-                valid_ids = numeric_ids.dropna()
-                next_id = int(valid_ids.max()) + 1 if not valid_ids.empty else 1
-        except Exception:
-            next_id = 1
+            pending_response = supabase.table('requests_raised').select('*')\
+                .eq('username', username)\
+                .eq('email', email)\
+                .eq('request_status', 'pending')\
+                .execute()
+            
+            if pending_response.data:
+                print(f"⚠️ Pending request already exists")
+                return jsonify({
+                    'success': False, 
+                    'message': 'You already have a pending request. Please wait for admin approval.'
+                }), 400
+        
+        except Exception as e:
+            print(f"⚠️ Error checking pending: {e}")
 
+        # ✅ CREATE NEW REQUEST (AUTO INCREMENT request_id)
+        
+        user_reason = data.get('user_reason', '').strip()
+        if not user_reason:
+            return jsonify({
+                'success': False,
+                'message': 'Please provide a reason for your request'
+            }), 400
+
+        # âœ… CREATE NEW REQUEST (AUTO INCREMENT request_id)
         new_request = {
-            'request_id': next_id,
             'username': username,
             'email': email,
             'current_access': current_access,
             'requested_access': requested_access,
-            'request_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'request_date': datetime.now().isoformat(),
             'request_status': 'pending',
-            'reason': ''
+            'reason': f"[USER REQUEST] {user_reason}",  # Prefix with [USER REQUEST]
+            'processed_by': None,
+            'processed_date': None
         }
 
-        new_df = pd.concat([requests_df, pd.DataFrame([new_request])], ignore_index=True)
-        success = safe_csv_save_with_retry(new_df, 'requests_raised')
+        # ✅ INSERT INTO SUPABASE
+        try:
+            insert_response = supabase.table('requests_raised').insert(new_request).execute()
+            
+            if not insert_response.data:
+                raise Exception("No data returned from insert")
+            
+            created_request = insert_response.data[0]
+            request_id = int(created_request.get('request_id', 0))
+            
+            print(f"✅ Request {request_id} created successfully")
+            
+        except Exception as e:
+            print(f"❌ Insert error: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False, 
+                'message': 'Failed to save request. Please try again.'
+            }), 500
 
-        if not success:
-            return jsonify({'success': False, 'message': 'Failed to save request. Please try again.'}), 500
-
-        requests_df = load_csv_with_cache('requests_raised.csv', force_reload=True)
-        if requests_df is None:
-            requests_df = pd.DataFrame(columns=[
-                'request_id', 'username', 'email', 'current_access',
-                'requested_access', 'request_date', 'request_status', 'reason'
-            ])
-
+        # ✅ GET UPDATED REQUESTS
+        requests_response = supabase.table('requests_raised').select('*')\
+            .eq('username', username)\
+            .eq('email', email)\
+            .order('request_date', desc=True)\
+            .execute()
+        
         user_requests = []
-        if not requests_df.empty:
-            user_requests_df = requests_df[
-                (requests_df['username'].astype(str).str.strip().str.lower() == username.lower()) &
-                (requests_df['email'].astype(str).str.strip().str.lower() == email.lower())
-            ]
+        for req in (requests_response.data or []):
+            user_requests.append({
+                'request_id': int(req.get('request_id', 0)),
+                'requested_access': req.get('requested_access', ''),
+                'request_date': str(req.get('request_date', '')),
+                'status': req.get('request_status', ''),
+                'reason': req.get('reason') or ''
+            })
 
-            for _, req in user_requests_df.iterrows():
-                reason_val = req.get('reason', None)
-                try:
-                    if pd.isna(reason_val):
-                        reason_safe = None
-                    else:
-                        reason_safe = reason_val if reason_val != '' else None
-                except Exception:
-                    try:
-                        if isinstance(reason_val, float) and math.isnan(reason_val):
-                            reason_safe = None
-                        else:
-                            reason_safe = reason_val if reason_val != '' else None
-                    except Exception:
-                        reason_safe = None
-
-                try:
-                    req_id = int(req['request_id'])
-                except Exception:
-                    try:
-                        req_id = int(pd.to_numeric(req['request_id'], errors='coerce'))
-                    except Exception:
-                        req_id = None
-
-                user_requests.append({
-                    'request_id': req_id,
-                    'requested_access': req.get('requested_access', ''),
-                    'request_date': str(req.get('request_date', '')),
-                    'status': req.get('request_status', ''),
-                    'reason': reason_safe
-                })
-
-        current_access = current_access
+        # Determine available requests
         available_requests = []
         if current_access == 'user':
             available_requests = ['admin', 'user,admin']
         elif current_access == 'admin':
             available_requests = ['user', 'user,admin']
-        elif current_access in ['user,admin', 'admin,user']:
-            available_requests = []
-        else:
-            available_requests = ['admin', 'user,admin']
 
-        has_pending = any((str(req.get('status', '')).lower() == 'pending') for req in user_requests)
+        has_pending = True  # Just submitted
 
-        response_payload = {
+        return jsonify({
             'success': True,
             'message': 'Access request submitted successfully. Please wait for admin approval.',
-            'request_id': next_id,
+            'request_id': request_id,
             'user': {
                 'username': username,
                 'email': email,
@@ -4893,12 +4991,11 @@ def api_submit_access_request():
             'requests': user_requests,
             'available_requests': available_requests,
             'has_pending_request': has_pending,
-            'can_request': len(available_requests) > 0 and not has_pending
-        }
+            'can_request': False  # Can't request again until pending is processed
+        })
 
-        return jsonify(response_payload)
     except Exception as e:
-        print(f"Error submitting access request: {e}")
+        print(f"❌ Submit error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': 'System error occurred'}), 500
@@ -4981,7 +5078,7 @@ def ping():
 
 @app.route('/api/request-password-reset', methods=['POST'])
 def request_password_reset():
-    """API endpoint to request password reset via email."""
+    """API endpoint to request password reset via email - SUPABASE VERSION"""
     try:
         data = request.get_json()
         if not data or not data.get('email'):
@@ -5002,35 +5099,32 @@ def request_password_reset():
         # Always show success message to prevent email enumeration
         success_message = "If an account exists with this email, a password reset link has been sent."
 
-        # Load users to check if email exists
-        users_df = load_csv_with_cache('users.csv')
-        if users_df is None or users_df.empty:
-            return jsonify({
-                'success': True,
-                'message': success_message
-            })
-
-        # Check if user exists
-        user_exists = email in users_df['email'].str.lower().values
+        # ✅ USE SUPABASE INSTEAD OF CSV
+        from supabase_db import get_user_by_email
         
-        if user_exists:
+        user = get_user_by_email(email)
+        
+        if user:
             try:
-                user_row = users_df[users_df['email'].str.lower() == email]
-                user = user_row.iloc[0]
                 full_name = user.get('full_name', 'User')
-                username = user.get('username', email.split('@')[0])  # Get username or fallback
+                username = user.get('username', email.split('@')[0])
                 
                 # Generate reset token
                 reset_token = create_password_token(email, 'reset')
                 
-                # Send reset email with username - UPDATED: now includes 4 parameters
+                # ✅ SEND RESET EMAIL WITH USERNAME
+                from email_utils import send_password_reset_email
                 email_sent, email_message = send_password_reset_email(email, full_name, username, reset_token)
                 
-                if not email_sent:
-                    print(f"Failed to send reset email to {email}: {email_message}")
+                if email_sent:
+                    print(f"✅ Reset email sent to {email} with username: {username}")
+                else:
+                    print(f"❌ Failed to send reset email to {email}: {email_message}")
                 
             except Exception as e:
-                print(f"Error processing reset request for {email}: {e}")
+                print(f"❌ Error processing reset request for {email}: {e}")
+                import traceback
+                traceback.print_exc()
 
         # Always return success to prevent email enumeration
         return jsonify({
@@ -5039,7 +5133,9 @@ def request_password_reset():
         })
 
     except Exception as e:
-        print(f"Error in password reset request: {e}")
+        print(f"❌ Error in password reset request: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'message': 'System error occurred. Please try again.'
@@ -5049,55 +5145,59 @@ def request_password_reset():
 
 @app.route('/reset-password', methods=['GET', 'POST'])
 def reset_password_page():
-    """Password reset page route with POST-Redirect-GET pattern."""
+    """Password reset page route - SUPABASE VERSION"""
     if request.method == 'POST':
         try:
             email = request.form.get('email', '').strip().lower()
             
             if not email:
                 flash('Please enter your email address.', 'error')
-                return redirect(url_for('reset_password_page'))  # Redirect instead of render
+                return redirect(url_for('reset_password_page'))
 
             client_ip = get_client_ip()
             
             # Always show success message to prevent email enumeration
             success_message = "If an account exists with this email, a password reset link has been sent. Please check your inbox and spam folder."
 
-            # Load users to check if email exists
-            users_df = load_csv_with_cache('users.csv')
+            # ✅ USE SUPABASE INSTEAD OF CSV
+            from supabase_db import get_user_by_email
             
-            if users_df is not None and not users_df.empty:
-                user_exists = email in users_df['email'].str.lower().values
-                
-                if user_exists:
-                    try:
-                        user_row = users_df[users_df['email'].str.lower() == email]
-                        user = user_row.iloc[0]
-                        full_name = user.get('full_name', 'User')
-                        username = user.get('username', email.split('@')[0])  # Get username or fallback
-                        
-                        # Generate reset token
-                        reset_token = create_password_token(email, 'reset')
-                        
-                        # Send reset email with username
-                        email_sent, email_message = send_password_reset_email(email, full_name, username, reset_token)
-                        
-                        if not email_sent:
-                            print(f"Failed to send reset email to {email}: {email_message}")
-                        
-                    except Exception as e:
-                        print(f"Error processing reset request for {email}: {e}")
+            user = get_user_by_email(email)
+            
+            if user:
+                try:
+                    full_name = user.get('full_name', 'User')
+                    username = user.get('username', email.split('@')[0])
+                    
+                    # Generate reset token
+                    reset_token = create_password_token(email, 'reset')
+                    
+                    # ✅ SEND RESET EMAIL WITH USERNAME
+                    from email_utils import send_password_reset_email
+                    email_sent, email_message = send_password_reset_email(email, full_name, username, reset_token)
+                    
+                    if email_sent:
+                        print(f"✅ Reset email sent to {email} with username: {username}")
+                    else:
+                        print(f"❌ Failed to send reset email to {email}: {email_message}")
+                    
+                except Exception as e:
+                    print(f"❌ Error processing reset request for {email}: {e}")
+                    import traceback
+                    traceback.print_exc()
 
-            # Flash the success message and redirect (POST-Redirect-GET pattern)
+            # Always return success message (security - don't leak if email exists)
             flash(success_message, 'success')
-            return redirect(url_for('reset_password_page'))  # Redirect instead of render
+            return redirect(url_for('reset_password_page'))
             
         except Exception as e:
-            print(f"Error in password reset: {e}")
+            print(f"❌ Error in password reset: {e}")
+            import traceback
+            traceback.print_exc()
             flash('System error occurred. Please try again.', 'error')
-            return redirect(url_for('reset_password_page'))  # Redirect instead of render
+            return redirect(url_for('reset_password_page'))
     
-    # GET request - show the form (after redirect or direct access)
+    # GET request - show the form
     return render_template('password_reset.html')
 
 # ADD migration route (run once to convert existing passwords)
@@ -5161,6 +5261,24 @@ try:
 except Exception as e:
     print(f"Background cleanup startup error: {e}")
 
+
+
+@app.route('/debug/check-ai-env')
+def debug_check_ai_env():
+    """Debug route to verify environment variables"""
+    import os
+    return {
+        'AI_CHAT_HISTORY_FILE_ID_env': os.environ.get('AI_CHAT_HISTORY_FILE_ID', 'NOT SET'),
+        'AI_USAGE_TRACKING_FILE_ID_env': os.environ.get('AI_USAGE_TRACKING_FILE_ID', 'NOT SET'),
+        'DRIVE_FILE_IDS_ai_chat_history': DRIVE_FILE_IDS.get('ai_chat_history', 'NOT IN DICT'),
+        'DRIVE_FILE_IDS_ai_usage_tracking': DRIVE_FILE_IDS.get('ai_usage_tracking', 'NOT IN DICT'),
+        'all_drive_file_ids_keys': list(DRIVE_FILE_IDS.keys())
+    }
+
+@app.context_processor
+def inject_year():
+    return dict(CURRENT_YEAR=datetime.now().year)
+
 # -------------------------
 # Run App - CRITICAL INITIALIZATION
 # -------------------------
@@ -5171,6 +5289,11 @@ if __name__ == '__main__':
     print("🔧 Forcing Google Drive service initialization...")
     if init_drive_service():
         print("✅ Google Drive integration: ACTIVE")
+        
+        # Check and fix AI CSV structure
+        print("🔧 Checking AI CSV structure...")
+        ensure_ai_csv_structure()
+        
     else:
         print("❌ Google Drive integration: INACTIVE")
         print("⚠️ App will run in limited mode")
@@ -5183,7 +5306,11 @@ else:
     # Force immediate initialization
     if init_drive_service():
         print("✅ Production Google Drive integration: ACTIVE")
+        
+        # Check and fix AI CSV structure
+        print("🔧 Checking AI CSV structure...")
+        ensure_ai_csv_structure()
+        
     else:
         print("❌ Production Google Drive integration: FAILED")
-
         print("📋 Check environment variables and credentials")
