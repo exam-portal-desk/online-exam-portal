@@ -7,204 +7,423 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d2d5f 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e8eaed;
+            position: relative;
+            overflow-x: hidden;
         }
-        .content-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 1;
+            pointer-events: none;
         }
-        .contact-card {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
-            text-center;
-        }
-        .contact-card:hover {
-            transform: translateY(-5px);
-        }
-        .btn-back {
+
+        .particle {
+            position: absolute;
             background: linear-gradient(45deg, #667eea, #764ba2);
-            border: none;
-            border-radius: 25px;
-            color: white;
-            transition: all 0.3s ease;
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
         }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-30px); }
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 2;
+            padding: 3rem 0;
+        }
+
+        .header-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 2.5rem;
+            margin-bottom: 3rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .page-title {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 0%, #667eea 50%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.2rem;
+            font-weight: 400;
+        }
+
+        .btn-back {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
         .btn-back:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
             color: white;
         }
-        .btn-contact {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border: none;
-            border-radius: 25px;
-            color: white;
-            transition: all 0.3s ease;
-            width: 100%;
-            padding: 0.75rem;
+
+        .contact-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s ease;
+            height: 100%;
         }
-        .btn-contact:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-            color: white;
+
+        .contact-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(102, 126, 234, 0.5);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
         }
+
         .contact-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-        .map-container {
-            height: 300px;
-            background: #f8f9fa;
-            border-radius: 15px;
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 2px dashed #dee2e6;
+            font-size: 2rem;
+            color: white;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+        }
+
+        .contact-card h5 {
+            color: white;
+            font-weight: 700;
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+
+        .contact-card p {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .contact-value {
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin: 1rem 0;
+        }
+
+        .contact-meta {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.9rem;
+        }
+
+        .btn-contact {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            padding: 0.9rem 1.5rem;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 18px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-contact:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .info-card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1.5rem;
+            color: white;
+        }
+
+        .info-card-header h5 {
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .info-card-body {
+            padding: 2rem;
+        }
+
+        .info-item {
+            padding: 1rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-text {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.95rem;
+        }
+
+        .map-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 3rem;
+            text-align: center;
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            margin-top: 2rem;
+        }
+
+        .map-icon {
+            font-size: 4rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1.5rem;
+        }
+
+        .alert-custom {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .alert-custom h5 {
+            color: white;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .alert-custom p {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 0;
+        }
+
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .header-section {
+                padding: 1.5rem;
+            }
+
+            .contact-card {
+                padding: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container my-5">
-        <div class="content-card p-5">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="text-primary"><i class="fas fa-envelope"></i> Contact Us</h1>
-                <a href="javascript:history.back()" class="btn btn-back">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
+    <div class="particles">
+        <div class="particle" style="width: 4px; height: 4px; top: 20%; left: 10%; animation-delay: 0s;"></div>
+        <div class="particle" style="width: 6px; height: 6px; top: 60%; left: 80%; animation-delay: 1s;"></div>
+        <div class="particle" style="width: 3px; height: 3px; top: 80%; left: 20%; animation-delay: 2s;"></div>
+        <div class="particle" style="width: 5px; height: 5px; top: 40%; left: 60%; animation-delay: 3s;"></div>
+    </div>
+
+    <div class="content-wrapper">
+        <div class="container">
+            <div class="header-section">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h1 class="page-title">
+                            <i class="fas fa-envelope me-3"></i>Contact Us
+                        </h1>
+                        <p class="page-subtitle">We're here to help you succeed</p>
+                    </div>
+                    <a href="javascript:history.back()" class="btn btn-back mt-3 mt-md-0">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </a>
+                </div>
             </div>
-            
+
             <div class="row">
-                <div class="col-md-8">
-                    <h3 class="text-primary mb-4">Get in Touch</h3>
-                    <p class="lead">We're here to help! Choose the best way to reach us based on your needs.</p>
-                    
+                <div class="col-lg-8 mb-4">
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="contact-card">
-                                <i class="fas fa-envelope contact-icon text-primary"></i>
+                        <div class="col-md-6 mb-4">
+                            <div class="contact-card text-center">
+                                <div class="contact-icon">
+                                    <i class="fas fa-envelope"></i>
+                                </div>
                                 <h5>Email Support</h5>
-                                <p class="text-muted">For general inquiries and non-urgent matters</p>
-                                <p><strong>examportaldesk@gmail.com</strong></p>
-                                <small class="text-muted">Response within 24 hours</small>
+                                <p>For general inquiries and non-urgent matters</p>
+                                <div class="contact-value">examportaldesk@gmail.com</div>
+                                <div class="contact-meta">Response within 24 hours</div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <div class="contact-card">
-                                <i class="fas fa-phone contact-icon text-success"></i>
+
+                        <div class="col-md-6 mb-4">
+                            <div class="contact-card text-center">
+                                <div class="contact-icon">
+                                    <i class="fas fa-phone"></i>
+                                </div>
                                 <h5>Phone Support</h5>
-                                <p class="text-muted">For urgent technical issues during exams</p>
-                                <p><strong>+91-755-123-4567</strong></p>
-                                <small class="text-muted">Mon-Fri: 9AM-6PM IST</small>
+                                <p>For urgent technical issues during exams</p>
+                                <div class="contact-value">+91-755-123-4567</div>
+                                <div class="contact-meta">Mon-Fri: 9AM-6PM IST</div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <div class="contact-card">
-                                <i class="fas fa-comment-dots contact-icon text-info"></i>
+
+                        <div class="col-md-6 mb-4">
+                            <div class="contact-card text-center">
+                                <div class="contact-icon">
+                                    <i class="fas fa-comment-dots"></i>
+                                </div>
                                 <h5>Live Chat</h5>
-                                <p class="text-muted">Real-time assistance for quick questions</p>
+                                <p>Real-time assistance for quick questions</p>
                                 <button class="btn btn-contact" onclick="alert('Live chat will be available soon!')">
-                                    <i class="fas fa-comments"></i> Start Chat
+                                    <i class="fas fa-comments me-2"></i>Start Chat
                                 </button>
-                                <small class="text-muted d-block mt-2">Available during business hours</small>
+                                <div class="contact-meta mt-2">Available during business hours</div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <div class="contact-card">
-                                <i class="fas fa-bug contact-icon text-danger"></i>
+
+                        <div class="col-md-6 mb-4">
+                            <div class="contact-card text-center">
+                                <div class="contact-icon">
+                                    <i class="fas fa-bug"></i>
+                                </div>
                                 <h5>Report Issues</h5>
-                                <p class="text-muted">Technical bugs and platform issues</p>
+                                <p>Technical bugs and platform issues</p>
                                 <button class="btn btn-contact" onclick="alert('Bug report form will open soon!')">
-                                    <i class="fas fa-exclamation-triangle"></i> Report Bug
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Report Bug
                                 </button>
-                                <small class="text-muted d-block mt-2">Include screenshots if possible</small>
+                                <div class="contact-meta mt-2">Include screenshots if possible</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="mt-5">
-                        <h4 class="text-primary mb-3"><i class="fas fa-map-marker-alt"></i> Our Location</h4>
-                        <div class="map-container">
-                            <div class="text-center">
-                                <i class="fas fa-map-marked-alt fa-3x text-muted mb-3"></i>
-                                <h5 class="text-muted">ExamPortal Headquarters</h5>
-                                <p class="text-muted">
-                                    Tech Park, Noida<br>
-                                    Uttar Pradesh<br>
-                                    India
-                                </p>
-                            </div>
-                        </div>
+                    <div class="map-container">
+                        <i class="fas fa-map-marked-alt map-icon"></i>
+                        <h4 style="color: white; font-weight: 700; margin-bottom: 1rem;">ExamPortal Headquarters</h4>
+                        <p style="color: rgba(255, 255, 255, 0.7); font-size: 1.1rem; margin-bottom: 0;">
+                            Tech Park, Noida<br>
+                            Uttar Pradesh, India
+                        </p>
                     </div>
                 </div>
-                
-                <div class="col-md-4">
-                    <div class="card border-0 bg-light">
-                        <div class="card-header bg-primary text-white">
-                            <h5><i class="fas fa-clock"></i> Response Times</h5>
+
+                <div class="col-lg-4">
+                    <div class="info-card mb-4">
+                        <div class="info-card-header">
+                            <h5><i class="fas fa-clock me-2"></i>Response Times</h5>
                         </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <strong class="text-success">Emergency (Exam Issues)</strong><br>
-                                <small>Immediate - Call directly</small>
+                        <div class="info-card-body">
+                            <div class="info-item">
+                                <span class="info-label" style="color: #10b981;">
+                                    <i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Emergency (Exam Issues)
+                                </span>
+                                <span class="info-text">Immediate - Call directly</span>
                             </div>
-                            <div class="mb-3">
-                                <strong class="text-warning">Urgent Queries</strong><br>
-                                <small>Within 2-4 hours</small>
+                            <div class="info-item">
+                                <span class="info-label" style="color: #fbbf24;">
+                                    <i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Urgent Queries
+                                </span>
+                                <span class="info-text">Within 2-4 hours</span>
                             </div>
-                            <div class="mb-3">
-                                <strong class="text-info">General Support</strong><br>
-                                <small>Within 24 hours</small>
+                            <div class="info-item">
+                                <span class="info-label" style="color: #667eea;">
+                                    <i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>General Support
+                                </span>
+                                <span class="info-text">Within 24 hours</span>
                             </div>
-                            <div>
-                                <strong class="text-muted">Feature Requests</strong><br>
-                                <small>Within 48-72 hours</small>
+                            <div class="info-item">
+                                <span class="info-label" style="color: rgba(255, 255, 255, 0.6);">
+                                    <i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Feature Requests
+                                </span>
+                                <span class="info-text">Within 48-72 hours</span>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="card border-0 bg-light mt-4">
-                        <div class="card-header bg-success text-white">
-                            <h5><i class="fas fa-graduation-cap"></i> For Institutions</h5>
+
+                    <div class="info-card">
+                        <div class="info-card-header" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <h5><i class="fas fa-graduation-cap me-2"></i>For Institutions</h5>
                         </div>
-                        <div class="card-body">
-                            <p>Educational institutions interested in our platform:</p>
-                            <p><strong>Business Email:</strong><br>
-                            <small>examportaldesk@gmail.com</small></p>
-                            <p><strong>Sales Team:</strong><br>
-                            <small>+91-755-987-6543</small></p>
-                            <button class="btn btn-success btn-sm w-100" onclick="alert('Demo request form will open soon!')">
-                                <i class="fas fa-calendar"></i> Schedule Demo
+                        <div class="info-card-body">
+                            <p style="color: rgba(255, 255, 255, 0.8); margin-bottom: 1.5rem;">
+                                Educational institutions interested in our platform
+                            </p>
+                            <div class="info-item">
+                                <span class="info-label">Business Email</span>
+                                <span class="info-text">examportaldesk@gmail.com</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Sales Team</span>
+                                <span class="info-text">+91-755-987-6543</span>
+                            </div>
+                            <button class="btn btn-contact mt-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);" onclick="alert('Demo request form will open soon!')">
+                                <i class="fas fa-calendar me-2"></i>Schedule Demo
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="alert alert-primary mt-5">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <h5><i class="fas fa-lightbulb"></i> Before Contacting Support</h5>
-                        <p class="mb-0">Please check our FAQ section and troubleshooting guide first. This helps us provide faster assistance for your specific needs.</p>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <i class="fas fa-headset fa-3x text-primary"></i>
+            <div class="alert-custom mt-4">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-lightbulb fa-2x me-3" style="color: #fbbf24;"></i>
+                    <div>
+                        <h5>Before Contacting Support</h5>
+                        <p>Please check our FAQ section and troubleshooting guide first. This helps us provide faster assistance for your specific needs.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

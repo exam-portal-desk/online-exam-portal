@@ -7,132 +7,370 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d2d5f 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e8eaed;
+            position: relative;
+            overflow-x: hidden;
         }
-        .content-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 1;
+            pointer-events: none;
         }
-        .section-title {
-            color: #667eea;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 0.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .btn-back {
+
+        .particle {
+            position: absolute;
             background: linear-gradient(45deg, #667eea, #764ba2);
-            border: none;
-            border-radius: 25px;
-            color: white;
-            transition: all 0.3s ease;
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
         }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-30px); }
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 2;
+            padding: 3rem 0;
+        }
+
+        .header-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 2.5rem;
+            margin-bottom: 3rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .page-title {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 0%, #667eea 50%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.2rem;
+            font-weight: 400;
+        }
+
+        .btn-back {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
         .btn-back:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
             color: white;
         }
+
+        .content-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .section-title {
+            color: white;
+            font-weight: 700;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid;
+            border-image: linear-gradient(90deg, #667eea, #764ba2) 1;
+        }
+
+        .content-card p {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.8;
+            font-size: 1.05rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .content-card ul {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.8;
+            font-size: 1.05rem;
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+        }
+
+        .content-card ul li {
+            margin-bottom: 0.8rem;
+            padding-left: 0.5rem;
+        }
+
+        .content-card ul li::marker {
+            color: #667eea;
+        }
+
         .highlight-box {
-            background: linear-gradient(45deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-            border-left: 4px solid #667eea;
-            padding: 1rem;
-            border-radius: 8px;
-            margin: 1rem 0;
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-left: 4px solid #fbbf24;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .highlight-box h5 {
+            color: white;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .highlight-box p {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 0;
+        }
+
+        .sidebar-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 2rem;
+        }
+
+        .sidebar-card h5 {
+            color: white;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+        }
+
+        .key-point {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 0;
+            color: rgba(255, 255, 255, 0.8);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .key-point:last-child {
+            border-bottom: none;
+        }
+
+        .key-point i {
+            font-size: 1.2rem;
+            margin-right: 1rem;
+            width: 25px;
+        }
+
+        .update-date {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.95rem;
+            font-style: italic;
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .header-section {
+                padding: 1.5rem;
+            }
+
+            .content-card {
+                padding: 1.5rem;
+            }
+
+            .sidebar-card {
+                position: relative;
+                top: 0;
+                margin-bottom: 2rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container my-5">
-        <div class="content-card p-5">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="text-primary"><i class="fas fa-file-contract"></i> Terms of Service</h1>
-                <a href="javascript:history.back()" class="btn btn-back">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-8">
-                    <h3 class="section-title">Acceptance of Terms</h3>
-                    <p>By accessing and using ExamPortal, you accept and agree to be bound by the terms and provision of this agreement. These terms apply to all users of the platform.</p>
+    <div class="particles">
+        <div class="particle" style="width: 4px; height: 4px; top: 20%; left: 10%; animation-delay: 0s;"></div>
+        <div class="particle" style="width: 6px; height: 6px; top: 60%; left: 80%; animation-delay: 1s;"></div>
+        <div class="particle" style="width: 3px; height: 3px; top: 80%; left: 20%; animation-delay: 2s;"></div>
+        <div class="particle" style="width: 5px; height: 5px; top: 40%; left: 60%; animation-delay: 3s;"></div>
+    </div>
 
-                    <h3 class="section-title">User Responsibilities</h3>
-                    <div class="highlight-box">
-                        <h5><i class="fas fa-exclamation-triangle text-warning"></i> Academic Integrity</h5>
-                        <p>Users must maintain academic honesty and integrity while using our platform. Any form of cheating, plagiarism, or misconduct is strictly prohibited.</p>
+    <div class="content-wrapper">
+        <div class="container">
+            <div class="header-section">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h1 class="page-title">
+                            <i class="fas fa-file-contract me-3"></i>Terms of Service
+                        </h1>
+                        <p class="page-subtitle">Please read these terms carefully before using our platform</p>
                     </div>
-                    
-                    <ul>
-                        <li>Provide accurate and truthful information</li>
-                        <li>Use the platform only for legitimate educational purposes</li>
-                        <li>Not share login credentials with others</li>
-                        <li>Not attempt to compromise platform security</li>
-                        <li>Respect intellectual property rights</li>
-                    </ul>
-
-                    <h3 class="section-title">Platform Usage</h3>
-                    <p>ExamPortal provides online examination services for educational institutions. Users agree to:</p>
-                    <ul>
-                        <li>Use the platform in accordance with institutional guidelines</li>
-                        <li>Not reverse engineer or attempt to access source code</li>
-                        <li>Report any technical issues or security vulnerabilities</li>
-                        <li>Accept that exam sessions are monitored for integrity</li>
-                    </ul>
-
-                    <h3 class="section-title">Prohibited Activities</h3>
-                    <p>The following activities are strictly prohibited:</p>
-                    <ul>
-                        <li>Attempting to hack or breach platform security</li>
-                        <li>Using automated tools or bots during exams</li>
-                        <li>Sharing exam content or questions with others</li>
-                        <li>Creating multiple accounts or impersonating others</li>
-                        <li>Disrupting platform operations or other users</li>
-                    </ul>
-
-                    <h3 class="section-title">Intellectual Property</h3>
-                    <p>All content, features, and functionality of ExamPortal are owned by us and are protected by copyright, trademark, and other intellectual property laws.</p>
-
-                    <h3 class="section-title">Limitation of Liability</h3>
-                    <p>ExamPortal shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the platform.</p>
-
-                    <h3 class="section-title">Termination</h3>
-                    <p>We reserve the right to suspend or terminate accounts that violate these terms or engage in prohibited activities.</p>
-
-                    <p class="text-muted mt-4"><small>Last updated: August 31, 2025</small></p>
+                    <a href="javascript:history.back()" class="btn btn-back mt-3 mt-md-0">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </a>
                 </div>
-                
-                <div class="col-md-4">
-                    <div class="card border-0 bg-light">
-                        <div class="card-body">
-                            <h5 class="card-title text-primary"><i class="fas fa-clipboard-list"></i> Key Points</h5>
-                            <div class="list-group list-group-flush">
-                                <div class="list-group-item bg-transparent border-0">
-                                    <i class="fas fa-graduation-cap text-success"></i> Academic integrity required
-                                </div>
-                                <div class="list-group-item bg-transparent border-0">
-                                    <i class="fas fa-shield-alt text-primary"></i> No security breaches
-                                </div>
-                                <div class="list-group-item bg-transparent border-0">
-                                    <i class="fas fa-user-secret text-warning"></i> No account sharing
-                                </div>
-                                <div class="list-group-item bg-transparent border-0">
-                                    <i class="fas fa-eye text-info"></i> Exams are monitored
-                                </div>
-                                <div class="list-group-item bg-transparent border-0">
-                                    <i class="fas fa-ban text-danger"></i> Violations lead to termination
-                                </div>
-                            </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="content-card">
+                        <h3 class="section-title">Acceptance of Terms</h3>
+                        <p>By accessing and using ExamPortal, you accept and agree to be bound by the terms and provisions of this agreement. These terms apply to all users of the platform, including students, educators, and administrators.</p>
+                        <p>If you do not agree to these terms, please do not use our services. Your continued use of the platform constitutes your acceptance of any changes or updates to these terms.</p>
+                    </div>
+
+                    <div class="content-card">
+                        <h3 class="section-title">User Responsibilities</h3>
+                        
+                        <div class="highlight-box">
+                            <h5>
+                                <i class="fas fa-exclamation-triangle me-2" style="color: #fbbf24;"></i>
+                                Academic Integrity
+                            </h5>
+                            <p>Users must maintain academic honesty and integrity while using our platform. Any form of cheating, plagiarism, impersonation, or academic misconduct is strictly prohibited and may result in immediate account termination and reporting to your institution.</p>
+                        </div>
+
+                        <p>As a user of ExamPortal, you agree to:</p>
+                        <ul>
+                            <li>Provide accurate, truthful, and complete information during registration and account usage</li>
+                            <li>Use the platform only for legitimate educational and examination purposes</li>
+                            <li>Not share your login credentials, passwords, or account access with any other person</li>
+                            <li>Not attempt to compromise, bypass, or circumvent platform security measures</li>
+                            <li>Respect intellectual property rights of all content and materials on the platform</li>
+                            <li>Report any technical issues, security vulnerabilities, or suspicious activities immediately</li>
+                            <li>Comply with all applicable laws and regulations while using our services</li>
+                        </ul>
+                    </div>
+
+                    <div class="content-card">
+                        <h3 class="section-title">Platform Usage</h3>
+                        <p>ExamPortal provides online examination services for educational institutions and individual learners. By using our platform, you agree to:</p>
+                        <ul>
+                            <li>Use the platform in accordance with your institution's guidelines and policies</li>
+                            <li>Not reverse engineer, decompile, or attempt to access the source code of our platform</li>
+                            <li>Report any technical issues or security vulnerabilities to our support team promptly</li>
+                            <li>Accept that exam sessions may be monitored and recorded for integrity and security purposes</li>
+                            <li>Not use any automated tools, bots, scripts, or software to interact with the platform</li>
+                            <li>Understand that your exam performance data may be shared with your educational institution</li>
+                        </ul>
+                    </div>
+
+                    <div class="content-card">
+                        <h3 class="section-title">Prohibited Activities</h3>
+                        <p>The following activities are strictly prohibited and may result in immediate account suspension or termination:</p>
+                        <ul>
+                            <li>Attempting to hack, breach, or compromise platform security or user data</li>
+                            <li>Using automated tools, bots, or scripts during exams or while accessing the platform</li>
+                            <li>Sharing, distributing, or reproducing exam content, questions, or answers without authorization</li>
+                            <li>Creating multiple accounts, using fake identities, or impersonating other users</li>
+                            <li>Disrupting platform operations, services, or interfering with other users' access</li>
+                            <li>Engaging in any form of cheating, collusion, or academic dishonesty during exams</li>
+                            <li>Using the platform for any illegal, harmful, or unauthorized purposes</li>
+                            <li>Attempting to access exam materials or answers before or during scheduled exams</li>
+                        </ul>
+                    </div>
+
+                    <div class="content-card">
+                        <h3 class="section-title">Intellectual Property</h3>
+                        <p>All content, features, functionality, software, and materials available on ExamPortal are owned by us or our licensors and are protected by international copyright, trademark, patent, and other intellectual property laws.</p>
+                        <p>You may not reproduce, distribute, modify, create derivative works of, publicly display, or exploit any content from the platform without our express written permission. Exam questions and educational materials are the property of their respective creators and institutions.</p>
+                    </div>
+
+                    <div class="content-card">
+                        <h3 class="section-title">Limitation of Liability</h3>
+                        <p>ExamPortal shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use or inability to use the platform, including but not limited to:</p>
+                        <ul>
+                            <li>Loss of data, exam responses, or account access due to technical issues</li>
+                            <li>Interruptions in service, connectivity problems, or platform downtime</li>
+                            <li>Errors or inaccuracies in exam results or performance data</li>
+                            <li>Unauthorized access to your account due to compromised credentials</li>
+                            <li>Decisions made by educational institutions based on exam results</li>
+                        </ul>
+                        <p>We strive to maintain a reliable and secure platform, but we cannot guarantee uninterrupted or error-free service at all times.</p>
+                    </div>
+
+                    <div class="content-card">
+                        <h3 class="section-title">Account Termination</h3>
+                        <p>We reserve the right to suspend or terminate user accounts that violate these terms or engage in prohibited activities. Termination may occur immediately and without prior notice in cases of serious violations.</p>
+                        <p>Upon termination, your access to the platform and any associated data may be permanently deleted. We may also report violations to your educational institution or relevant authorities as appropriate.</p>
+                        <p class="update-date">Last updated: January 15, 2025</p>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="sidebar-card">
+                        <h5><i class="fas fa-clipboard-list me-2"></i>Key Points</h5>
+                        
+                        <div class="key-point">
+                            <i class="fas fa-graduation-cap" style="color: #10b981;"></i>
+                            <span>Academic integrity required</span>
+                        </div>
+                        <div class="key-point">
+                            <i class="fas fa-shield-alt" style="color: #667eea;"></i>
+                            <span>No security breaches allowed</span>
+                        </div>
+                        <div class="key-point">
+                            <i class="fas fa-user-secret" style="color: #fbbf24;"></i>
+                            <span>No account sharing permitted</span>
+                        </div>
+                        <div class="key-point">
+                            <i class="fas fa-eye" style="color: #667eea;"></i>
+                            <span>Exams may be monitored</span>
+                        </div>
+                        <div class="key-point">
+                            <i class="fas fa-ban" style="color: #ef4444;"></i>
+                            <span>Violations lead to termination</span>
+                        </div>
+                        <div class="key-point">
+                            <i class="fas fa-copyright" style="color: #764ba2;"></i>
+                            <span>Content is protected by IP laws</span>
+                        </div>
+                        <div class="key-point">
+                            <i class="fas fa-balance-scale" style="color: #10b981;"></i>
+                            <span>Platform use governed by these terms</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

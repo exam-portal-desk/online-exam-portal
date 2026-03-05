@@ -886,49 +886,78 @@ document.addEventListener('DOMContentLoaded', function() {
             optionsHtml += `<option value="${access}">${formatAccess(access)}</option>`;
         });
 
-        formContainer.innerHTML = `
-            <form id="submitRequestForm">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Select Requested Access</label>
-                        <select class="form-select" id="requestedAccess" required>
-                            <option value="">Choose access level...</option>
-                            ${optionsHtml}
-                        </select>
-                    </div>
-                    <div class="col-md-6 d-flex align-items-end">
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="fas fa-paper-plane me-2"></i>Submit Request
-                        </button>
-                    </div>
-                </div>
-            </form>
-        `;
+formContainer.innerHTML = `
+    <form id="submitRequestForm">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Select Requested Access</label>
+                <select class="form-select" id="requestedAccess" required>
+                    <option value="">Choose access level...</option>
+                    ${optionsHtml}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Reason for Request <span class="text-danger">*</span></label>
+                <textarea 
+                    class="form-control" 
+                    id="userReason" 
+                    rows="3" 
+                    placeholder="Please explain why you need this access level..."
+                    required
+                    maxlength="500"
+                    style="resize: vertical; min-height: 80px;"></textarea>
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Max 500 characters
+                </small>
+            </div>
+            <div class="col-12 mt-3">
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="fas fa-paper-plane me-2"></i>Submit Request
+                </button>
+            </div>
+        </div>
+    </form>
+`;
 
         // Add form submission handler
-        const submitForm = document.getElementById('submitRequestForm');
-        submitForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const requestedAccess = document.getElementById('requestedAccess').value;
-            if (!requestedAccess) {
-                showAlert('Please select an access level', 'danger');
-                return;
-            }
-            
-            submitAccessRequest(requestedAccess);
-        });
+// Add form submission handler
+const submitForm = document.getElementById('submitRequestForm');
+submitForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const requestedAccess = document.getElementById('requestedAccess').value;
+    const userReason = document.getElementById('userReason').value.trim();
+    
+    if (!requestedAccess) {
+        showAlert('Please select an access level', 'danger');
+        return;
+    }
+    
+    if (!userReason) {
+        showAlert('Please provide a reason for your request', 'danger');
+        return;
+    }
+    
+    if (userReason.length < 10) {
+        showAlert('Reason must be at least 10 characters long', 'warning');
+        return;
+    }
+    
+    submitAccessRequest(requestedAccess, userReason);
+});
     }
 
-    function submitAccessRequest(requestedAccess) {
-        showLoading(true);
-        
-        const requestData = {
-            username: currentUserData.user.username,
-            email: currentUserData.user.email,
-            current_access: currentUserData.user.current_access,
-            requested_access: requestedAccess
-        };
+function submitAccessRequest(requestedAccess, userReason) {
+    showLoading(true);
+    
+    const requestData = {
+        username: currentUserData.user.username,
+        email: currentUserData.user.email,
+        current_access: currentUserData.user.current_access,
+        requested_access: requestedAccess,
+        user_reason: userReason
+    };
 
         fetch('/api/submit-access-request', {
             method: 'POST',

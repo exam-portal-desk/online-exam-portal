@@ -1773,39 +1773,44 @@
     }
 
     // ---------- Counter ----------
-    function updateExamCounter(tabName) {
-        const examCounter = document.getElementById('examCount');
-        const activeTab = document.getElementById(tabName);
-        if (!examCounter || !activeTab) return;
+function updateExamCounter(tabName) {
+    const examCounter = document.getElementById('examCount');
+    const activeTab = document.getElementById(tabName);
+    if (!examCounter || !activeTab) return;
 
-        const examCards = activeTab.querySelectorAll('.exam-card:not(.filtered-out)');
-        const count = examCards.length;
-        const tabText = tabName.charAt(0).toUpperCase() + tabName.slice(1);
+    const examCards = activeTab.querySelectorAll('.exam-card:not(.filtered-out)');
+    // ✅ Divide by 2 because each exam appears in both grid and list view
+    const count = Math.floor(examCards.length / 2);
+    const tabText = tabName.charAt(0).toUpperCase() + tabName.slice(1);
 
-        if (count === 0) {
-            examCounter.textContent = `No ${tabText.toLowerCase()} exams`;
-        } else if (count === 1) {
-            examCounter.textContent = `1 ${tabText.toLowerCase().slice(0, -1)} exam`;
-        } else {
-            examCounter.textContent = `${count} ${tabText.toLowerCase()} exams`;
-        }
+    if (count === 0) {
+        examCounter.textContent = `No ${tabText.toLowerCase()} exams`;
+    } else if (count === 1) {
+        examCounter.textContent = `1 ${tabText.toLowerCase().slice(0, -1)} exam`;
+    } else {
+        examCounter.textContent = `${count} ${tabText.toLowerCase()} exams`;
     }
+}
 
-    // Helper used by filtering to set count when cards list provided
-    function updateExamCounterFromCards(visibleCount, activeTab) {
-        const examCounter = document.getElementById('examCount');
-        if (!examCounter || !activeTab) return;
-        // get tab name
-        const tabName = activeTab.id || '';
-        const readable = tabName ? (tabName.charAt(0).toUpperCase() + tabName.slice(1)) : 'Exams';
-        if (visibleCount === 0) {
-            examCounter.textContent = `No ${readable.toLowerCase()} exams`;
-        } else if (visibleCount === 1) {
-            examCounter.textContent = `1 ${readable.toLowerCase().slice(0, -1)} exam`;
-        } else {
-            examCounter.textContent = `${visibleCount} ${readable.toLowerCase()} exams`;
-        }
+// Helper used by filtering to set count when cards list provided
+function updateExamCounterFromCards(visibleCount, activeTab) {
+    const examCounter = document.getElementById('examCount');
+    if (!examCounter || !activeTab) return;
+    
+    // ✅ Divide by 2 because cards exist in both grid and list view
+    const count = Math.floor(visibleCount / 2);
+    
+    const tabName = activeTab.id || '';
+    const readable = tabName ? (tabName.charAt(0).toUpperCase() + tabName.slice(1)) : 'Exams';
+    
+    if (count === 0) {
+        examCounter.textContent = `No ${readable.toLowerCase()} exams`;
+    } else if (count === 1) {
+        examCounter.textContent = `1 ${readable.toLowerCase().slice(0, -1)} exam`;
+    } else {
+        examCounter.textContent = `${count} ${readable.toLowerCase()} exams`;
     }
+}
 
     // ---------- Filter UI creation & logic ----------
     function ensureFilterUI() {

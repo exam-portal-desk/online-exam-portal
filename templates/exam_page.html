@@ -14,6 +14,12 @@ window.MathJax = {
     processEscapes: true,
     processEnvironments: true
   },
+  chtml: {
+    linebreaks: { automatic: true, width: "container" }
+  },
+  svg: {
+    linebreaks: { automatic: true, width: "container" }
+  },
   options: {
     skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
   }
@@ -923,6 +929,22 @@ html, body {
 .submit-confirmation-card .mt-3 small {
   color: #86efac !important;
   text-shadow: 0 0 4px rgba(34,197,94,0.5);
+}
+
+/* MathJax long equation wrapping */
+
+mjx-container {
+  max-width: 100% !important;
+  overflow-x: auto;
+}
+
+mjx-container[display="true"] {
+  display: block;
+  overflow-x: auto;
+}
+
+mjx-math {
+  white-space: normal !important;
 }
 </style>
 

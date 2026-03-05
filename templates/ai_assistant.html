@@ -1,0 +1,1269 @@
+{% extends "base.html" %}
+
+{% block title %}AI Study Assistant - ExamPortal{% endblock %}
+
+{% block content %}
+<style>
+    .ai-assistant-page {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d2d5f 100%);
+        padding: 2rem;
+    }
+
+    .assistant-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 2rem;
+        height: calc(100vh - 140px);
+    }
+
+    .sidebar {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .assistant-info {
+        text-align: center;
+    }
+
+    .assistant-avatar {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .assistant-avatar svg {
+        width: 40px;
+        height: 40px;
+        color: white;
+    }
+
+    .assistant-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: #10b981;
+        font-weight: 600;
+        margin-top: 1rem;
+    }
+
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        background: #10b981;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.1); }
+    }
+
+    .stats-card {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 1.5rem;
+        border-radius: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .stat-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .stat-value {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #10b981;
+    }
+
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .action-btn {
+        padding: 1rem;
+        border-radius: 12px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+
+    .action-btn.clear {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .action-btn.clear:hover {
+        background: rgba(239, 68, 68, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .action-btn.back {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .action-btn.back:hover {
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .mobile-stats-toggle {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 56px;
+        height: 56px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+        z-index: 1000;
+        transition: all 0.3s;
+    }
+
+    .mobile-stats-toggle:active {
+        transform: scale(0.95);
+    }
+
+    .mobile-stats-panel {
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(135deg, #1a1a3e, #0f0f23);
+        border-top-left-radius: 24px;
+        border-top-right-radius: 24px;
+        padding: 1.5rem;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        transform: translateY(100%);
+        transition: transform 0.3s ease-out;
+    }
+
+    .mobile-stats-panel.show {
+        transform: translateY(0);
+    }
+
+    .mobile-stats-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .mobile-stats-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: white;
+    }
+
+    .mobile-stats-close {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    .mobile-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .mobile-stat-card {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 1rem;
+        border-radius: 12px;
+        text-align: center;
+    }
+
+    .mobile-stat-label {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 0.5rem;
+    }
+
+    .mobile-stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #10b981;
+    }
+
+    .mobile-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .mobile-action-btn {
+        flex: 1;
+        padding: 0.875rem;
+        border-radius: 12px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.3s;
+    }
+
+    .mobile-action-btn.clear {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .mobile-action-btn.back {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .chat-main {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .chat-header {
+        padding: 1.5rem 2rem;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chat-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 2.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    .chat-messages::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.4);
+    }
+
+    .message-group {
+        display: flex;
+        gap: 1.2rem;
+        animation: messageSlide 0.3s ease-out;
+        align-items: flex-start;
+    }
+
+    @keyframes messageSlide {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .user-message-group {
+        flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .ai-avatar-msg {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    }
+
+    .user-avatar-msg {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        color: white;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .message-wrapper {
+        max-width: 80%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .message-bubble {
+        padding: 1.25rem 1.5rem;
+        border-radius: 18px;
+        line-height: 1.7;
+        font-size: 1.05rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .ai-bubble {
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #ffffff;
+        border-top-left-radius: 6px;
+    }
+
+    .user-bubble {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+        color: white;
+        border-top-right-radius: 6px;
+    }
+
+    .message-time {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.6);
+        display: block;
+        padding: 0 0.5rem;
+    }
+
+    .user-message-group .message-time {
+        text-align: right;
+    }
+
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 1.2rem 1.5rem;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px;
+        border-top-left-radius: 6px;
+        width: fit-content;
+    }
+
+    .typing-dot {
+        width: 9px;
+        height: 9px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 50%;
+        animation: typingBounce 1.4s infinite ease-in-out;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(3) { animation-delay: -0.16s; }
+
+    @keyframes typingBounce {
+        0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+
+    .chat-input-area {
+        padding: 1.75rem 2rem;
+        background: rgba(0, 0, 0, 0.25);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .input-container {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-end;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px;
+        padding: 1.1rem 1.3rem;
+        transition: all 0.3s;
+    }
+
+    .input-container:focus-within {
+        border-color: rgba(102, 126, 234, 0.6);
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    .chat-input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 1.05rem;
+        resize: none;
+        outline: none;
+        max-height: 140px;
+        min-height: 44px;
+        line-height: 1.5;
+    }
+
+    .chat-input::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .send-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .send-btn:hover:not(:disabled) {
+        transform: scale(1.08) translateY(-2px);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+    }
+
+    .send-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .input-hint {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 0.9rem;
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.55);
+        padding: 0 0.3rem;
+    }
+
+    .message-text {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    .message-text code {
+        background: rgba(0, 0, 0, 0.6);
+        padding: 0.3rem 0.5rem;
+        border-radius: 6px;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        color: #10b981;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        font-size: 0.95rem;
+    }
+
+    .message-text pre {
+        background: rgba(0, 0, 0, 0.6);
+        padding: 1.2rem;
+        border-radius: 10px;
+        overflow-x: auto;
+        margin: 1rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .message-text pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        color: #10b981;
+    }
+
+    .message-text strong {
+        color: #38ef7d;
+        font-weight: 700;
+    }
+
+    .message-text h3,
+    .message-text h4 {
+        color: #fbbf24;
+        margin-top: 1.2rem;
+        margin-bottom: 0.6rem;
+        font-weight: 600;
+    }
+
+    .message-text p {
+        margin-bottom: 0.8rem;
+    }
+
+    .message-text ul,
+    .message-text ol {
+        margin-left: 1.5rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .message-text li {
+        margin-bottom: 0.4rem;
+    }
+
+    @media (max-width: 1024px) {
+        .ai-assistant-page {
+            padding: 1rem;
+        }
+
+        .assistant-container {
+            grid-template-columns: 1fr;
+            height: auto;
+            gap: 1.5rem;
+        }
+
+        .sidebar {
+            order: 2;
+            padding: 1.5rem;
+        }
+
+        .chat-main {
+            height: 70vh;
+            min-height: 500px;
+        }
+
+        .chat-messages {
+            padding: 1.5rem;
+            gap: 1.5rem;
+        }
+
+        .message-wrapper {
+            max-width: 85%;
+        }
+
+        .message-bubble {
+            font-size: 1rem;
+            padding: 1rem 1.25rem;
+        }
+
+        .chat-input-area {
+            padding: 1.25rem 1rem;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .ai-assistant-page {
+            padding: 0.5rem;
+            padding-bottom: 80px;
+        }
+
+        .assistant-container {
+            gap: 1rem;
+        }
+
+        .sidebar {
+            display: none;
+        }
+
+        .mobile-stats-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mobile-stats-panel {
+            display: block;
+        }
+
+        .chat-header {
+            padding: 1rem 1.5rem;
+        }
+
+        .chat-title {
+            font-size: 1.2rem;
+        }
+
+        .chat-messages {
+            padding: 1rem;
+            gap: 1.2rem;
+            padding-bottom: 2rem;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+        }
+
+        .message-wrapper {
+            max-width: 90%;
+        }
+
+        .message-bubble {
+            padding: 0.9rem 1.1rem;
+            font-size: 0.95rem;
+        }
+
+        .send-btn {
+            width: 44px;
+            height: 44px;
+        }
+
+        .chat-input {
+            font-size: 1rem;
+        }
+    }
+
+    .confirmation-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .confirmation-modal.show {
+        display: flex;
+    }
+
+    .modal-content {
+        background: linear-gradient(135deg, #1f2937, #111827);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 2rem;
+        max-width: 420px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+        animation: modalSlide 0.3s ease-out;
+    }
+
+    @keyframes modalSlide {
+        from {
+            opacity: 0;
+            transform: translateY(-20px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-icon {
+        width: 52px;
+        height: 52px;
+        background: rgba(239, 68, 68, 0.2);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ef4444;
+        font-size: 1.6rem;
+    }
+
+    .modal-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: white;
+    }
+
+    .modal-body {
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.65;
+        margin-bottom: 1.75rem;
+        font-size: 1.05rem;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .modal-btn {
+        flex: 1;
+        padding: 0.9rem 1.2rem;
+        border-radius: 12px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 1rem;
+    }
+
+    .modal-btn.cancel {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .modal-btn.cancel:hover {
+        background: rgba(255, 255, 255, 0.18);
+        transform: translateY(-1px);
+    }
+
+    .modal-btn.confirm {
+        background: #ef4444;
+        color: white;
+    }
+
+    .modal-btn.confirm:hover {
+        background: #dc2626;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+</style>
+
+<div class="ai-assistant-page">
+    <div class="assistant-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="assistant-info">
+                <div class="assistant-avatar">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+                <h3 style="color: white; margin-bottom: 0.5rem;">AI Study Assistant</h3>
+                <div class="assistant-status">
+                    <span class="status-dot"></span>
+                    <span>Online & Ready</span>
+                </div>
+            </div>
+
+            <div class="stats-card">
+                <div class="stat-item">
+                    <span class="stat-label">Daily Limit</span>
+                    <span class="stat-value" id="dailyLimit">--</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Used Today</span>
+                    <span class="stat-value" id="usedToday">--</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Remaining</span>
+                    <span class="stat-value" id="remaining">--</span>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="action-btn clear" onclick="confirmClearChat()">
+                    <i class="fas fa-trash"></i>
+                    Clear History
+                </button>
+                <a href="{{ url_for('dashboard') }}" class="action-btn back">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Chat -->
+        <div class="chat-main">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <i class="fas fa-comments"></i>
+                    Study Session
+                </div>
+                <div class="user-info">
+                    <span>{{ session.get('full_name', 'Student') }}</span>
+                    <div class="user-avatar">
+                        {{ session.get('full_name', 'U')[0].upper() }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message-group">
+                    <div class="message-avatar ai-avatar-msg">
+                        <svg viewBox="0 0 24 24" fill="none" style="width: 24px; height: 24px;">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2"/>
+                            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <div class="message-wrapper">
+                        <div class="message-bubble ai-bubble">
+                            <div class="message-text">
+                                <p><strong>👋 Welcome!</strong> I'm your AI study assistant.</p>
+                                <p>I can help you with:</p>
+                                <ul>
+                                    <li>🧮 Complex math & calculus problems</li>
+                                    <li>💻 Programming and coding help</li>
+                                    <li>📚 Explaining difficult concepts</li>
+                                    <li>🎯 Study strategies & tips</li>
+                                </ul>
+                                <p style="margin-top: 1rem;">💡 Ask me anything!</p>
+                            </div>
+                        </div>
+                        <span class="message-time">Just now</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="input-container">
+                    <textarea 
+                        class="chat-input" 
+                        id="chatInput"
+                        placeholder="Ask me anything about your studies..."
+                        rows="1"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="input-hint">
+                    <span id="hintText">Loading limits...</span>
+                    <span>Powered by Groq AI</span>
+                </div>               
+            </div>
+        </div>
+    </div>
+    <!-- Mobile Stats Toggle Button -->
+    <button class="mobile-stats-toggle" onclick="toggleMobileStats()" id="mobileStatsBtn">
+        <i class="fas fa-chart-bar"></i>
+    </button>
+
+    <!-- Mobile Stats Panel -->
+    <div class="mobile-stats-panel" id="mobileStatsPanel">
+        <div class="mobile-stats-header">
+            <div class="mobile-stats-title">📊 Usage Stats</div>
+            <button class="mobile-stats-close" onclick="toggleMobileStats()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="mobile-stats-grid">
+            <div class="mobile-stat-card">
+                <div class="mobile-stat-label">Daily Limit</div>
+                <div class="mobile-stat-value" id="mobileDailyLimit">--</div>
+            </div>
+            <div class="mobile-stat-card">
+                <div class="mobile-stat-label">Used</div>
+                <div class="mobile-stat-value" id="mobileUsedToday">--</div>
+            </div>
+            <div class="mobile-stat-card">
+                <div class="mobile-stat-label">Remaining</div>
+                <div class="mobile-stat-value" id="mobileRemaining">--</div>
+            </div>
+        </div>
+        
+        <div class="mobile-actions">
+            <button class="mobile-action-btn clear" onclick="confirmClearChat(); toggleMobileStats();">
+                <i class="fas fa-trash"></i>
+                Clear History
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="mobile-action-btn back">
+                <i class="fas fa-arrow-left"></i>
+                Dashboard
+            </a>
+        </div>
+    </div>    
+</div>
+
+<!-- Confirmation Modal -->
+<div class="confirmation-modal" id="confirmModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="modal-title">Clear Chat History?</div>
+        </div>
+        <div class="modal-body">
+            This will permanently delete all your conversation history. This action cannot be undone.
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" onclick="closeConfirmModal()">Cancel</button>
+            <button class="modal-btn confirm" onclick="clearChatConfirmed()">Clear History</button>
+        </div>
+    </div>
+</div>
+
+<script>
+class AIAssistant {
+    constructor() {
+        this.chatHistory = [];
+        this.dailyLimit = 50;
+        this.questionsUsed = 0;
+        this.userId = null;
+        this.loadServerHistory();
+        this.fetchLimits();
+        this.setupEventListeners();
+    }
+
+    async loadServerHistory() {
+        try {
+            const response = await fetch('/api/get-chat-history');
+            const data = await response.json();
+            
+            if (data.success && data.history) {
+                this.chatHistory = data.history;
+                data.history.forEach(msg => {
+                    this.addMessageToDOM(msg.text, msg.isUser, false);
+                });
+                this.renderAllMath();
+            }
+        } catch (error) {
+            console.error('Error loading history:', error);
+        }
+    }
+
+    async fetchLimits() {
+        try {
+            const response = await fetch('/api/get-user-limits');
+            const data = await response.json();
+            if (data.success) {
+                this.dailyLimit = data.dailyLimit;
+                this.questionsUsed = data.questionsUsed;
+                this.updateUI();
+            }
+        } catch (error) {
+            console.error('Error fetching limits:', error);
+        }
+    }
+
+    updateUI() {
+        const remaining = this.dailyLimit - this.questionsUsed;
+        
+        const dailyLimitEl = document.getElementById('dailyLimit');
+        const usedTodayEl = document.getElementById('usedToday');
+        const remainingEl = document.getElementById('remaining');
+        const hintText = document.getElementById('hintText');
+        
+        if (dailyLimitEl) dailyLimitEl.textContent = this.dailyLimit;
+        if (usedTodayEl) usedTodayEl.textContent = this.questionsUsed;
+        if (remainingEl) remainingEl.textContent = remaining;
+        if (hintText) hintText.textContent = `${remaining} questions remaining today`;
+    }
+
+    addMessageToDOM(text, isUser, shouldSave = true) {
+        const container = document.getElementById('chatMessages');
+        const messageGroup = document.createElement('div');
+        messageGroup.className = `message-group ${isUser ? 'user-message-group' : ''}`;
+
+        const avatar = document.createElement('div');
+        avatar.className = `message-avatar ${isUser ? 'user-avatar-msg' : 'ai-avatar-msg'}`;
+        avatar.innerHTML = isUser ? 
+            `<span>${'{{ full_name }}'.charAt(0).toUpperCase()}</span>` :
+            `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2"/><path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2"/></svg>`;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message-wrapper';
+
+        const bubble = document.createElement('div');
+        bubble.className = `message-bubble ${isUser ? 'user-bubble' : 'ai-bubble'}`;
+
+        const messageText = document.createElement('div');
+        messageText.className = 'message-text';
+        messageText.innerHTML = text.replace(/\n/g, '<br>');
+
+        bubble.appendChild(messageText);
+
+        const time = document.createElement('span');
+        time.className = 'message-time';
+        time.textContent = new Date().toLocaleTimeString();
+
+        wrapper.appendChild(bubble);
+        wrapper.appendChild(time);
+
+        messageGroup.appendChild(avatar);
+        messageGroup.appendChild(wrapper);
+        container.appendChild(messageGroup);
+
+        container.scrollTop = container.scrollHeight;
+
+        if (!isUser) {
+            setTimeout(() => this.renderAllMath(), 100);
+        }
+    }
+
+    showTyping() {
+        const container = document.getElementById('chatMessages');
+        const typing = document.createElement('div');
+        typing.id = 'typingIndicator';
+        typing.className = 'message-group';
+        typing.innerHTML = `
+            <div class="message-avatar ai-avatar-msg">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </div>
+            <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        `;
+        container.appendChild(typing);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    hideTyping() {
+        const typing = document.getElementById('typingIndicator');
+        if (typing) typing.remove();
+    }
+
+    async sendMessage(message = null) {
+        const input = document.getElementById('chatInput');
+        const msg = (message || (input ? input.value.trim() : ''));
+
+        if (!msg) return;
+
+        if (this.questionsUsed >= this.dailyLimit) {
+            alert('Daily limit reached! Resets at midnight.');
+            return;
+        }
+
+        this.addMessageToDOM(msg, true);
+
+        if (input && !message) {
+            input.value = '';
+            input.style.height = 'auto';
+        }
+
+        this.showTyping();
+
+        try {
+            const response = await fetch('/api/study-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: msg
+                })
+            });
+
+            const data = await response.json();
+            this.hideTyping();
+
+            if (data.success) {
+                this.addMessageToDOM(data.response, false);
+                this.questionsUsed++;
+                this.updateUI();
+            } else {
+                this.addMessageToDOM('Sorry, I couldn\'t process your question. Please try again.', false);
+            }
+
+        } catch (error) {
+            this.hideTyping();
+            this.addMessageToDOM('Connection error. Please check your internet.', false);
+            console.error('Chat error:', error);
+        }
+    }
+
+    setupEventListeners() {
+        const input = document.getElementById('chatInput');
+
+        if (input) {
+            input.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+        }
+    }
+
+    renderAllMath() {
+        const container = document.getElementById('chatMessages');
+        if (container && window.renderMathInElement) {
+            try {
+                renderMathInElement(container, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false,
+                    trust: true,
+                    strict: false,
+                    ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+                });
+            } catch (err) {
+                console.error('Math render error:', err);
+            }
+        }
+    }
+
+    async clearHistory() {
+        try {
+            const response = await fetch('/api/clear-chat-history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Clear frontend display
+                const container = document.getElementById('chatMessages');
+                const welcomeMsg = container.querySelector('.message-group');
+                container.innerHTML = '';
+                if (welcomeMsg) container.appendChild(welcomeMsg);
+                
+                this.chatHistory = [];
+                
+                // Close modal
+                closeConfirmModal();
+                
+                // Show success message
+                alert('Chat history cleared successfully!');
+            } else {
+                alert('Failed to clear history. Please try again.');
+            }
+
+        } catch (error) {
+            console.error('Error clearing history:', error);
+            alert('Error clearing history. Please try again.');
+        }
+    }
+}
+
+let assistant;
+
+document.addEventListener('DOMContentLoaded', function() {
+    assistant = new AIAssistant();
+});
+
+function sendMessage() {
+    if (assistant) assistant.sendMessage();
+}
+
+function confirmClearChat() {
+    document.getElementById('confirmModal').classList.add('show');
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.remove('show');
+}
+
+function clearChatConfirmed() {
+    if (assistant) assistant.clearHistory();
+}
+
+function toggleMobileStats() {
+    const panel = document.getElementById('mobileStatsPanel');
+    const btn = document.getElementById('mobileStatsBtn');
+    
+    if (panel.classList.contains('show')) {
+        panel.classList.remove('show');
+        btn.innerHTML = '<i class="fas fa-chart-bar"></i>';
+    } else {
+        panel.classList.add('show');
+        btn.innerHTML = '<i class="fas fa-times"></i>';
+        
+        const dailyLimit = document.getElementById('dailyLimit').textContent;
+        const usedToday = document.getElementById('usedToday').textContent;
+        const remaining = document.getElementById('remaining').textContent;
+        
+        document.getElementById('mobileDailyLimit').textContent = dailyLimit;
+        document.getElementById('mobileUsedToday').textContent = usedToday;
+        document.getElementById('mobileRemaining').textContent = remaining;
+    }
+}
+
+</script>
+{% endblock %}

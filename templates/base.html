@@ -1,22 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- MathJax: preserved -->
-<script>
-window.MathJax = {
-  tex: {
-    inlineMath: [['$', '$'], ['\\(', '\\)']],
-    displayMath: [['$$','$$'], ['\\[','\\]']],
-    processEscapes: true
-  },
-  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
-};
-</script>
-<script id="MathJax-script" async
-  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-</script>
-
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/mhchem.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ExamPortal{% endblock %}</title>
@@ -25,6 +14,22 @@ window.MathJax = {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <!-- MathJax for LaTeX rendering on response page -->
+    <script>
+    window.MathJax = {
+    tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$','$$'], ['\\[','\\]']],
+        processEscapes: true,
+        processEnvironments: true
+    },
+    options: { 
+        skipHtmlTags: ['script','noscript','style','textarea','pre','code']
+    }
+    };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
 
 <style>
     html, body { 
@@ -262,6 +267,9 @@ window.MathJax = {
         <a class="nav-link" href="{{ url_for('student_analytics') }}">
             <i class="fas fa-chart-line me-1"></i>Analytics
         </a>
+        <a class="nav-link" href="{{ url_for('ai_assistant') }}">
+            <i class="fas fa-robot me-1"></i>AI Assistant
+        </a>
         <a class="nav-link" href="{{ url_for('logout') }}">
             <i class="fas fa-sign-out-alt me-1"></i>Logout
         </a>
@@ -297,7 +305,7 @@ window.MathJax = {
                 <a href="{{ url_for('support') }}">Support</a>
                 <a href="{{ url_for('contact') }}">Contact</a>
             </div>
-            <p class="mb-0" style="color:#9fb3e6;">© 2025 ExamPortal</p>
+            <p class="mb-0" style="color:#9fb3e6;">© {{ CURRENT_YEAR }} ExamPortal. All rights reserved.</p>
         </div>
     </footer>
     {% endif %}

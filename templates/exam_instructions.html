@@ -183,20 +183,26 @@
                 </div>
 
 <div style="margin-top:0.8rem; display:flex; gap:0.6rem; align-items:center;">
-    {% if active_attempt %}
-        <a id="resumeBtn" href="{{ url_for('exam_page', exam_id=exam.id) }}" class="action-btn start-exam">
+    {% if attempts_exhausted %}
+        <!-- ✅ NO ATTEMPTS LEFT -->
+        <div class="action-btn disabled" title="Attempts exhausted">
+            <i class="fas fa-ban"></i> Attempts Exhausted
+        </div>
+    {% elif active_attempt %}
+        <!-- ✅ ACTIVE ATTEMPT EXISTS - SHOW RESUME -->
+        <a id="resumeBtn" href="{{ url_for('exam_page', exam_id=exam.id) }}?secure=1&resume=1" class="action-btn start-exam">
             <i class="fas fa-redo"></i> Resume Exam
         </a>
+    {% elif can_start %}
+        <!-- ✅ CAN START NEW ATTEMPT -->
+        <button id="startExamBtn" class="action-btn start-exam" type="button">
+            <i class="fas fa-play"></i> Start Exam Now
+        </button>
     {% else %}
-        {% if can_start %}
-            <button id="startExamBtn" class="action-btn start-exam" type="button">
-                <i class="fas fa-play"></i> Start Exam Now
-            </button>
-        {% else %}
-            <div class="action-btn disabled" title="Attempts exhausted">
-                <i class="fas fa-ban"></i> Attempts Exhausted
-            </div>
-        {% endif %}
+        <!-- ✅ FALLBACK -->
+        <div class="action-btn disabled">
+            <i class="fas fa-info-circle"></i> Exam Not Available
+        </div>
     {% endif %}
 
     <a href="{{ url_for('dashboard') }}" class="action-btn view-result">
@@ -245,7 +251,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Elements
     const startBtn = document.getElementById('startExamBtn');
     const resumeBtn = document.getElementById('resumeBtn');
     const preloadingAlert = document.getElementById('preloadingAlert');
@@ -258,14 +263,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const loadingPercentage = document.getElementById('loadingPercentage');
     const colorIndicatorSection = document.getElementById('colorIndicatorSection');
 
-    // Config
     const examId = {{ exam.id|tojson }};
     const POLL_INTERVAL = 30000;
-
-    // Safety debounce
     let startInProgress = false;
+    
+    // ✅ CRITICAL: Track initial state from server
+    const INITIAL_STATE = {
+        hasActiveAttempt: {{ 'true' if active_attempt else 'false' }},
+        attemptsExhausted: {{ 'true' if attempts_exhausted else 'false' }},
+        canStart: {{ 'true' if can_start else 'false' }}
+    };
 
-    // Helper: show error
     function showError(message) {
         if (preloadingAlert) preloadingAlert.style.display = 'none';
         if (errorAlert) {
@@ -277,12 +285,15 @@ document.addEventListener('DOMContentLoaded', function () {
             startBtn.classList.remove('disabled');
             startBtn.innerHTML = startBtn.dataset.origHtml || '<i class="fas fa-play"></i> Start Exam Now';
         }
-        if (colorIndicatorSection && colorIndicatorSection.parentElement) colorIndicatorSection.parentElement.classList.remove('loading-active');
+        if (colorIndicatorSection && colorIndicatorSection.parentElement) {
+            colorIndicatorSection.parentElement.classList.remove('loading-active');
+        }
     }
 
-    // Helper: small UI update before network calls
     function startUiPrepare() {
-        if (colorIndicatorSection && colorIndicatorSection.parentElement) colorIndicatorSection.parentElement.classList.add('loading-active');
+        if (colorIndicatorSection && colorIndicatorSection.parentElement) {
+            colorIndicatorSection.parentElement.classList.add('loading-active');
+        }
         if (successAlert) successAlert.style.display = 'none';
         if (errorAlert) { errorAlert.style.display = 'none'; errorAlert.innerHTML = ''; }
         if (preloadingAlert) preloadingAlert.style.display = 'block';
@@ -298,93 +309,104 @@ document.addEventListener('DOMContentLoaded', function () {
         if (loadingDetails) loadingDetails.textContent = 'Initializing exam session';
     }
 
-    // Build features for popup (maximize-ish)
     function buildFeatures() {
         const screenWidth = screen.availWidth || window.screen.width;
         const screenHeight = screen.availHeight || window.screen.height;
         const features = [
-            'width=' + screenWidth,
-            'height=' + screenHeight,
-            'top=0', 'left=0',
-            'resizable=no', 'scrollbars=yes',
+            'width=' + screenWidth, 'height=' + screenHeight,
+            'top=0', 'left=0', 'resizable=no', 'scrollbars=yes',
             'menubar=no', 'toolbar=no', 'location=no', 'status=no',
             'directories=no', 'copyhistory=no', 'fullscreen=yes'
         ].join(',');
         return {screenWidth, screenHeight, features};
     }
 
-    // Update UI toggles (Start / Resume / Exhausted)
-function renderAttemptUI(info) {
-    try {
-        const attemptsLeft = Number(info.attempts_left);
-        const maxAttempts = Number(info.max_attempts);
-        const activeAttempt = !!info.active_attempt_exists;
+    // ✅ FIXED: Only update UI if state actually changed
+    function renderAttemptUI(info) {
+        try {
+            const attemptsLeft = Number(info.attempts_remaining);
+            const maxAttempts = Number(info.max_attempts);
+            const activeAttempt = !!info.has_active_attempt;
 
-        console.log('renderAttemptUI:', {attemptsLeft, maxAttempts, activeAttempt, info}); // Debug log
+            console.log('📊 Attempt Status:', {
+                activeAttempt, 
+                attemptsLeft, 
+                maxAttempts,
+                initialState: INITIAL_STATE
+            });
 
-        // If unlimited attempts (max_attempts = 0) or attempts available
-        if (maxAttempts === 0 || attemptsLeft > 0 || attemptsLeft === -1) {
-            // remove any exhausted message
-            const existing = document.getElementById('attemptsExhaustedMsg');
-            if (existing) existing.remove();
+            // ✅ CRITICAL: Don't change UI if server state matches initial state
+            if (INITIAL_STATE.hasActiveAttempt === activeAttempt) {
+                console.log('ℹ️ State unchanged - keeping current UI');
+                return;
+            }
 
-            // Show appropriate button
-            if (activeAttempt) {
-                if (resumeBtn) resumeBtn.style.display = 'inline-flex';
+            // Priority 1: Exhausted
+            if (maxAttempts > 0 && attemptsLeft <= 0) {
                 if (startBtn) startBtn.style.display = 'none';
-            } else {
-                if (startBtn) startBtn.style.display = 'inline-flex';
                 if (resumeBtn) resumeBtn.style.display = 'none';
-            }
-            return;
-        }
-
-        // Only show exhausted if maxAttempts > 0 AND attemptsLeft <= 0
-        if (maxAttempts > 0 && attemptsLeft <= 0) {
-            // remove start/resume buttons
-            if (startBtn) startBtn.style.display = 'none';
-            if (resumeBtn) resumeBtn.style.display = 'none';
-
-            // show exhausted message
-            let existing = document.getElementById('attemptsExhaustedMsg');
-            if (!existing) {
-                const container = (startBtn || resumeBtn)?.parentElement;
-                if (container) {
-                    const el = document.createElement('div');
-                    el.id = 'attemptsExhaustedMsg';
-                    el.className = 'action-btn disabled';
-                    el.style.cursor = 'default';
-                    el.style.display = 'inline-flex';
-                    el.style.alignItems = 'center';
-                    el.style.gap = '0.6rem';
-                    el.innerHTML = '<i class="fas fa-lock"></i> Attempts exhausted – contact administration';
-                    container.insertBefore(el, container.firstChild);
+                
+                let exhaustedMsg = document.getElementById('attemptsExhaustedMsg');
+                if (!exhaustedMsg) {
+                    const container = (startBtn || resumeBtn)?.parentElement;
+                    if (container) {
+                        exhaustedMsg = document.createElement('div');
+                        exhaustedMsg.id = 'attemptsExhaustedMsg';
+                        exhaustedMsg.className = 'action-btn disabled';
+                        exhaustedMsg.innerHTML = '<i class="fas fa-ban"></i> Attempts Exhausted';
+                        container.insertBefore(exhaustedMsg, container.firstChild);
+                    }
                 }
+                return;
             }
+
+            const existingMsg = document.getElementById('attemptsExhaustedMsg');
+            if (existingMsg) existingMsg.remove();
+
+            // Priority 2: Active attempt → Show Resume
+            if (activeAttempt) {
+                if (resumeBtn) {
+                    resumeBtn.style.display = 'inline-flex';
+                    // ✅ Update initial state to prevent toggling
+                    INITIAL_STATE.hasActiveAttempt = true;
+                }
+                if (startBtn) startBtn.style.display = 'none';
+                console.log('✅ Showing RESUME button (state locked)');
+                return;
+            }
+
+            // Priority 3: Can start → Show Start
+            if (startBtn) {
+                startBtn.style.display = 'inline-flex';
+                // ✅ Update initial state
+                INITIAL_STATE.hasActiveAttempt = false;
+            }
+            if (resumeBtn) resumeBtn.style.display = 'none';
+            console.log('✅ Showing START button (state locked)');
+
+        } catch (e) {
+            console.error('❌ renderAttemptUI error:', e);
         }
-
-    } catch (e) {
-        console.warn('renderAttemptUI error', e);
     }
-}
 
-    // API call to fetch current attempt status for this user+exam
     async function fetchAttemptStatus() {
         try {
-            const r = await fetch(`/api/exam-attempts-status/${examId}`, { cache: 'no-store' });
+            const r = await fetch(`/api/exam-attempts-status/${examId}`, { 
+                cache: 'no-store',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
             if (!r.ok) {
-                console.warn('attempt status fetch failed', r.status);
+                console.warn('Attempt status fetch failed:', r.status);
                 return null;
             }
             const data = await r.json();
             return data;
         } catch (e) {
-            console.warn('fetchAttemptStatus error', e);
+            console.warn('fetchAttemptStatus error:', e);
             return null;
         }
     }
 
-    // NEW: Preloading function from old file
     async function startActualPreloading() {
         if (loadingTitle) loadingTitle.textContent = 'Connecting to Server...';
         if (loadingSubtitle) loadingSubtitle.textContent = 'Establishing secure connection';
@@ -393,7 +415,6 @@ function renderAttemptUI(info) {
         if (loadingPercentage) loadingPercentage.textContent = '10%';
 
         try {
-            // Fetch preload endpoint
             const response = await fetch(`/preload-exam/${examId}`, { 
                 method: 'GET', 
                 headers: { 'Content-Type': 'application/json' },
@@ -434,8 +455,7 @@ function renderAttemptUI(info) {
                 if (preloadingAlert) preloadingAlert.style.display = 'none';
                 if (successAlert) successAlert.style.display = 'block';
                 
-                // Now open the secure exam window
-                return true; // Success
+                return true;
             } else {
                 throw new Error((data && data.message) || 'Failed to load exam data');
             }
@@ -445,20 +465,16 @@ function renderAttemptUI(info) {
         }
     }
 
-    // Primary unified start handler with preloading
     async function unifiedStartHandler(event) {
         event && event.preventDefault();
         if (startInProgress) return;
         startInProgress = true;
 
-        // Prepare UI
         startUiPrepare();
 
         try {
-            // STEP 1: First, run the preloading process (this shows the green glowing loader)
             await startActualPreloading();
             
-            // STEP 2: After preloading is complete, proceed with starting the exam
             const resp = await fetch(`/start-exam/${examId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -473,15 +489,13 @@ function renderAttemptUI(info) {
                 throw new Error(text || 'Server error');
             }
 
-            // If not success => show error
             if (!resp.ok || !data || !data.success) {
-                const msg = (data && data.message) ? data.message : 'Failed to start exam. Please try again.';
+                const msg = (data && data.message) ? data.message : 'Failed to start exam';
                 showError(msg);
                 startInProgress = false;
                 return;
             }
 
-            // STEP 3: Success! Now create and open the exam window (AFTER everything is ready)
             const { features } = buildFeatures();
             let examWindow = null;
             try {
@@ -491,51 +505,48 @@ function renderAttemptUI(info) {
                 examWindow = null;
             }
 
-            // Navigate the exam window to the exam page
             const redirectUrl = data.redirect_url || (`/exam/${examId}`);
             if (examWindow) {
                 try {
-                    examWindow.location.href = redirectUrl + (redirectUrl.indexOf('?') === -1 ? '?secure=1&from_instructions=1' : '&secure=1&from_instructions=1');
+                    examWindow.location.href = redirectUrl + '?secure=1&from_instructions=1';
                 } catch (e) {
                     try { examWindow.location.replace(redirectUrl); } catch (e2) {}
                 }
             } else {
-                // popup null => blocked; open current tab as fallback
                 if (errorAlert) {
                     errorAlert.style.display = 'block';
-                    errorAlert.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Popup blocked — opening in current tab.';
+                    errorAlert.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Popup blocked';
                 }
                 window.location.href = redirectUrl;
             }
 
-            // Show final success state
             setTimeout(() => {
                 if (preloadingAlert) preloadingAlert.style.display = 'none';
                 if (successAlert) successAlert.style.display = 'block';
             }, 400);
 
-            // Immediately refresh attempt counts so the instructions page shows correct Start/Resume/Exhausted
+            // ✅ Update initial state to show Resume next time
+            INITIAL_STATE.hasActiveAttempt = true;
+            INITIAL_STATE.canStart = false;
+
             setTimeout(async () => {
                 await refreshAttemptStatusAndRender();
             }, 700);
 
         } catch (err) {
-            console.error('Start-exam error:', err);
-            
-            // Show error with retry option
-            const errorMessage = err.message || 'Network or server error starting exam. Please try again.';
-            showError(errorMessage + ' <button onclick="location.reload()" style="margin-left:10px;padding:4px 8px;background:#059669;color:white;border:none;border-radius:4px;cursor:pointer;">Retry</button>');
+            console.error('Start error:', err);
+            showError(err.message || 'Error starting exam');
         } finally {
             startInProgress = false;
-            if (colorIndicatorSection && colorIndicatorSection.parentElement) colorIndicatorSection.parentElement.classList.remove('loading-active');
+            if (colorIndicatorSection && colorIndicatorSection.parentElement) {
+                colorIndicatorSection.parentElement.classList.remove('loading-active');
+            }
         }
     }
 
-    // Resume button: open exam_page in new window (do not create a new attempt)
     function resumeHandler(e) {
         e.preventDefault();
         const { features } = buildFeatures();
-        // open popup immediately to avoid blocker
         let w = null;
         try {
             w = window.open('about:blank', '_blank', features);
@@ -545,15 +556,17 @@ function renderAttemptUI(info) {
         }
         const resumeUrl = resumeBtn ? resumeBtn.href : (`/exam/${examId}`);
         if (w) {
-            try { w.location.href = resumeUrl + (resumeUrl.indexOf('?') === -1 ? '?secure=1&resume=1' : '&secure=1&resume=1'); }
-            catch (e) { try { w.location.replace(resumeUrl); } catch (e2) {} }
+            try { 
+                w.location.href = resumeUrl + '?secure=1&resume=1'; 
+            } catch (e) { 
+                try { w.location.replace(resumeUrl); } catch (e2) {} 
+            }
         } else {
             alert('Popup blocked. Opening in current tab.');
             window.location.href = resumeUrl;
         }
     }
 
-    // Refresh attempt status and update UI
     let pollHandle = null;
     async function refreshAttemptStatusAndRender() {
         try {
@@ -562,31 +575,30 @@ function renderAttemptUI(info) {
                 renderAttemptUI(info);
             }
         } catch (e) {
-            console.warn('refreshAttemptStatusAndRender error', e);
+            console.warn('Refresh error:', e);
         }
     }
 
-    // Start periodic poll (only when page visible) - with backoff on errors
     let pollErrors = 0;
     function startPolling() {
         if (pollHandle) clearInterval(pollHandle);
-        const pollInterval = Math.min(POLL_INTERVAL * Math.pow(1.5, pollErrors), 120000); // Max 2 minutes
+        const pollInterval = Math.min(POLL_INTERVAL * Math.pow(1.5, pollErrors), 120000);
         pollHandle = setInterval(async () => {
             try {
                 await refreshAttemptStatusAndRender();
-                pollErrors = 0; // Reset on success
+                pollErrors = 0;
             } catch (e) {
-                pollErrors = Math.min(pollErrors + 1, 5); // Cap at 5 errors
+                pollErrors = Math.min(pollErrors + 1, 5);
                 console.warn('Poll error:', e);
             }
         }, pollInterval);
     }
+
     function stopPolling() {
         if (pollHandle) clearInterval(pollHandle);
         pollHandle = null;
     }
 
-    // Attach handlers
     if (startBtn) {
         startBtn.addEventListener('click', unifiedStartHandler);
     }
@@ -594,7 +606,6 @@ function renderAttemptUI(info) {
         resumeBtn.addEventListener('click', resumeHandler);
     }
 
-    // Visibility handling: refresh when user returns to tab
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             refreshAttemptStatusAndRender();
@@ -604,26 +615,19 @@ function renderAttemptUI(info) {
         }
     });
 
-    // Beforeunload protection stays: preserve your existing message if preloading is active
     window.addEventListener('beforeunload', function (e) {
         const pre = document.getElementById('preloadingAlert');
         if (pre && pre.style.display === 'block') {
-            const msg = 'Exam is currently loading. Are you sure you want to leave? This may affect your exam access.';
+            const msg = 'Exam loading. Leave?';
             e.returnValue = msg;
             return msg;
         }
     });
 
-    // Initial fetch to set UI, then start polling
-    (async function init() {
-        await refreshAttemptStatusAndRender();
-        startPolling();
-    })();
-
+    // ✅ FIXED: Only fetch status on visibility change, NOT on load
+    // Initial UI is already correct from server-side rendering
+    console.log('✅ Initial state:', INITIAL_STATE);
+    startPolling();
 });
 </script>
-
-
-
-
 {% endblock %}

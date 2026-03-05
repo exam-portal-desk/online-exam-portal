@@ -7,199 +7,461 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d2d5f 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e8eaed;
+            position: relative;
+            overflow-x: hidden;
         }
-        .content-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 1;
+            pointer-events: none;
         }
-        .support-card {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
-        }
-        .support-card:hover {
-            transform: translateY(-5px);
-        }
-        .btn-back {
+
+        .particle {
+            position: absolute;
             background: linear-gradient(45deg, #667eea, #764ba2);
-            border: none;
-            border-radius: 25px;
-            color: white;
-            transition: all 0.3s ease;
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
         }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-30px); }
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 2;
+            padding: 3rem 0;
+        }
+
+        .header-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 2.5rem;
+            margin-bottom: 3rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .page-title {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 0%, #667eea 50%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.2rem;
+            font-weight: 400;
+        }
+
+        .btn-back {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
         .btn-back:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
             color: white;
         }
-        .faq-item {
-            border-bottom: 1px solid #e9ecef;
-            padding: 1rem 0;
+
+        .support-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s ease;
+            height: 100%;
         }
-        .faq-item:last-child {
-            border-bottom: none;
+
+        .support-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(102, 126, 234, 0.5);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
+        }
+
+        .support-card h4 {
+            color: white;
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .support-card p {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.5rem;
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .contact-item {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .contact-item strong {
+            color: white;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .contact-item small {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 0.9rem;
+            border-radius: 12px;
+            font-weight: 600;
+            border: 2px solid;
+            transition: all 0.3s ease;
+            margin-bottom: 0.8rem;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .section-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-top: 3rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-title {
+            color: white;
+            font-weight: 700;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid;
+            border-image: linear-gradient(90deg, #667eea, #764ba2) 1;
+        }
+
+        .faq-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .faq-card h6 {
+            color: white;
+            font-weight: 600;
+            margin-bottom: 0.8rem;
+        }
+
+        .faq-card p {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 0;
+            line-height: 1.6;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+
+        .info-box {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-box h5 {
+            color: white;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .info-box ul {
+            list-style: none;
+            padding: 0;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .info-box ul li {
+            padding: 0.4rem 0;
+        }
+
+        .alert-info {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        .alert-info h5 {
+            color: white;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .alert-info p {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 0;
+        }
+
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container my-5">
-        <div class="content-card p-5">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="text-primary"><i class="fas fa-life-ring"></i> Support Center</h1>
-                <a href="javascript:history.back()" class="btn btn-back">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
+    <div class="particles">
+        <div class="particle" style="width: 4px; height: 4px; top: 20%; left: 10%; animation-delay: 0s;"></div>
+        <div class="particle" style="width: 6px; height: 6px; top: 60%; left: 80%; animation-delay: 1s;"></div>
+        <div class="particle" style="width: 3px; height: 3px; top: 80%; left: 20%; animation-delay: 2s;"></div>
+        <div class="particle" style="width: 5px; height: 5px; top: 40%; left: 60%; animation-delay: 3s;"></div>
+    </div>
+
+    <div class="content-wrapper">
+        <div class="container">
+            <div class="header-section">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h1 class="page-title">
+                            <i class="fas fa-life-ring me-3"></i>Support Center
+                        </h1>
+                        <p class="page-subtitle">We're here to help you succeed</p>
+                    </div>
+                    <a href="javascript:history.back()" class="btn btn-back mt-3 mt-md-0">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </a>
+                </div>
             </div>
-            
+
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-6 mb-4">
                     <div class="support-card">
-                        <h4 class="text-primary"><i class="fas fa-headset"></i> Contact Support</h4>
-                        <p class="text-muted">Get help from our support team</p>
-                        <div class="row">
-                            <div class="col-6">
-                                <strong><i class="fas fa-envelope text-primary"></i> Email</strong><br>
+                        <h4><i class="fas fa-headset me-2" style="color: #667eea;"></i>Contact Support</h4>
+                        <p>Get help from our dedicated support team</p>
+                        
+                        <div class="contact-grid">
+                            <div class="contact-item">
+                                <strong><i class="fas fa-envelope me-2" style="color: #667eea;"></i>Email</strong>
                                 <small>examportaldesk@gmail.com</small>
                             </div>
-                            <div class="col-6">
-                                <strong><i class="fas fa-phone text-success"></i> Phone</strong><br>
+                            <div class="contact-item">
+                                <strong><i class="fas fa-phone me-2" style="color: #10b981;"></i>Phone</strong>
                                 <small>+91-755-123-4567</small>
                             </div>
                         </div>
-                        <div class="mt-3">
-                            <strong><i class="fas fa-clock text-warning"></i> Support Hours</strong><br>
+
+                        <div class="contact-item">
+                            <strong><i class="fas fa-clock me-2" style="color: #fbbf24;"></i>Support Hours</strong>
                             <small>Monday - Friday: 9:00 AM - 6:00 PM IST<br>Saturday, Sunday: Unavailable</small>
                         </div>
                     </div>
                 </div>
-                
-                <div class="col-md-6">
+
+                <div class="col-md-6 mb-4">
                     <div class="support-card">
-                        <h4 class="text-success"><i class="fas fa-bolt"></i> Quick Help</h4>
-                        <p class="text-muted">Common solutions for immediate assistance</p>
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse">
-                                <i class="fas fa-question-circle"></i> View FAQ
-                            </button>
-                            <a href="#troubleshoot" class="btn btn-outline-success">
-                                <i class="fas fa-tools"></i> Troubleshooting Guide
-                            </a>
-                            <a href="#technical" class="btn btn-outline-warning">
-                                <i class="fas fa-cog"></i> Technical Requirements
-                            </a>
+                        <h4><i class="fas fa-bolt me-2" style="color: #fbbf24;"></i>Quick Help</h4>
+                        <p>Common solutions for immediate assistance</p>
+
+                        <button class="btn btn-action" style="background: rgba(102, 126, 234, 0.1); color: #667eea; border-color: #667eea;" data-bs-toggle="collapse" data-bs-target="#faqCollapse">
+                            <i class="fas fa-question-circle me-2"></i>View FAQ
+                        </button>
+                        <a href="#troubleshoot" class="btn btn-action" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: #10b981; text-decoration: none;">
+                            <i class="fas fa-tools me-2"></i>Troubleshooting Guide
+                        </a>
+                        <a href="#technical" class="btn btn-action" style="background: rgba(251, 191, 36, 0.1); color: #fbbf24; border-color: #fbbf24; text-decoration: none;">
+                            <i class="fas fa-cog me-2"></i>Technical Requirements
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="collapse" id="faqCollapse">
+                <div class="section-card">
+                    <h3 class="section-title"><i class="fas fa-question-circle me-3"></i>Frequently Asked Questions</h3>
+                    
+                    <div class="faq-card">
+                        <h6><i class="fas fa-chevron-right me-2" style="color: #667eea;"></i>How do I reset my password?</h6>
+                        <p>Click on "Forgot Password" on the login page and follow the instructions sent to your registered email address. If you don't receive the email within a few minutes, check your spam folder.</p>
+                    </div>
+
+                    <div class="faq-card">
+                        <h6><i class="fas fa-chevron-right me-2" style="color: #667eea;"></i>My exam is not loading. What should I do?</h6>
+                        <p>First, check your internet connection. Then, try clearing your browser cache and cookies. Ensure JavaScript is enabled in your browser settings. If the problem persists, contact support immediately using the phone number above.</p>
+                    </div>
+<div class="faq-card">
+                        <h6><i class="fas fa-chevron-right me-2" style="color: #667eea;"></i>Can I pause an exam once started?</h6>
+                        <p>No, exams cannot be paused once started. Please ensure you have sufficient time and a stable internet connection before beginning your exam.</p>
+                    </div>
+
+                    <div class="faq-card">
+                        <h6><i class="fas fa-chevron-right me-2" style="color: #667eea;"></i>How do I view my exam results?</h6>
+                        <p>Results are available in your dashboard after the exam is submitted and processed by your institution. You'll receive a notification when results are ready.</p>
+                    </div>
+
+                    <div class="faq-card">
+                        <h6><i class="fas fa-chevron-right me-2" style="color: #667eea;"></i>What browsers are supported?</h6>
+                        <p>We support Chrome 90+, Firefox 88+, Safari 14+, and Edge 90+. Always use the latest version of your browser for the best experience.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="troubleshoot" class="section-card">
+                <h3 class="section-title"><i class="fas fa-tools me-3"></i>Troubleshooting Guide</h3>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div style="padding: 1.5rem; background: rgba(102, 126, 234, 0.05); border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.2);">
+                            <h5 style="color: white; margin-bottom: 1rem;">
+                                <i class="fas fa-wifi me-2" style="color: #667eea;"></i>Connection Issues
+                            </h5>
+                            <ul style="color: rgba(255, 255, 255, 0.8); line-height: 1.8;">
+                                <li>Check your internet connection and ensure it's stable</li>
+                                <li>Try refreshing the page using Ctrl+F5 (Windows) or Cmd+R (Mac)</li>
+                                <li>Switch to a different browser if the problem persists</li>
+                                <li>Disable browser extensions or ad blockers temporarily</li>
+                                <li>Restart your router or modem if experiencing connectivity issues</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div style="padding: 1.5rem; background: rgba(16, 185, 129, 0.05); border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                            <h5 style="color: white; margin-bottom: 1rem;">
+                                <i class="fas fa-browser me-2" style="color: #10b981;"></i>Browser Issues
+                            </h5>
+                            <ul style="color: rgba(255, 255, 255, 0.8); line-height: 1.8;">
+                                <li>Clear browser cache and cookies from settings</li>
+                                <li>Enable JavaScript and cookies in browser preferences</li>
+                                <li>Update your browser to the latest available version</li>
+                                <li>Try incognito or private browsing mode</li>
+                                <li>Disable browser extensions that may interfere with the exam</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="collapse mt-4" id="faqCollapse">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5><i class="fas fa-question-circle"></i> Frequently Asked Questions</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="faq-item">
-                            <h6><strong>Q: I forgot my password. How can I reset it?</strong></h6>
-                            <p>A: Click on "Forgot Password" on the login page and follow the instructions sent to your registered email.</p>
-                        </div>
-                        <div class="faq-item">
-                            <h6><strong>Q: My exam is not loading. What should I do?</strong></h6>
-                            <p>A: Check your internet connection, clear browser cache, and ensure JavaScript is enabled. If the problem persists, contact support immediately.</p>
-                        </div>
-                        <div class="faq-item">
-                            <h6><strong>Q: Can I pause an exam once started?</strong></h6>
-                            <p>A: No, exams cannot be paused once started. Ensure you have sufficient time before beginning.</p>
-                        </div>
-                        <div class="faq-item">
-                            <h6><strong>Q: How do I view my exam results?</strong></h6>
-                            <p>A: Results are available in your dashboard after the exam is submitted and processed by your institution.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="troubleshoot" class="mt-5">
-                <h3 class="text-primary border-bottom pb-2"><i class="fas fa-tools"></i> Troubleshooting Guide</h3>
-                <div class="row mt-4">
-                    <div class="col-md-6">
-                        <h5><i class="fas fa-wifi text-primary"></i> Connection Issues</h5>
+            <div id="technical" class="section-card">
+                <h3 class="section-title"><i class="fas fa-cog me-3"></i>Technical Requirements</h3>
+                
+                <div class="info-grid">
+                    <div class="info-box">
+                        <i class="fas fa-desktop info-icon" style="color: #667eea;"></i>
+                        <h5>Supported Browsers</h5>
                         <ul>
-                            <li>Check your internet connection</li>
-                            <li>Try refreshing the page</li>
-                            <li>Switch to a different browser</li>
-                            <li>Disable browser extensions temporarily</li>
+                            <li>Chrome 90+</li>
+                            <li>Firefox 88+</li>
+                            <li>Safari 14+</li>
+                            <li>Edge 90+</li>
                         </ul>
+                        <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem; margin-top: 1rem;">
+                            Always use the latest version
+                        </p>
                     </div>
-                    <div class="col-md-6">
-                        <h5><i class="fas fa-browser text-success"></i> Browser Issues</h5>
+
+                    <div class="info-box">
+                        <i class="fas fa-wifi info-icon" style="color: #10b981;"></i>
+                        <h5>Internet Speed</h5>
                         <ul>
-                            <li>Clear browser cache and cookies</li>
-                            <li>Enable JavaScript and cookies</li>
-                            <li>Update your browser to latest version</li>
-                            <li>Try incognito/private browsing mode</li>
+                            <li>Minimum: 1 Mbps</li>
+                            <li>Recommended: 5+ Mbps</li>
+                            <li>Stable connection required</li>
+                            <li>Avoid shared networks</li>
                         </ul>
+                        <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem; margin-top: 1rem;">
+                            Test your speed before exams
+                        </p>
+                    </div>
+
+                    <div class="info-box">
+                        <i class="fas fa-laptop info-icon" style="color: #fbbf24;"></i>
+                        <h5>Device Requirements</h5>
+                        <ul>
+                            <li>Desktop/Laptop preferred</li>
+                            <li>4GB+ RAM recommended</li>
+                            <li>Updated operating system</li>
+                            <li>Webcam (if required)</li>
+                        </ul>
+                        <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem; margin-top: 1rem;">
+                            Mobile devices not recommended
+                        </p>
                     </div>
                 </div>
             </div>
 
-            <div id="technical" class="mt-5">
-                <h3 class="text-primary border-bottom pb-2"><i class="fas fa-cog"></i> Technical Requirements</h3>
-                <div class="row mt-4">
-                    <div class="col-md-4">
-                        <div class="text-center">
-                            <i class="fas fa-desktop fa-3x text-primary mb-3"></i>
-                            <h5>Supported Browsers</h5>
-                            <ul class="list-unstyled">
-                                <li>Chrome 90+</li>
-                                <li>Firefox 88+</li>
-                                <li>Safari 14+</li>
-                                <li>Edge 90+</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="text-center">
-                            <i class="fas fa-wifi fa-3x text-success mb-3"></i>
-                            <h5>Internet Speed</h5>
-                            <ul class="list-unstyled">
-                                <li>Minimum: 1 Mbps</li>
-                                <li>Recommended: 5+ Mbps</li>
-                                <li>Stable connection required</li>
-                                <li>Avoid shared networks</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="text-center">
-                            <i class="fas fa-laptop fa-3x text-warning mb-3"></i>
-                            <h5>Device Requirements</h5>
-                            <ul class="list-unstyled">
-                                <li>Desktop/Laptop preferred</li>
-                                <li>4GB+ RAM recommended</li>
-                                <li>Updated OS</li>
-                                <li>Webcam (if required)</li>
-                            </ul>
-                        </div>
+            <div class="alert-info">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-info-circle fa-2x me-3" style="color: #667eea;"></i>
+                    <div>
+                        <h5>Still Need Help?</h5>
+                        <p>If you can't find the answer you're looking for, don't hesitate to contact our support team. We're here to help you succeed and ensure your exam experience is smooth and hassle-free.</p>
                     </div>
                 </div>
-            </div>
-
-            <div class="alert alert-info mt-5">
-                <h5><i class="fas fa-info-circle"></i> Still Need Help?</h5>
-                <p class="mb-0">If you can't find the answer you're looking for, don't hesitate to contact our support team. We're here to help you succeed!</p>
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
