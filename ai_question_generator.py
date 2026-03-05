@@ -301,7 +301,7 @@ class AIQuestionGenerator:
 
         # Initialize embeddings for RAG
         self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="gemini-embedding-001",
+            model="models/text-embedding-004",
             google_api_key=self.api_key
         )
 
@@ -571,4 +571,5 @@ def generate_questions(
             raise ValueError(f"Invalid mode: {mode}")
 
     except Exception as e:
+
         raise Exception(f"Question generation failed: {str(e)}")
