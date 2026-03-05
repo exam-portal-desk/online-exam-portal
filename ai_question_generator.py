@@ -395,7 +395,7 @@ class AIQuestionGenerator:
             chunks = self.load_pdf(pdf_path)
             vectorstore = self.create_vectorstore(chunks)
 
-            retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
+            retriever = vectorstore.as_retriever(search_kwargs={"k": 8})
             relevant_docs = retriever.invoke("Get all concepts and theory")
             context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
@@ -577,5 +577,6 @@ def generate_questions(
     except Exception as e:
 
         raise Exception(f"Question generation failed: {str(e)}")
+
 
 
