@@ -196,6 +196,77 @@
   .navbar, .btn, #responseLoadingAlert { display: none !important; }
   body { background: white !important; color: #000 !important; }
 }
+.disc-section{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:1.1rem 1.2rem;margin-top:1.2rem;}
+.disc-header{display:flex;align-items:center;gap:.6rem;cursor:pointer;user-select:none;}
+.disc-header h6{margin:0;font-weight:700;color:#cbd5e1;font-size:.9rem;}
+.disc-count-badge{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:.68rem;font-weight:800;padding:.15rem .48rem;border-radius:20px;min-width:1.4rem;text-align:center;}
+.disc-chevron{color:rgba(255,255,255,0.3);font-size:.78rem;margin-left:auto;transition:transform .25s;}
+.disc-chevron.open{transform:rotate(180deg);}
+.disc-body{display:none;margin-top:.9rem;}
+.disc-body.open{display:block;}
+.disc-input-wrap{position:relative;}
+.disc-textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;padding:.6rem 4.2rem .6rem .85rem;font-size:.86rem;resize:none;outline:none;transition:border .2s;line-height:1.45;min-height:2.6rem;}
+.disc-textarea:focus{border-color:#667eea;}
+.disc-textarea::placeholder{color:rgba(255,255,255,0.28);}
+.disc-actions-row{position:absolute;right:.4rem;bottom:.4rem;display:flex;gap:.25rem;align-items:center;}
+.disc-emoji-trigger{background:none;border:none;font-size:1.05rem;cursor:pointer;line-height:1;padding:.18rem .22rem;border-radius:6px;transition:background .15s;}
+.disc-emoji-trigger:hover{background:rgba(255,255,255,0.08);}
+.disc-send{background:linear-gradient(135deg,#667eea,#764ba2);border:none;border-radius:7px;color:#fff;width:1.85rem;height:1.85rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s,box-shadow .15s;}
+.disc-send:hover{transform:scale(1.08);box-shadow:0 4px 14px rgba(102,126,234,0.4);}
+.disc-char{font-size:.7rem;color:rgba(255,255,255,0.25);text-align:right;margin:.22rem 0 .55rem;}
+.emoji-picker-pop{position:absolute;bottom:calc(100% + .4rem);right:0;z-index:1000;display:none;background:#1a1f36;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:.55rem;box-shadow:0 16px 50px rgba(0,0,0,0.7);}
+.emoji-picker-pop.open{display:block;}
+.emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:.25rem;}
+.e-btn{background:none;border:none;font-size:1.15rem;cursor:pointer;border-radius:6px;padding:.12rem;transition:background .12s;line-height:1;}
+.e-btn:hover{background:rgba(255,255,255,0.1);}
+.comments-list{display:flex;flex-direction:column;gap:.6rem;}
+.c-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:.75rem .85rem;}
+.c-card.is-pinned{border-color:rgba(255,209,102,0.3);background:rgba(255,209,102,0.04);}
+.c-card.is-best{border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.04);}
+.c-card.is-reply{margin-left:2rem;margin-top:.45rem;background:rgba(255,255,255,0.012);}
+.c-avatar{width:1.9rem;height:1.9rem;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;color:#fff;flex-shrink:0;}
+.c-username{font-weight:700;font-size:.83rem;color:#e2e8f0;}
+.c-time{font-size:.7rem;color:rgba(255,255,255,0.3);}
+.c-text{color:#cbd5e1;font-size:.85rem;margin-top:.3rem;word-break:break-word;white-space:pre-wrap;}
+.c-meta{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-top:.05rem;}
+.badge-pin{font-size:.65rem;background:rgba(255,209,102,0.14);color:#ffd166;border-radius:5px;padding:.08rem .35rem;font-weight:700;}
+.badge-best{font-size:.65rem;background:rgba(16,185,129,0.14);color:#10b981;border-radius:5px;padding:.08rem .35rem;font-weight:700;}
+.badge-edited{font-size:.65rem;color:rgba(255,255,255,0.22);font-style:italic;}
+.c-actions{display:flex;gap:.6rem;margin-top:.38rem;flex-wrap:wrap;}
+.ca-btn{background:none;border:none;color:rgba(255,255,255,0.32);font-size:.73rem;cursor:pointer;padding:0;transition:color .15s;display:flex;align-items:center;gap:.25rem;}
+.ca-btn:hover{color:#667eea;}
+.ca-btn.red:hover{color:#ef4444;}
+.reply-box{display:none;margin-top:.6rem;}
+.reply-box.open{display:block;}
+.disc-edit-wrap{margin:.3rem 0 0;display:flex;align-items:flex-start;gap:.5rem;}
+.disc-edit-textarea{flex:1;background:rgba(255,255,255,0.04);border:1px solid #667eea;border-radius:8px;color:#fff;padding:.45rem .7rem;font-size:.85rem;resize:none;outline:none;line-height:1.4;min-height:2.2rem;max-height:6rem;}
+.disc-edit-actions{display:flex;gap:.4rem;margin-top:.3rem;}
+.disc-edit-save{background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);border-radius:6px;color:#10b981;padding:.22rem .55rem;font-size:.73rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.25rem;transition:background .15s;}
+.disc-edit-cancel{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.4);padding:.22rem .55rem;font-size:.73rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.25rem;transition:background .15s;}
+.disc-edit-save:hover{background:rgba(16,185,129,0.25);}
+.disc-edit-cancel:hover{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);}
+.no-comments{text-align:center;color:rgba(255,255,255,0.22);font-size:.82rem;padding:.7rem 0;}
+.disc-spinner{text-align:center;color:rgba(255,255,255,0.28);padding:.9rem;font-size:.82rem;}
+.disc-toast{position:fixed;bottom:1.4rem;right:1.4rem;z-index:9999;padding:.6rem 1rem;border-radius:10px;font-size:.83rem;font-weight:700;color:#fff;box-shadow:0 8px 28px rgba(0,0,0,0.45);pointer-events:none;animation:toastIn .2s ease;}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.disc-confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.disc-confirm-box{background:#1a1f36;border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:1.4rem 1.6rem;width:min(320px,90vw);box-shadow:0 24px 60px rgba(0,0,0,0.7);}
+.disc-confirm-box h6{color:#fff;font-weight:700;margin:0 0 .4rem;font-size:.95rem;}
+.disc-confirm-box p{color:rgba(255,255,255,0.45);font-size:.8rem;margin:0 0 1.2rem;}
+.disc-confirm-btns{display:flex;gap:.6rem;justify-content:flex-end;}
+.disc-confirm-btns button{border:none;border-radius:8px;padding:.45rem .95rem;font-size:.82rem;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.disc-confirm-btns button:hover{opacity:.85;}
+.disc-cb-cancel{background:rgba(255,255,255,0.08);color:#fff;}
+.disc-cb-delete{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;}
+
+.math-wrap{max-width:100%;overflow-x:auto;overflow-y:hidden;}
+.math-wrap mjx-container{max-width:100% !important;overflow-x:auto !important;}
+.math-wrap mjx-container[display="true"]{display:block !important;margin:0.3rem 0 !important;}
+mjx-container{max-width:100% !important;}
+mjx-math{white-space:normal !important;}
+.option-display{overflow-x:auto;}
+.option-display mjx-container{max-width:100% !important;}
 </style>
 
 <div class="container mt-4" id="responseContainer">
@@ -409,12 +480,46 @@
                     {% endif %}
                   </div>
                 </div>
-
-              {% else %}
+{% else %}
                 <div class="alert alert-warning">
                   <strong>Unknown question type:</strong> {{ response.question_type }}
                 </div>
               {% endif %}
+
+              <div class="disc-section">
+                <div class="disc-header" onclick="discToggle({{ response.question.id }}, {{ exam.id }})">
+                  <i class="fas fa-comments" style="color:#667eea;font-size:.9rem;"></i>
+                  <h6>Discussion <span class="disc-count-badge" id="disc-cnt-{{ response.question.id }}">•••</span></h6>
+                  <i class="fas fa-chevron-down disc-chevron" id="disc-chev-{{ response.question.id }}"></i>
+                </div>
+                <div class="disc-body" id="disc-body-{{ response.question.id }}">
+                  <div class="disc-input-wrap" style="margin-bottom:0;">
+                    <textarea class="disc-textarea" id="disc-ta-{{ response.question.id }}" rows="2"
+                      placeholder="Write a comment… (Shift+Enter for new line, Enter to send)"
+                      maxlength="500"
+                      oninput="discCharCount({{ response.question.id }})"
+                      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();discPost({{ response.question.id }},{{ exam.id }});}"></textarea>
+                    <div class="disc-actions-row">
+                      <div style="position:relative;">
+                        <button class="disc-emoji-trigger" type="button"
+                          onclick="discEmojiToggle(event,'main',{{ response.question.id }},null)">😊</button>
+                        <div class="emoji-picker-pop" id="epop-main-{{ response.question.id }}">
+                          <div class="emoji-grid" id="egrid-main-{{ response.question.id }}"></div>
+                        </div>
+                      </div>
+                      <button class="disc-send" type="button"
+                        onclick="discPost({{ response.question.id }},{{ exam.id }})" title="Send">
+                        <i class="fas fa-paper-plane" style="font-size:.68rem;"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="disc-char" id="disc-char-{{ response.question.id }}">0 / 500</div>
+                  <div class="comments-list" id="disc-list-{{ response.question.id }}">
+                    <div class="disc-spinner"><i class="fas fa-circle-notch fa-spin"></i></div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
           {% endfor %}
@@ -536,22 +641,435 @@ function closeResponseWindow() {
     }
 }
 
-// Simple PDF download using backend route
 document.getElementById('downloadPdfBtn').onclick = function() {
     const btn = this;
     const originalText = btn.innerHTML;
-    
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
-    
-    // Use backend route for PDF generation
     window.open('{{ url_for("response_pdf", exam_id=exam.id) }}', '_blank');
-    
-    // Reset button after a delay
-    setTimeout(() => {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }, 2000);
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = originalText; }, 2000);
 };
+
+// ─── DISCUSSION SYSTEM ────────────────────────────────────────────────────────
+const DISC_IS_ADMIN = {{ ('admin' in (session.role or '')) | tojson }};
+const DISC_UID = {{ session.user_id | tojson }};
+const DISC_UNAME = {{ (session.full_name or session.username or 'User') | tojson }};
+const DISC_POLL = 5000;
+const DISC_EMOJIS = ['😊','😂','🤔','👍','👎','❤️','🔥','🎉','😮','😢','👏','💡','✅','❌','⭐','🙏','😅','🤣','😍','🥳','🤯','💪','🎯','📚','✏️','🧠','⚡','🌟','💯','🤝','😎','😆','😜','🥲','🫡','🙌','💬','📝','🔑','⚠️','🚀','💎'];
+
+const _discPolls = {};
+const _discOpen = new Set();
+
+function discToggle(qid, examId) {
+  const body = document.getElementById(`disc-body-${qid}`);
+  const chev = document.getElementById(`disc-chev-${qid}`);
+  if (_discOpen.has(qid)) {
+    body.classList.remove('open');
+    chev.classList.remove('open');
+    _discOpen.delete(qid);
+    clearInterval(_discPolls[qid]);
+    delete _discPolls[qid];
+  } else {
+    if (_discOpen.size >= 3) {
+      discToast('Close other discussions first to avoid slowdown', 'warn');
+      return;
+    }
+    body.classList.add('open');
+    chev.classList.add('open');
+    _discOpen.add(qid);
+    discLoad(qid, examId);
+    _discPolls[qid] = setInterval(() => discLoad(qid, examId), DISC_POLL);
+  }
+}
+
+const _discLastHash = {};
+
+async function discLoad(qid, examId) {
+  try {
+    const r = await fetch(`/api/discussion/${qid}`);
+    const d = await r.json();
+    if (!d.success) return;
+
+    const badge = document.getElementById(`disc-cnt-${qid}`);
+    if (badge) badge.textContent = d.count;
+
+    const newHash = JSON.stringify(d.comments.map(c => ({
+      id: c.id, msg: c.message, edited: c.is_edited,
+      pinned: c.is_pinned, best: c.is_best_answer,
+      replies: (c.replies||[]).map(r => ({id:r.id, msg:r.message}))
+    })));
+
+    if (_discLastHash[qid] === newHash) return;
+    _discLastHash[qid] = newHash;
+
+    const activeEl = document.activeElement;
+    const activeId = activeEl?.id || null;
+    const activeVal = activeEl?.value || '';
+    const activeSelStart = activeEl?.selectionStart ?? 0;
+    const activeSelEnd = activeEl?.selectionEnd ?? 0;
+
+    const openReplies = new Set();
+    document.querySelectorAll('[id^="rbox-"]').forEach(el => {
+      if (el.classList.contains('open')) openReplies.add(el.id.replace('rbox-', ''));
+    });
+
+    const openReplyVals = {};
+    openReplies.forEach(pid => {
+      const ta = document.getElementById(`rta-${pid}`);
+      if (ta) openReplyVals[pid] = ta.value;
+    });
+
+    discRender(qid, examId, d.comments);
+
+    openReplies.forEach(pid => {
+      const box = document.getElementById(`rbox-${pid}`);
+      if (box) {
+        box.classList.add('open');
+        const ta = document.getElementById(`rta-${pid}`);
+        if (ta && openReplyVals[pid]) ta.value = openReplyVals[pid];
+      }
+    });
+
+    if (activeId) {
+      const restored = document.getElementById(activeId);
+      if (restored && restored !== document.activeElement) {
+        restored.focus();
+        if (restored.setSelectionRange) {
+          try { restored.setSelectionRange(activeSelStart, activeSelEnd); } catch(e) {}
+        }
+        if (activeVal && restored.value !== activeVal) restored.value = activeVal;
+      }
+    }
+  } catch(e) {}
+}
+
+function discEsc(t) {
+  return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function discTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts.includes('Z') ? ts : ts + 'Z');
+  const diff = Math.floor((Date.now() - d) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return d.toLocaleDateString();
+}
+
+function discRender(qid, examId, comments) {
+  const list = document.getElementById(`disc-list-${qid}`);
+  if (!list) return;
+  if (!comments.length) {
+    list.innerHTML = '<div class="no-comments">No comments yet. Start the discussion!</div>';
+    return;
+  }
+  const pinned = comments.filter(c => c.is_pinned);
+  const rest = comments.filter(c => !c.is_pinned);
+  list.innerHTML = [...pinned, ...rest].map(c => discCard(c, qid, examId, false)).join('');
+}
+
+function discCard(c, qid, examId, isReply) {
+  const init = (c.username||'U')[0].toUpperCase();
+  const editedBadge = c.is_edited ? '<span class="badge-edited">(edited)</span>' : '';
+  const pinBadge = c.is_pinned ? '<span class="badge-pin">📌 Pinned</span>' : '';
+  const bestBadge = c.is_best_answer ? '<span class="badge-best">✅ Best Answer</span>' : '';
+
+  const replyBtn = !isReply
+    ? `<button class="ca-btn" onclick="discReplyToggle(${c.id})"><i class="fas fa-reply"></i> Reply</button>`
+    : '';
+  const editBtn = c.is_own
+    ? `<button class="ca-btn" onclick="discEditStart(${c.id},${qid},${examId})"><i class="fas fa-pen"></i> Edit</button>`
+    : '';
+  const deleteBtn = (c.is_own || DISC_IS_ADMIN)
+    ? `<button class="ca-btn red" onclick="discDelete(${c.id},${qid},${examId})"><i class="fas fa-trash"></i></button>`
+    : '';
+  const pinBtn = DISC_IS_ADMIN
+    ? `<button class="ca-btn" onclick="discAdminPin(${c.id},${qid},${examId})"><i class="fas fa-thumbtack"></i> ${c.is_pinned?'Unpin':'Pin'}</button>`
+    : '';
+  const bestBtn = DISC_IS_ADMIN
+    ? `<button class="ca-btn" onclick="discAdminBest(${c.id},${qid},${examId})"><i class="fas fa-star"></i> ${c.is_best_answer?'Unmark':'Best'}</button>`
+    : '';
+
+  const replies = (c.replies||[]).map(r => discCard(r, qid, examId, true)).join('');
+
+  return `
+<div class="c-card ${c.is_pinned?'is-pinned':''} ${c.is_best_answer?'is-best':''} ${isReply?'is-reply':''}" id="ccard-${c.id}">
+  <div style="display:flex;gap:.6rem;align-items:flex-start;">
+    <div class="c-avatar">${discEsc(init)}</div>
+    <div style="flex:1;min-width:0;">
+      <div class="c-meta">
+        <span class="c-username">${discEsc(c.username)}</span>
+        <span class="c-time">${discTime(c.created_at)}</span>
+        ${editedBadge}${pinBadge}${bestBadge}
+      </div>
+      <div class="c-text" id="ctext-${c.id}">${discEsc(c.message)}</div>
+      <div class="c-actions">
+        ${replyBtn}${editBtn}${deleteBtn}${pinBtn}${bestBtn}
+      </div>
+      ${!isReply ? `
+      <div class="reply-box" id="rbox-${c.id}">
+        <div class="disc-input-wrap" style="margin-bottom:0;">
+          <textarea class="disc-textarea" id="rta-${c.id}" rows="2"
+            placeholder="Write a reply…" maxlength="500"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();discReply(${c.id},${qid},${examId});}"></textarea>
+          <div class="disc-actions-row">
+            <div style="position:relative;">
+              <button class="disc-emoji-trigger" type="button"
+                onclick="discEmojiToggle(event,'reply',${qid},${c.id})">😊</button>
+              <div class="emoji-picker-pop" id="epop-reply-${c.id}">
+                <div class="emoji-grid" id="egrid-reply-${c.id}"></div>
+              </div>
+            </div>
+            <button class="disc-send" type="button" onclick="discReply(${c.id},${qid},${examId})">
+              <i class="fas fa-paper-plane" style="font-size:.68rem;"></i>
+            </button>
+          </div>
+        </div>
+      </div>` : ''}
+    </div>
+  </div>
+  ${replies ? `<div style="margin-top:.4rem;">${replies}</div>` : ''}
+</div>`;
+}
+
+function discCharCount(qid) {
+  const ta = document.getElementById(`disc-ta-${qid}`);
+  const el = document.getElementById(`disc-char-${qid}`);
+  if (ta && el) el.textContent = `${ta.value.length} / 500`;
+}
+
+async function discPost(qid, examId) {
+  const ta = document.getElementById(`disc-ta-${qid}`);
+  const msg = ta.value.trim();
+  if (!msg) return;
+  ta.disabled = true;
+  try {
+    const r = await fetch(`/api/discussion/${qid}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({message: msg, exam_id: examId, parent_id: null})
+    });
+    const d = await r.json();
+    if (d.success) { ta.value = ''; discCharCount(qid); discLoad(qid, examId); }
+    else discToast(d.message || 'Error posting', 'err');
+  } catch(e) { discToast('Network error','err'); }
+  ta.disabled = false; ta.focus();
+}
+
+async function discReply(parentId, qid, examId) {
+  const ta = document.getElementById(`rta-${parentId}`);
+  const msg = ta.value.trim();
+  if (!msg) return;
+  ta.disabled = true;
+  try {
+    const r = await fetch(`/api/discussion/${qid}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({message: msg, exam_id: examId, parent_id: parentId})
+    });
+    const d = await r.json();
+    if (d.success) { ta.value = ''; document.getElementById(`rbox-${parentId}`)?.classList.remove('open'); discLoad(qid, examId); }
+    else discToast(d.message || 'Error posting', 'err');
+  } catch(e) { discToast('Network error','err'); }
+  ta.disabled = false;
+}
+
+function discReplyToggle(parentId) {
+  const box = document.getElementById(`rbox-${parentId}`);
+  if (!box) return;
+  box.classList.toggle('open');
+  if (box.classList.contains('open')) document.getElementById(`rta-${parentId}`)?.focus();
+}
+
+const _discEditOriginal = {};
+
+function discEditStart(commentId, qid, examId) {
+  const textEl = document.getElementById(`ctext-${commentId}`);
+  if (!textEl) return;
+  _discEditOriginal[commentId] = textEl.textContent.trim();
+
+textEl.innerHTML = `
+    <div class="disc-edit-wrap">
+      <textarea class="disc-edit-textarea" id="eta-${commentId}" rows="2" maxlength="500"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();discEditSubmit(${commentId},${qid},${examId});}">${_discEditOriginal[commentId]}</textarea>
+    </div>
+    <div class="disc-edit-actions">
+      <button class="disc-edit-save" onclick="discEditSubmit(${commentId},${qid},${examId})">Save</button>
+      <button class="disc-edit-cancel" onclick="discEditCancel(${commentId})">Cancel</button>
+    </div>`;
+
+  const ta = document.getElementById(`eta-${commentId}`);
+  if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+}
+
+function discEditCancel(commentId) {
+  const textEl = document.getElementById(`ctext-${commentId}`);
+  if (!textEl) return;
+  textEl.innerHTML = discEsc(_discEditOriginal[commentId] || '');
+  delete _discEditOriginal[commentId];
+}
+
+async function discEditSubmit(commentId, qid, examId) {
+  const ta = document.getElementById(`eta-${commentId}`);
+  if (!ta) return;
+  const msg = ta.value.trim();
+  if (!msg) { discToast('Message cannot be empty', 'err'); return; }
+  ta.disabled = true;
+  try {
+    const r = await fetch(`/api/discussion/edit/${commentId}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({message: msg})
+    });
+    const d = await r.json();
+    if (d.success) {
+      delete _discEditOriginal[commentId];
+      discLoad(qid, examId);
+    } else {
+      ta.disabled = false;
+      discToast(d.message || 'Edit failed', 'err');
+    }
+  } catch(e) {
+    ta.disabled = false;
+    discToast('Network error', 'err');
+  }
+}
+
+function discDelete(commentId, qid, examId) {
+  const overlay = document.createElement('div');
+  overlay.className = 'disc-confirm-overlay';
+  overlay.innerHTML = `
+    <div class="disc-confirm-box">
+      <h6>🗑️ Delete Comment?</h6>
+      <p>This action cannot be undone.</p>
+      <div class="disc-confirm-btns">
+        <button class="disc-cb-cancel" id="disc-cancel-btn">Cancel</button>
+        <button class="disc-cb-delete" id="disc-delete-btn">Delete</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#disc-cancel-btn').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#disc-delete-btn').onclick = async () => {
+    overlay.remove();
+    try {
+      const r = await fetch(`/api/discussion/delete/${commentId}`, {method:'DELETE'});
+      const d = await r.json();
+      if (d.success) discLoad(qid, examId);
+      else discToast('Delete failed','err');
+    } catch(e) { discToast('Network error','err'); }
+  };
+}
+
+async function discAdminPin(commentId, qid, examId) {
+  try {
+    const r = await fetch(`/api/discussion/admin/pin/${commentId}`, {method:'PUT'});
+    const d = await r.json();
+    if (d.success) discLoad(qid, examId);
+  } catch(e) {}
+}
+
+async function discAdminBest(commentId, qid, examId) {
+  try {
+    const r = await fetch(`/api/discussion/admin/best/${commentId}`, {method:'PUT'});
+    const d = await r.json();
+    if (d.success) discLoad(qid, examId);
+  } catch(e) {}
+}
+
+function discEmojiToggle(event, type, qid, refId) {
+  event.stopPropagation();
+  const key = type === 'main' ? `main-${qid}` : type === 'reply' ? `reply-${refId}` : `edit-${refId}`;
+  const pop = document.getElementById(`epop-${key}`);
+  const grid = document.getElementById(`egrid-${key}`);
+  if (!pop) return;
+  const isOpen = pop.classList.contains('open');
+  document.querySelectorAll('.emoji-picker-pop.open').forEach(p => p.classList.remove('open'));
+  if (isOpen) return;
+  if (grid && !grid.dataset.built) {
+    grid.innerHTML = DISC_EMOJIS.map(e =>
+      `<button class="e-btn" type="button" onclick="discEmojiInsert('${e}','${type}',${qid},${refId})">${e}</button>`
+    ).join('');
+    grid.dataset.built = '1';
+  }
+  pop.classList.add('open');
+}
+
+function discEmojiInsert(emoji, type, qid, refId) {
+  let ta;
+  if (type === 'main') ta = document.getElementById(`disc-ta-${qid}`);
+  else if (type === 'reply') ta = document.getElementById(`rta-${refId}`);
+  else if (type === 'edit') ta = document.getElementById(`eta-${refId}`);
+  if (ta) {
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    ta.value = ta.value.slice(0,s) + emoji + ta.value.slice(e);
+    ta.selectionStart = ta.selectionEnd = s + emoji.length;
+    ta.focus();
+    discCharCount(qid);
+  }
+  const key = type === 'main' ? `main-${qid}` : type === 'reply' ? `reply-${refId}` : `edit-${refId}`;
+  document.getElementById(`epop-${key}`)?.classList.remove('open');
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.emoji-picker-pop.open').forEach(p => p.classList.remove('open'));
+});
+
+function discToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'disc-toast';
+  t.style.background = type === 'err' ? '#ef4444' : type === 'warn' ? '#f59e0b' : '#667eea';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function discTypeset(el) {
+  if (window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([el]).catch(e => console.warn('MathJax error', e));
+  }
+}
+
+function discWrapMath() {
+  document.querySelectorAll('.question-response-card .card-body').forEach(card => {
+    card.querySelectorAll('p, .option-display').forEach(el => {
+      if (!el.closest('.disc-section')) {
+        if (!el.classList.contains('math-wrap')) el.classList.add('math-wrap');
+      }
+    });
+  });
+  if (window.MathJax && MathJax.typesetPromise) {
+    const targets = document.querySelectorAll('.math-wrap');
+    MathJax.typesetPromise([...targets]).catch(e => console.warn('MathJax error', e));
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.MathJax) {
+    MathJax.startup.promise.then(() => discWrapMath());
+  } else {
+    window.addEventListener('load', discWrapMath);
+  }
+});
+
+(async function discInitCounts() {
+  const badges = document.querySelectorAll('[id^="disc-cnt-"]');
+  const qids = [...badges].map(b => parseInt(b.id.replace('disc-cnt-','')));
+  if (!qids.length) return;
+  try {
+    const r = await fetch('/api/discussion/counts/bulk', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({question_ids: qids})
+    });
+    const d = await r.json();
+    if (d.success) {
+      badges.forEach(badge => {
+        const qid = badge.id.replace('disc-cnt-','');
+        badge.textContent = d.counts[qid] ?? '0';
+      });
+    }
+  } catch(e) {
+    badges.forEach(b => b.textContent = '0');
+  }
+})();
 </script>
 {% endblock %}
