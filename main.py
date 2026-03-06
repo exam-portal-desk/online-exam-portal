@@ -33,6 +33,7 @@ import tempfile
 from reportlab.lib.pagesizes import letter
 from dotenv import load_dotenv
 from admin import admin_bp
+from discussion import discussion_bp
 import queue
 from collections import deque
 import uuid
@@ -176,6 +177,7 @@ def add_cache_control_headers(response):
 
 # Register admin blueprint
 app.register_blueprint(admin_bp, url_prefix="/admin")
+app.register_blueprint(discussion_bp)
 
 # Configuration
 USERS_CSV = 'users.csv'
