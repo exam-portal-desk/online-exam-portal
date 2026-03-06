@@ -341,24 +341,38 @@ class AIQuestionGenerator:
             raise Exception(f"PDF loading failed: {str(e)}")
 
     def create_vectorstore(self, chunks: List) -> FAISS:
-        """Create temporary FAISS vector store"""
         try:
-            chunks = chunks[:20]
-    
-            if not chunks:
-                raise Exception("No chunks generated from PDF")
-            vectorstore = FAISS.from_documents(chunks, self.embeddings)
+            vectorstore = FAISS.load_local(
+                "faiss_index",
+                self.embeddings,
+                allow_dangerous_deserialization=True
+            )
             return vectorstore
         except Exception as e:
-            raise Exception(f"Vector store creation failed: {str(e)}")
+            raise Exception(f"Vector store loading failed: {str(e)}")
+
+    def build_pdf_index(self, pdf_path: str):
+        loader = PyPDFLoader(pdf_path)
+        documents = loader.load()
+
+        chunks = self.text_splitter.split_documents(documents)
+
+        chunks = chunks[:40]
+
+        vectorstore = FAISS.from_documents(chunks, self.embeddings)
+
+        vectorstore.save_local("faiss_index")
+
+        del vectorstore
+        gc.collect()
 
     def extract_from_pdf(self, pdf_path: str, config: Dict) -> List[Dict]:
         """Card A: Extract existing questions from PDF"""
         try:
-            chunks = self.load_pdf(pdf_path)
-            vectorstore = self.create_vectorstore(chunks)
+            self.build_pdf_index(pdf_path)
+            vectorstore = self.create_vectorstore(None)
 
-            retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
+            retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
             relevant_docs = retriever.invoke("Extract all questions")
             context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
@@ -392,10 +406,10 @@ class AIQuestionGenerator:
     def mine_concepts(self, pdf_path: str, config: Dict) -> List[Dict]:
         """Card B: Generate new questions from theory/concepts"""
         try:
-            chunks = self.load_pdf(pdf_path)
-            vectorstore = self.create_vectorstore(chunks)
+            self.build_pdf_index(pdf_path)
+            vectorstore = self.create_vectorstore(None)
 
-            retriever = vectorstore.as_retriever(search_kwargs={"k": 8})
+            retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
             relevant_docs = retriever.invoke("Get all concepts and theory")
             context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
@@ -577,6 +591,3 @@ def generate_questions(
     except Exception as e:
 
         raise Exception(f"Question generation failed: {str(e)}")
-
-
-
