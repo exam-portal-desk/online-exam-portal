@@ -903,7 +903,22 @@ async function exportToCSV() {
             const blob = await res.blob();
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'ai_generated_questions.csv';
+            const examSelect = document.querySelector('select[name="exam_id"]');
+            const examName = examSelect.options[examSelect.selectedIndex].text
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g,'_')
+                .replace(/^_|_$/g,'');
+
+            const now = new Date();
+            const dateTime =
+                now.getFullYear() +
+                ('0'+(now.getMonth()+1)).slice(-2) +
+                ('0'+now.getDate()).slice(-2) + '_' +
+                ('0'+now.getHours()).slice(-2) +
+                ('0'+now.getMinutes()).slice(-2) +
+                ('0'+now.getSeconds()).slice(-2);
+
+            a.download = `ai_generated_questions_${examName}_${dateTime}.csv`;
             document.body.appendChild(a); a.click();
             URL.revokeObjectURL(a.href); document.body.removeChild(a);
         } else alert('Export failed');
