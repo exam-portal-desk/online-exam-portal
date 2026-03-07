@@ -2101,77 +2101,95 @@ def calculate_student_analytics(results_list, exams_list, user_id):
     """Calculate analytics data for student - Supabase version"""
     try:
         analytics = {}
-        
+
         if not results_list:
             return {}
-        
-        # Convert to DataFrame for easier analysis
+
         results_df = pd.DataFrame(results_list)
-        results_df['completed_at'] = pd.to_datetime(results_df['completed_at'], errors='coerce')
-        results_df['percentage'] = results_df['percentage'].astype(float)
-        results_df = results_df.sort_values('completed_at')
-        
-        # ✅ Convert exams_list to DataFrame
+
+        def _parse_dt(val):
+            if not val:
+                return None
+            try:
+                import re as _re
+                s = str(val).strip()
+                s = _re.sub(r'\.\d+', '', s)
+                s = s.replace('T', ' ')
+                s = _re.sub(r'[+-]\d{2}:\d{2}$', '', s).strip()
+                return pd.Timestamp(s)
+            except:
+                return None
+
+        results_df['completed_at'] = results_df['completed_at'].apply(_parse_dt)
+        results_df['percentage'] = pd.to_numeric(results_df['percentage'], errors='coerce').fillna(0)
+        results_df['score'] = pd.to_numeric(results_df['score'], errors='coerce').fillna(0)
+        results_df['max_score'] = pd.to_numeric(results_df['max_score'], errors='coerce').fillna(0)
+
+        results_df_asc = results_df.sort_values('completed_at', ascending=True, na_position='first')
+        results_df_desc = results_df.sort_values('completed_at', ascending=False, na_position='last')
+
         exams_df = pd.DataFrame(exams_list) if exams_list else pd.DataFrame()
-        
+
+        def _exam_name(exam_id):
+            if exams_df.empty:
+                return 'Unknown Exam'
+            match = exams_df[exams_df['id'].astype(str) == str(exam_id)]
+            return match.iloc[0]['name'] if not match.empty else 'Unknown Exam'
+
+        def _fmt_date(val):
+            if val is None or (isinstance(val, float) and pd.isna(val)):
+                return None
+            try:
+                return val.strftime('%d %b %Y, %H:%M')
+            except:
+                return None
+
         analytics['total_exams'] = len(results_df)
         analytics['average_score'] = round(results_df['percentage'].mean(), 2)
         analytics['highest_score'] = round(results_df['percentage'].max(), 2)
         analytics['lowest_score'] = round(results_df['percentage'].min(), 2)
-        
+
         grade_counts = results_df['grade'].value_counts().to_dict()
         total_grades = sum(grade_counts.values())
         analytics['grade_distribution'] = {
-            grade: {
-                'count': count,
-                'percentage': round((count / total_grades) * 100, 1)
-            }
+            grade: {'count': count, 'percentage': round((count / total_grades) * 100, 1)}
             for grade, count in grade_counts.items()
         }
-        
-        analytics['score_trend'] = []
-        for _, row in results_df.iterrows():
-            exam_name = 'Unknown Exam'
-            if not exams_df.empty:
-                exam_info = exams_df[exams_df['id'].astype(str) == str(row['exam_id'])]
-                if not exam_info.empty:
-                    exam_name = exam_info.iloc[0]['name']
-            
-            analytics['score_trend'].append({
-                'exam_name': exam_name,
+
+        analytics['score_trend'] = [
+            {
+                'exam_name': _exam_name(row['exam_id']),
                 'score': float(row['percentage']),
                 'grade': row['grade'],
-                'date': row['completed_at'].strftime('%Y-%m-%d') if pd.notna(row['completed_at']) else 'Unknown'
-            })
-        
-        recent_results = results_df.tail(5)
-        analytics['recent_performance'] = []
-        for _, row in recent_results.iterrows():
-            exam_name = 'Unknown Exam'
-            if not exams_df.empty:
-                exam_info = exams_df[exams_df['id'].astype(str) == str(row['exam_id'])]
-                if not exam_info.empty:
-                    exam_name = exam_info.iloc[0]['name']
-            
-            analytics['recent_performance'].append({
-                'exam_name': exam_name,
-                'score': f"{row['score']}/{row['max_score']}",
+                'date': _fmt_date(row['completed_at']) or ''
+            }
+            for _, row in results_df_asc.iterrows()
+        ]
+
+        analytics['recent_performance'] = [
+            {
+                'exam_name': _exam_name(row['exam_id']),
+                'score': f"{int(row['score'])}/{int(row['max_score'])}",
                 'percentage': float(row['percentage']),
                 'grade': row['grade'],
-                'date': row['completed_at'].strftime('%Y-%m-%d %H:%M') if pd.notna(row['completed_at']) else 'Unknown'
-            })
-        
-        if len(results_df) >= 2:
-            recent_avg = results_df.tail(3)['percentage'].mean()
-            earlier_avg = results_df.head(len(results_df)-3)['percentage'].mean() if len(results_df) > 3 else results_df.iloc[0]['percentage']
+                'date': _fmt_date(row['completed_at'])
+            }
+            for _, row in results_df_desc.head(10).iterrows()
+        ]
+
+        if len(results_df_asc) >= 2:
+            recent_avg = results_df_asc.tail(3)['percentage'].mean()
+            earlier = results_df_asc.iloc[:-3]
+            earlier_avg = earlier['percentage'].mean() if len(earlier) > 0 else results_df_asc.iloc[0]['percentage']
             analytics['improvement_trend'] = round(recent_avg - earlier_avg, 2)
         else:
             analytics['improvement_trend'] = 0
-            
+
         return analytics
-        
+
     except Exception as e:
         print(f"Error calculating analytics: {e}")
+        import traceback; traceback.print_exc()
         return {}
 
 
@@ -3129,12 +3147,27 @@ def dashboard():
             for exam in completed_exams:
                 exam['result'] = 'Pending'
         
+        avg_score = '--'
+        total_attempted = 0
+        if user_results:
+            pcts = []
+            for r in user_results:
+                try:
+                    pcts.append(float(r['percentage']))
+                except:
+                    pass
+            if pcts:
+                avg_score = f"{sum(pcts)/len(pcts):.1f}%"
+            total_attempted = len(user_results)
+
         print(f"[DASHBOARD] Categorized: {len(upcoming_exams)} upcoming, {len(ongoing_exams)} ongoing, {len(completed_exams)} completed")
-        
+
         return render_template('dashboard.html',
                              upcoming_exams=upcoming_exams,
                              ongoing_exams=ongoing_exams,
-                             completed_exams=completed_exams)
+                             completed_exams=completed_exams,
+                             avg_score=avg_score,
+                             total_attempted=total_attempted)
         
     except Exception as e:
         print(f"[DASHBOARD] Error: {e}")
