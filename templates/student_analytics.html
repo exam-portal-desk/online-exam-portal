@@ -4,428 +4,356 @@
 
 {% block content %}
 <style>
-    .analytics-body {
-        background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d2d5f 100%);
-        min-height: 100vh;
-        padding: 2rem 0;
-    }
+.an-body{background:linear-gradient(135deg,#0f0f23 0%,#1a1a3e 50%,#0f1724 100%);min-height:100vh;padding:1.5rem 0;}
+.an-wrap{max-width:1200px;margin:0 auto;padding:0 1rem;}
 
-    .analytics-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 0 1rem;
-    }
+.an-header{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:1.5rem 2rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+.an-header-title{font-size:1.4rem;font-weight:800;color:#fff;margin:0;letter-spacing:-.3px;}
+.an-header-title span{background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.an-header-sub{color:rgba(255,255,255,0.4);font-size:.83rem;margin:.2rem 0 0;}
+.back-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);padding:.45rem 1rem;border-radius:9px;text-decoration:none;font-size:.82rem;font-weight:600;display:inline-flex;align-items:center;gap:.4rem;transition:all .2s;white-space:nowrap;}
+.back-btn:hover{background:rgba(255,255,255,0.1);color:#fff;text-decoration:none;}
 
-    .analytics-header {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(20px);
-        border-radius: 20px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        text-align: center;
-    }
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;}
+.stat-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.2rem 1.4rem;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);}
+.stat-card.c1{--accent:linear-gradient(90deg,#667eea,#764ba2);}
+.stat-card.c2{--accent:linear-gradient(90deg,#10b981,#06b6d4);}
+.stat-card.c3{--accent:linear-gradient(90deg,#f59e0b,#ef4444);}
+.stat-card.c4{--accent:linear-gradient(90deg,#8b5cf6,#ec4899);}
+.stat-label-top{font-size:.72rem;font-weight:700;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.5rem;}
+.stat-val{font-size:2rem;font-weight:900;color:#fff;line-height:1;margin-bottom:.3rem;}
+.stat-sub{font-size:.75rem;color:rgba(255,255,255,0.35);}
+.trend-badge{display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:700;padding:.18rem .45rem;border-radius:6px;margin-top:.4rem;}
+.trend-up{background:rgba(16,185,129,0.12);color:#10b981;}
+.trend-down{background:rgba(239,68,68,0.12);color:#ef4444;}
+.trend-flat{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);}
 
-    .analytics-header h1 {
-        color: white;
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
+.charts-row{display:grid;grid-template-columns:1fr 340px;gap:1rem;margin-bottom:1.5rem;}
+.chart-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.3rem 1.5rem;}
+.chart-title{font-size:.88rem;font-weight:700;color:rgba(255,255,255,0.7);margin:0 0 1.1rem;display:flex;align-items:center;gap:.5rem;}
+.chart-title i{color:#667eea;font-size:.85rem;}
+.chart-box{position:relative;}
+.chart-box.trend-box{height:240px;}
+.chart-box.pie-box{height:240px;}
 
-    .analytics-header p {
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 1.1rem;
-    }
+.bars-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;}
+.bars-nav-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);width:1.8rem;height:1.8rem;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.75rem;transition:all .15s;}
+.bars-nav-btn:hover:not(:disabled){background:rgba(102,126,234,0.2);border-color:rgba(102,126,234,0.4);color:#fff;}
+.bars-nav-btn:disabled{opacity:.25;cursor:default;}
+.bars-page-info{font-size:.72rem;color:rgba(255,255,255,0.3);}
+.score-bars-wrap{overflow:hidden;}
+.score-bars{display:flex;align-items:flex-end;gap:.6rem;height:200px;padding:.5rem 0 0;}
+.score-bar-wrap{display:flex;flex-direction:column;align-items:center;gap:.4rem;flex:1;min-width:0;}
+.score-bar-outer{width:100%;max-width:44px;background:rgba(255,255,255,0.05);border-radius:6px 6px 0 0;position:relative;display:flex;align-items:flex-end;}
+.score-bar-fill{width:100%;border-radius:6px 6px 0 0;transition:height .5s ease;cursor:pointer;position:relative;}
+.bar-tooltip{position:fixed;background:#1e2240;border:1px solid rgba(102,126,234,0.3);border-radius:9px;padding:.5rem .75rem;font-size:.72rem;color:#fff;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:9999;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,0.5);}
+.bar-tooltip.visible{opacity:1;}
+.score-bar-pct{font-size:.68rem;font-weight:700;color:rgba(255,255,255,0.5);}
+.score-bar-name{font-size:.62rem;color:rgba(255,255,255,0.3);text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
+.donut-legend{display:flex;flex-direction:column;gap:.5rem;margin-top:.8rem;}
+.donut-legend-item{display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:rgba(255,255,255,0.6);}
+.donut-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 
-    .stat-card {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(20px);
-        border-radius: 16px;
-        padding: 1.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        text-align: center;
-        transition: transform 0.3s ease;
-    }
+.perf-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.3rem 1.5rem;}
+.perf-title{font-size:.88rem;font-weight:700;color:rgba(255,255,255,0.7);margin:0 0 1rem;display:flex;align-items:center;gap:.5rem;}
+.perf-title i{color:#667eea;font-size:.85rem;}
+.perf-table-wrap{overflow-x:auto;}
+.perf-table{width:100%;border-collapse:collapse;min-width:440px;}
+.perf-table th{font-size:.72rem;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.6px;padding:.55rem .8rem;border-bottom:1px solid rgba(255,255,255,0.06);text-align:left;white-space:nowrap;}
+.perf-table td{font-size:.82rem;color:rgba(255,255,255,0.75);padding:.65rem .8rem;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+.perf-table tr:last-child td{border-bottom:none;}
+.perf-table tr:hover td{background:rgba(255,255,255,0.02);}
+.exam-name-cell{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#fff;}
+.pct-bar-wrap{display:flex;align-items:center;gap:.5rem;}
+.pct-bar-bg{flex:1;height:5px;background:rgba(255,255,255,0.07);border-radius:3px;min-width:50px;}
+.pct-bar-fg{height:100%;border-radius:3px;background:linear-gradient(90deg,#667eea,#764ba2);}
+.pct-text{font-size:.75rem;font-weight:700;color:rgba(255,255,255,0.6);white-space:nowrap;}
+.grade-pill{display:inline-flex;align-items:center;justify-content:center;width:1.7rem;height:1.7rem;border-radius:50%;font-size:.72rem;font-weight:800;}
+.gA{background:rgba(99,102,241,0.2);color:#818cf8;}
+.gB{background:rgba(6,182,212,0.2);color:#22d3ee;}
+.gC{background:rgba(245,158,11,0.2);color:#fbbf24;}
+.gD{background:rgba(239,68,68,0.15);color:#f87171;}
+.gF{background:rgba(220,38,38,0.15);color:#fca5a5;}
+.date-cell{font-size:.75rem;color:rgba(255,255,255,0.35);white-space:nowrap;}
 
-    .stat-card:hover {
-        transform: translateY(-5px);
-    }
+.no-data{text-align:center;padding:4rem 2rem;color:rgba(255,255,255,0.4);}
+.no-data i{font-size:3rem;margin-bottom:1rem;color:rgba(102,126,234,0.4);display:block;}
+.no-data h3{color:rgba(255,255,255,0.6);font-size:1.1rem;margin-bottom:.4rem;}
+.no-data p{font-size:.85rem;}
 
-    .stat-card h3 {
-        color: rgba(255, 255, 255, 0.9);
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 0.5rem;
-    }
-
-    .stat-number {
-        color: #667eea;
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-    }
-
-    .stat-label {
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 0.85rem;
-    }
-
-    .charts-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 2rem;
-        margin-bottom: 2rem;
-    }
-
-    .chart-card {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(20px);
-        border-radius: 20px;
-        padding: 1.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .chart-card h3 {
-        color: white;
-        font-size: 1.3rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-        text-align: center;
-    }
-
-    .chart-container {
-        position: relative;
-        height: 300px;
-    }
-
-    .recent-performance {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(20px);
-        border-radius: 20px;
-        padding: 1.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .recent-performance h3 {
-        color: white;
-        font-size: 1.3rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-    }
-
-    .performance-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .performance-table th {
-        background: rgba(102, 126, 234, 0.2);
-        color: white;
-        padding: 0.75rem;
-        text-align: left;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .performance-table td {
-        color: rgba(255, 255, 255, 0.9);
-        padding: 0.75rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .grade-badge {
-        padding: 0.25rem 0.5rem;
-        border-radius: 12px;
-        font-weight: 600;
-        font-size: 0.8rem;
-    }
-
-    .grade-A { background: #22c55e; color: white; }
-    .grade-B { background: #3b82f6; color: white; }
-    .grade-C { background: #f59e0b; color: white; }
-    .grade-D { background: #ef4444; color: white; }
-    .grade-F { background: #dc2626; color: white; }
-
-    .no-data {
-        text-align: center;
-        padding: 3rem;
-        color: rgba(255, 255, 255, 0.8);
-    }
-
-    .no-data i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        color: #667eea;
-    }
-
-    .back-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 0.75rem 1.5rem;
-        border-radius: 12px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: transform 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .back-btn:hover {
-        transform: translateY(-2px);
-        color: white;
-        text-decoration: none;
-    }
-
-    .improvement-indicator {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.9rem;
-        margin-top: 0.5rem;
-    }
-
-    .improvement-positive {
-        color: #22c55e;
-    }
-
-    .improvement-negative {
-        color: #ef4444;
-    }
-
-    .improvement-neutral {
-        color: #f59e0b;
-    }
-
-    @media (max-width: 768px) {
-        .charts-grid {
-            grid-template-columns: 1fr;
-        }
-        
-        .stats-grid {
-            grid-template-columns: 1fr;
-        }
-    }
+@media(max-width:900px){
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .charts-row{grid-template-columns:1fr;}
+}
+@media(max-width:500px){
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:.7rem;}
+  .stat-val{font-size:1.5rem;}
+  .an-header{padding:1rem;}
+  .an-header-title{font-size:1.1rem;}
+  .chart-card,.perf-card{padding:1rem;}
+}
 </style>
 
-<div class="analytics-body">
-    <div class="analytics-container">
-        <a href="{{ url_for('dashboard') }}" class="back-btn">
-            <i class="fas fa-arrow-left"></i>
-            Back to Dashboard
-        </a>
+<div class="an-body">
+<div class="an-wrap">
 
-        <div class="analytics-header">
-            <h1><i class="fas fa-chart-line"></i> My Performance Analytics</h1>
-            <p>Track your exam performance and identify areas for improvement</p>
-        </div>
-
-        {% if has_data %}
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <h3>Total Exams</h3>
-                    <div class="stat-number">{{ analytics_data.total_exams }}</div>
-                    <div class="stat-label">Completed</div>
-                </div>
-
-                <div class="stat-card">
-                    <h3>Average Score</h3>
-                    <div class="stat-number">{{ analytics_data.average_score }}%</div>
-                    <div class="stat-label">Overall Performance</div>
-                    {% if analytics_data.improvement_trend != 0 %}
-                        <div class="improvement-indicator 
-                            {% if analytics_data.improvement_trend > 0 %}improvement-positive{% elif analytics_data.improvement_trend < 0 %}improvement-negative{% else %}improvement-neutral{% endif %}">
-                            <i class="fas fa-{% if analytics_data.improvement_trend > 0 %}arrow-up{% elif analytics_data.improvement_trend < 0 %}arrow-down{% else %}minus{% endif %}"></i>
-                            {{ "+" if analytics_data.improvement_trend > 0 else "" }}{{ analytics_data.improvement_trend }}% trend
-                        </div>
-                    {% endif %}
-                </div>
-
-                <div class="stat-card">
-                    <h3>Highest Score</h3>
-                    <div class="stat-number">{{ analytics_data.highest_score }}%</div>
-                    <div class="stat-label">Best Performance</div>
-                </div>
-
-                <div class="stat-card">
-                    <h3>Lowest Score</h3>
-                    <div class="stat-number">{{ analytics_data.lowest_score }}%</div>
-                    <div class="stat-label">Room for Improvement</div>
-                </div>
-            </div>
-
-            <div class="charts-grid">
-                <div class="chart-card">
-                    <h3><i class="fas fa-chart-line"></i> Score Trends</h3>
-                    <div class="chart-container">
-                        <canvas id="scoreTrendChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="chart-card">
-                    <h3><i class="fas fa-chart-pie"></i> Grade Distribution</h3>
-                    <div class="chart-container">
-                        <canvas id="gradeDistributionChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="recent-performance">
-                <h3><i class="fas fa-history"></i> Recent Performance</h3>
-                <table class="performance-table">
-                    <thead>
-                        <tr>
-                            <th>Exam</th>
-                            <th>Score</th>
-                            <th>Percentage</th>
-                            <th>Grade</th>
-                            <th>Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for result in analytics_data.recent_performance %}
-                        <tr>
-                            <td>{{ result.exam_name }}</td>
-                            <td>{{ result.score }}</td>
-                            <td>{{ result.percentage }}%</td>
-                            <td><span class="grade-badge grade-{{ result.grade }}">{{ result.grade }}</span></td>
-                            <td>{{ result.date }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="no-data">
-                <i class="fas fa-chart-line"></i>
-                <h3>No Analytics Data Available</h3>
-                <p>Complete some exams to see your performance analytics here.</p>
-            </div>
-        {% endif %}
+  <div class="an-header">
+    <div>
+      <h1 class="an-header-title"><span>Performance</span> Analytics</h1>
+      <p class="an-header-sub">Track your exam results and improvement over time</p>
     </div>
+    <a href="{{ url_for('dashboard') }}" class="back-btn"><i class="fas fa-arrow-left"></i> Dashboard</a>
+  </div>
+
+  {% if has_data %}
+
+  <div class="stats-grid">
+    <div class="stat-card c1">
+      <div class="stat-label-top">Total Exams</div>
+      <div class="stat-val">{{ analytics_data.total_exams }}</div>
+      <div class="stat-sub">Completed</div>
+    </div>
+    <div class="stat-card c2">
+      <div class="stat-label-top">Average Score</div>
+      <div class="stat-val">{{ analytics_data.average_score }}%</div>
+      {% set trend = analytics_data.improvement_trend %}
+      {% if trend > 0 %}
+        <div class="trend-badge trend-up"><i class="fas fa-arrow-up"></i> +{{ trend }}% trend</div>
+      {% elif trend < 0 %}
+        <div class="trend-badge trend-down"><i class="fas fa-arrow-down"></i> {{ trend }}% trend</div>
+      {% else %}
+        <div class="trend-badge trend-flat"><i class="fas fa-minus"></i> Stable</div>
+      {% endif %}
+    </div>
+    <div class="stat-card c3">
+      <div class="stat-label-top">Highest Score</div>
+      <div class="stat-val">{{ analytics_data.highest_score }}%</div>
+      <div class="stat-sub">Best attempt</div>
+    </div>
+    <div class="stat-card c4">
+      <div class="stat-label-top">Lowest Score</div>
+      <div class="stat-val">{{ analytics_data.lowest_score }}%</div>
+      <div class="stat-sub">Needs focus</div>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title"><i class="fas fa-chart-bar"></i> Score Trends</div>
+      <div class="bars-nav">
+        <button class="bars-nav-btn" id="barsPrev" onclick="barsPage(-1)"><i class="fas fa-chevron-left"></i></button>
+        <span class="bars-page-info" id="barsPageInfo"></span>
+        <button class="bars-nav-btn" id="barsNext" onclick="barsPage(1)"><i class="fas fa-chevron-right"></i></button>
+      </div>
+      <div class="score-bars-wrap">
+        <div class="score-bars" id="scoreBars"></div>
+      </div>
+      <div id="barTooltip" class="bar-tooltip"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><i class="fas fa-chart-pie"></i> Grade Distribution</div>
+      <div class="chart-box pie-box">
+        <canvas id="gradeChart"></canvas>
+      </div>
+      <div class="donut-legend" id="donutLegend"></div>
+    </div>
+  </div>
+
+  <div class="perf-card">
+    <div class="perf-title"><i class="fas fa-history"></i> Recent Performance</div>
+    <div class="perf-table-wrap">
+      <table class="perf-table">
+        <thead>
+          <tr>
+            <th>Exam</th>
+            <th>Score</th>
+            <th>Percentage</th>
+            <th>Grade</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for result in analytics_data.recent_performance %}
+          <tr>
+            <td class="exam-name-cell" title="{{ result.exam_name }}">{{ result.exam_name }}</td>
+            <td style="font-weight:700;color:#fff;">{{ result.score }}</td>
+            <td>
+              <div class="pct-bar-wrap">
+                <div class="pct-bar-bg"><div class="pct-bar-fg" style="width:{{ result.percentage }}%;"></div></div>
+                <span class="pct-text">{{ result.percentage }}%</span>
+              </div>
+            </td>
+            <td>
+              <span class="grade-pill g{{ result.grade }}">{{ result.grade }}</span>
+            </td>
+            <td class="date-cell">
+              {% if result.date and result.date != 'Unknown' %}
+                {{ result.date }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="no-data">
+    <i class="fas fa-chart-line"></i>
+    <h3>No Analytics Data Yet</h3>
+    <p>Complete some exams to see your performance analytics here.</p>
+  </div>
+  {% endif %}
+
+</div>
 </div>
 
 {% if has_data %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const scoreTrendData = {{ analytics_data.score_trend | tojson }};
-    const gradeDistributionData = {{ analytics_data.grade_distribution | tojson }};
+const scoreTrendData = {{ analytics_data.score_trend | tojson }};
+const gradeDistributionData = {{ analytics_data.grade_distribution | tojson }};
 
-    const scoreTrendCtx = document.getElementById('scoreTrendChart').getContext('2d');
-    new Chart(scoreTrendCtx, {
-        type: 'line',
-        data: {
-            labels: scoreTrendData.map(item => item.exam_name),
-            datasets: [{
-                label: 'Score %',
-                data: scoreTrendData.map(item => item.score),
-                borderColor: '#667eea',
-                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#667eea',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: {
-                        color: 'white'
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: {
-                        color: 'white'
-                    }
-                },
-                x: {
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: {
-                        color: 'white',
-                        maxRotation: 45
-                    }
-                }
+const GRADE_COLORS = {
+  'A': 'rgba(99,102,241,0.75)',
+  'B': 'rgba(6,182,212,0.75)',
+  'C': 'rgba(245,158,11,0.75)',
+  'D': 'rgba(239,68,68,0.65)',
+  'F': 'rgba(220,38,38,0.55)'
+};
+
+function barColor(pct) {
+  if (pct >= 75) return 'linear-gradient(180deg,#667eea,#764ba2)';
+  if (pct >= 50) return 'linear-gradient(180deg,#06b6d4,#3b82f6)';
+  if (pct >= 35) return 'linear-gradient(180deg,#f59e0b,#ef4444)';
+  return 'linear-gradient(180deg,#ef4444,#dc2626)';
+}
+
+const BARS_PER_PAGE = window.innerWidth < 500 ? 4 : 7;
+let barsCurrentPage = 0;
+const barsTotalPages = Math.ceil(scoreTrendData.length / BARS_PER_PAGE);
+const tooltip = document.getElementById('barTooltip');
+
+function showBarTooltip(e, item) {
+  tooltip.innerHTML = `<strong>${item.exam_name}</strong><br>${item.score}% &nbsp;·&nbsp; Grade ${item.grade}${item.date ? '<br><span style="color:rgba(255,255,255,0.4)">'+item.date+'</span>' : ''}`;
+  tooltip.classList.add('visible');
+  moveBarTooltip(e);
+}
+function moveBarTooltip(e) {
+  const tw = 180, th = 70;
+  let x = e.clientX + 12, y = e.clientY - th - 8;
+  if (x + tw > window.innerWidth) x = e.clientX - tw - 12;
+  if (y < 0) y = e.clientY + 12;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top = y + 'px';
+}
+function hideBarTooltip() { tooltip.classList.remove('visible'); }
+
+function buildBars() {
+  const wrap = document.getElementById('scoreBars');
+  const info = document.getElementById('barsPageInfo');
+  const prevBtn = document.getElementById('barsPrev');
+  const nextBtn = document.getElementById('barsNext');
+  if (!wrap || !scoreTrendData.length) return;
+
+  const maxH = 160;
+  const start = barsCurrentPage * BARS_PER_PAGE;
+  const slice = scoreTrendData.slice(start, start + BARS_PER_PAGE);
+
+  if (info) info.textContent = barsTotalPages > 1 ? `${barsCurrentPage + 1} / ${barsTotalPages}` : `${scoreTrendData.length} exam${scoreTrendData.length!==1?'s':''}`;
+  if (prevBtn) prevBtn.disabled = barsCurrentPage === 0;
+  if (nextBtn) nextBtn.disabled = barsCurrentPage >= barsTotalPages - 1;
+
+  wrap.innerHTML = slice.map((item, i) => {
+    const pct = Math.min(100, Math.max(0, item.score));
+    const h = Math.max(8, Math.round((pct / 100) * maxH));
+    const short = item.exam_name.length > 9 ? item.exam_name.slice(0,8)+'…' : item.exam_name;
+    const idx = start + i;
+    return `
+      <div class="score-bar-wrap">
+        <div class="score-bar-pct">${pct}%</div>
+        <div class="score-bar-outer" style="height:${maxH}px;">
+          <div class="score-bar-fill" style="height:${h}px;background:${barColor(pct)};"
+            data-idx="${idx}"
+            onmouseenter="showBarTooltip(event,scoreTrendData[${idx}])"
+            onmousemove="moveBarTooltip(event)"
+            onmouseleave="hideBarTooltip()">
+          </div>
+        </div>
+        <div class="score-bar-name" title="${item.exam_name}">${short}</div>
+      </div>`;
+  }).join('');
+}
+
+function barsPage(dir) {
+  barsCurrentPage = Math.max(0, Math.min(barsTotalPages - 1, barsCurrentPage + dir));
+  buildBars();
+}
+
+buildBars();
+
+function buildDonut() {
+  const labels = Object.keys(gradeDistributionData);
+  if (!labels.length) return;
+  const counts = labels.map(g => gradeDistributionData[g].count);
+  const colors = labels.map(g => GRADE_COLORS[g] || 'rgba(102,126,234,0.7)');
+
+  const ctx = document.getElementById('gradeChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: counts,
+        backgroundColor: colors,
+        borderColor: 'rgba(15,23,36,0.8)',
+        borderWidth: 3,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const g = ctx.label;
+              const d = gradeDistributionData[g];
+              return ` ${g}: ${d.count} exam${d.count!==1?'s':''} (${d.percentage}%)`;
             }
+          },
+          backgroundColor: '#1e2240',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: '#fff',
+          bodyColor: 'rgba(255,255,255,0.7)',
+          padding: 10,
+          cornerRadius: 8
         }
-    });
+      }
+    }
+  });
 
-    const gradeLabels = Object.keys(gradeDistributionData);
-    const gradeCounts = gradeLabels.map(grade => gradeDistributionData[grade].count);
-    
-    const gradeColors = {
-        'A': '#22c55e',
-        'B': '#3b82f6', 
-        'C': '#f59e0b',
-        'D': '#ef4444',
-        'F': '#dc2626'
-    };
-
-    const gradeDistributionCtx = document.getElementById('gradeDistributionChart').getContext('2d');
-    new Chart(gradeDistributionCtx, {
-        type: 'pie',
-        data: {
-            labels: gradeLabels,
-            datasets: [{
-                data: gradeCounts,
-                backgroundColor: gradeLabels.map(grade => gradeColors[grade] || '#667eea'),
-                borderColor: 'rgba(255, 255, 255, 0.2)',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        color: 'white',
-                        padding: 20
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const grade = context.label;
-                            const count = context.raw;
-                            const percentage = gradeDistributionData[grade].percentage;
-                            return `${grade}: ${count} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-});
+  const legend = document.getElementById('donutLegend');
+  if (legend) {
+    legend.innerHTML = labels.map(g => {
+      const d = gradeDistributionData[g];
+      return `<div class="donut-legend-item">
+        <div class="donut-dot" style="background:${GRADE_COLORS[g]||'#667eea'}"></div>
+        <span>Grade ${g} — ${d.count} exam${d.count!==1?'s':''} (${d.percentage}%)</span>
+      </div>`;
+    }).join('');
+  }
+}
+buildDonut();
 </script>
 {% endif %}
 {% endblock %}

@@ -54,13 +54,13 @@
 
     /* Welcome Section */
     .welcome-section {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.06);
         backdrop-filter: blur(20px);
-        border-radius: 24px;
-        padding: 3rem;
-        margin-bottom: 3rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+        border-radius: 16px;
+        padding: 1.4rem 2rem;
+        margin-bottom: 1.8rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
         position: relative;
         overflow: hidden;
     }
@@ -82,19 +82,18 @@
     }
 
     .welcome-section h2 {
-        font-size: 3rem;
-        font-weight: 900;
+        font-size: 1.6rem;
+        font-weight: 700;
         background: linear-gradient(135deg, #ffffff 0%, #667eea 50%, #764ba2 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        margin-bottom: 1rem;
-        text-shadow: 0 0 50px rgba(102, 126, 234, 0.3);
+        margin-bottom: 0.4rem;
     }
 
     .welcome-section p {
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 1.3rem;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.9rem;
         margin-bottom: 0;
     }
 
@@ -186,20 +185,20 @@
 
     .modern-tab {
         flex: 1;
-        min-width: 180px;
-        padding: 1.2rem 1.5rem;
-        border-radius: 16px;
+        min-width: 140px;
+        padding: 0.7rem 1rem;
+        border-radius: 12px;
         background: transparent;
         border: none;
-        color: rgba(255, 255, 255, 0.7);
-        font-weight: 600;
-        transition: all 0.4s ease;
+        color: rgba(255, 255, 255, 0.6);
+        font-weight: 500;
+        transition: all 0.25s ease;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 0.8rem;
-        font-size: 1rem;
+        gap: 0.5rem;
+        font-size: 0.85rem;
         position: relative;
         overflow: hidden;
     }
@@ -238,15 +237,15 @@
 
     .tab-pane {
         display: none;
-        animation: fadeIn 0.5s ease-in-out;
     }
 
     .tab-pane.active {
         display: block;
+        animation: fadeIn 0.25s ease-out;
     }
 
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
+        from { opacity: 0; transform: translateY(8px); }
         to { opacity: 1; transform: translateY(0); }
     }
 
@@ -296,28 +295,19 @@
     }
 
     .card-header {
-        padding: 2rem 2rem 1rem 2rem;
+        padding: 1.2rem 1.4rem 0.6rem;
         border-bottom: none;
         background: transparent;
     }
 
-    .card-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: white;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.8rem;
-    }
-
     .card-body {
-        padding: 0 2rem 1rem 2rem;
-        color: rgba(255, 255, 255, 0.8);
+        padding: 0 1.4rem 0.6rem;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.85rem;
     }
 
     .card-footer {
-        padding: 1rem 2rem 2rem 2rem;
+        padding: 0.6rem 1.4rem 1.2rem;
         background: transparent;
         border-top: none;
     }
@@ -397,18 +387,18 @@
 
     /* Action Buttons */
     .action-btn {
-        padding: 1rem 2rem;
-        border-radius: 16px;
-        font-weight: 600;
-        transition: all 0.3s ease;
+        padding: 0.6rem 1.2rem;
+        border-radius: 10px;
+        font-weight: 500;
+        transition: all 0.2s ease;
         border: none;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.8rem;
+        gap: 0.5rem;
         width: 100%;
-        font-size: 1rem;
+        font-size: 0.85rem;
         text-decoration: none;
         position: relative;
         overflow: hidden;
@@ -1390,7 +1380,7 @@
                 <!-- Grid View -->
                 <div class="exam-grid-view active-view">
                     {% for exam in ongoing_exams %}
-                    <div class="modern-card exam-live loading exam-card">
+                    <div class="modern-card exam-live exam-card">
                         <div class="card-header">
                             <div class="card-title">
                                 <i class="fas fa-play-circle"></i>
@@ -1525,110 +1515,52 @@
 </div>
 
 
-            <!-- Enhanced Results History Section -->
             <div class="tab-pane" id="history">
                 <div class="results-history-section">
-                    <div class="history-intro">
-                        <div class="history-header">
-                            <div class="history-icon">
-                                <i class="fas fa-chart-line"></i>
-                            </div>
-                            <div class="history-text">
-                                <h3>Comprehensive Results History</h3>
-                                <p>Track your academic progress and performance analytics</p>
+                    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem;">
+                        <div style="width:36px;height:36px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;flex-shrink:0;">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <div style="color:#fff;font-weight:600;font-size:1rem;line-height:1.3;">Results History</div>
+                            <div style="color:rgba(255,255,255,0.45);font-size:0.8rem;">View scores, responses and performance trends</div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem;">
+                        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1rem 1.2rem;display:flex;align-items:center;gap:0.8rem;">
+                            <i class="fas fa-pen" style="color:#667eea;font-size:0.9rem;"></i>
+                            <div>
+                                <div style="color:#fff;font-size:1.3rem;font-weight:700;line-height:1;">{{ total_attempted | default(0) }}</div>
+                                <div style="color:rgba(255,255,255,0.45);font-size:0.75rem;margin-top:2px;">Total Attempts</div>
                             </div>
                         </div>
-                        
-                        <div class="history-features">
-                            <div class="feature-grid">
-                                <div class="feature-item">
-                                    <div class="feature-icon">
-                                        <i class="fas fa-analytics"></i>
-                                    </div>
-                                    <div class="feature-content">
-                                        <strong>Performance Analytics</strong>
-                                        <span>Detailed score breakdowns and trend analysis</span>
-                                    </div>
-                                </div>
-                                
-                                <div class="feature-item">
-                                    <div class="feature-icon">
-                                        <i class="fas fa-file-alt"></i>
-                                    </div>
-                                    <div class="feature-content">
-                                        <strong>Response Review</strong>
-                                        <span>Review your answers and correct solutions</span>
-                                    </div>
-                                </div>
-                                
-                                <div class="feature-item">
-                                    <div class="feature-icon">
-                                        <i class="fas fa-calendar-alt"></i>
-                                    </div>
-                                    <div class="feature-content">
-                                        <strong>Date-wise Results</strong>
-                                        <span>Filter and view results by specific dates</span>
-                                    </div>
-                                </div>
-                                
-                                <div class="feature-item">
-                                    <div class="feature-icon">
-                                        <i class="fas fa-trophy"></i>
-                                    </div>
-                                    <div class="feature-content">
-                                        <strong>Performance Insights</strong>
-                                        <span>Identify strengths and improvement areas</span>
-                                    </div>
-                                </div>
+                        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1rem 1.2rem;display:flex;align-items:center;gap:0.8rem;">
+                            <i class="fas fa-percent" style="color:#10b981;font-size:0.9rem;"></i>
+                            <div>
+                                <div style="color:#fff;font-size:1.3rem;font-weight:700;line-height:1;">{{ avg_score | default('--') }}</div>
+                                <div style="color:rgba(255,255,255,0.45);font-size:0.75rem;margin-top:2px;">Average Score</div>
+                            </div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1rem 1.2rem;display:flex;align-items:center;gap:0.8rem;">
+                            <i class="fas fa-check-circle" style="color:#fbbf24;font-size:0.9rem;"></i>
+                            <div>
+                                <div style="color:#fff;font-size:1.3rem;font-weight:700;line-height:1;">{{ completed_exams|length if completed_exams else 0 }}</div>
+                                <div style="color:rgba(255,255,255,0.45);font-size:0.75rem;margin-top:2px;">Completed Exams</div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="history-actions">
-                        <a href="{{ url_for('results_history') }}" class="history-main-btn">
-                            <div class="btn-content">
-                                <i class="fas fa-external-link-alt"></i>
-                                <div class="btn-text">
-                                    <strong>Open Results History</strong>
-                                    <span>Access detailed performance dashboard</span>
-                                </div>
-                            </div>
-                            <div class="btn-arrow">
-                                <i class="fas fa-arrow-right"></i>
-                            </div>
-                        </a>
-                        
-                        <div class="quick-stats">
-                            <div class="stat-item">
-                                <div class="stat-number">{{ completed_exams|length if completed_exams else 0 }}</div>
-                                <div class="stat-label">Exams Completed</div>
-                            </div>
-                            <div class="stat-divider"></div>
-                            <div class="stat-item">
-                                <div class="stat-number">
-                                    {% if completed_exams %}
-                                        {% set total_score = 0 %}
-                                        {% set count = 0 %}
-                                        {% for exam in completed_exams %}
-                                            {% if exam.result %}
-                                                {% set score = exam.result.split('/')[0]|int if '/' in exam.result else exam.result|int %}
-                                                {% set total_score = total_score + score %}
-                                                {% set count = count + 1 %}
-                                            {% endif %}
-                                        {% endfor %}
-                                        {% if count > 0 %}
-                                            {{ "%.1f"|format(total_score / count) }}%
-                                        {% else %}
-                                            --
-                                        {% endif %}
-                                    {% else %}
-                                        --
-                                    {% endif %}
-                                </div>
-                                <div class="stat-label">Average Score</div>
+
+                    <a href="{{ url_for('results_history') }}" style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:12px;color:#fff;text-decoration:none;transition:opacity 0.2s,transform 0.2s;" onmouseover="this.style.opacity='0.9';this.style.transform='translateY(-2px)'" onmouseout="this.style.opacity='1';this.style.transform='translateY(0)'">
+                        <div style="display:flex;align-items:center;gap:0.8rem;">
+                            <i class="fas fa-table" style="font-size:1rem;opacity:0.85;"></i>
+                            <div>
+                                <div style="font-weight:600;font-size:0.9rem;">Open Full Results History</div>
+                                <div style="font-size:0.75rem;opacity:0.7;margin-top:1px;">Scores · Responses · Detailed analytics</div>
                             </div>
                         </div>
-                    </div>
+                        <i class="fas fa-arrow-right" style="font-size:0.85rem;opacity:0.7;"></i>
+                    </a>
                 </div>
             </div>
         </div>
@@ -1667,29 +1599,19 @@
         const listView = activeTab.querySelector('.exam-list-view');
 
         if (gridView && listView) {
-            if (viewType === 'grid') {
-                gridView.classList.add('active-view');
-                listView.classList.remove('active-view');
-                gridView.style.display = 'grid';
-                listView.style.display = 'none';
-            } else {
-                gridView.classList.remove('active-view');
-                listView.classList.add('active-view');
-                gridView.style.display = 'none';
-                listView.style.display = 'block';
-            }
+            const incoming = viewType === 'grid' ? gridView : listView;
+            const outgoing = viewType === 'grid' ? listView : gridView;
 
-            // Animate visible items
-            const activeView = viewType === 'grid' ? gridView : listView;
-            const items = activeView.querySelectorAll('.exam-card, .list-item');
-            items.forEach((item, index) => {
-                item.style.opacity = '0';
-                item.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    item.style.opacity = '1';
-                    item.style.transform = 'translateY(0)';
-                    item.style.transition = 'all 0.3s ease';
-                }, index * 50);
+            outgoing.style.display = 'none';
+            outgoing.classList.remove('active-view');
+
+            incoming.style.opacity = '0';
+            incoming.style.display = viewType === 'grid' ? 'grid' : 'block';
+            incoming.classList.add('active-view');
+
+            requestAnimationFrame(() => {
+                incoming.style.transition = 'opacity 0.2s ease';
+                incoming.style.opacity = '1';
             });
         }
     }
@@ -1757,19 +1679,7 @@
         // Update exam counter and animate new content
         updateExamCounter(tabName);
 
-        const newContent = document.getElementById(tabName);
-        if (newContent) {
-            const cards = newContent.querySelectorAll('.exam-card, .modern-table, .empty-state, .results-history-section');
-            cards.forEach((card, index) => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(30px)';
-                setTimeout(() => {
-                    card.style.opacity = '1';
-                    card.style.transform = 'translateY(0)';
-                    card.style.transition = 'all 0.6s ease';
-                }, index * 100);
-            });
-        }
+        
     }
 
     // ---------- Counter ----------
@@ -2123,10 +2033,10 @@ function updateExamCounterFromCards(visibleCount, activeTab) {
             });
         }, observerOptions);
 
-        document.querySelectorAll('.modern-card, .modern-table, .empty-state').forEach((element, index) => {
+        document.querySelectorAll('#upcoming .modern-card, #completed .modern-card, .modern-table, .empty-state').forEach((element, index) => {
             element.style.opacity = '0';
-            element.style.transform = 'translateY(30px) scale(0.95)';
-            element.style.transition = `all 0.8s ease ${index * 0.1}s`;
+            element.style.transform = 'translateY(16px)';
+            element.style.transition = `opacity 0.4s ease ${index * 0.07}s, transform 0.4s ease ${index * 0.07}s`;
             try { observer.observe(element); } catch (err) { /* ignore */ }
         });
 

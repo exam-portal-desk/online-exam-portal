@@ -4,310 +4,729 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.png') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ExamPortal - Professional Online Examination System</title>
+    <title>ExamPortal — Intelligent Examination Platform</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        html,body{height:100%}
-        body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#333;overflow-x:hidden;background:#0f0f23}
-        .particles{position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;z-index:1;pointer-events:none}
-        .particle{position:absolute;background:linear-gradient(45deg,#667eea,#764ba2);border-radius:50%;animation:float 6s ease-in-out infinite;will-change:transform}
-        .particle:nth-child(1){width:4px;height:4px;top:20%;left:10%;animation-delay:0s}
-        .particle:nth-child(2){width:6px;height:6px;top:60%;left:80%;animation-delay:1s}
-        .particle:nth-child(3){width:3px;height:3px;top:80%;left:20%;animation-delay:2s}
-        .particle:nth-child(4){width:5px;height:5px;top:40%;left:60%;animation-delay:3s}
-        .particle:nth-child(5){width:4px;height:4px;top:30%;left:90%;animation-delay:4s}
-
-        .header{position:fixed;top:0;width:100%;background:rgba(15,15,35,0.95);backdrop-filter:blur(20px);z-index:1000;padding:0.8rem 0;border-bottom:1px solid rgba(102,126,234,0.2);transition:all .3s ease}
-        .nav-container{max-width:1200px;margin:0 auto;padding:0 1.5rem;display:flex;justify-content:space-between;align-items:center;gap:1rem}
-        .logo{font-size:1.75rem;font-weight:800;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:0 0 30px rgba(102,126,234,0.5);display:flex;align-items:center;gap:.5rem}
-        .nav-buttons{display:flex;gap:1rem;align-items:center}
-        .btn{padding:.6rem 1.2rem;border-radius:50px;text-decoration:none;font-weight:600;transition:all .3s ease;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:.5rem;position:relative;overflow:hidden;background:transparent}
-        .btn::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);transition:left .5s}
-        .btn:hover::before{left:100%}
-        .btn-outline{background:transparent;color:#667eea;border:2px solid #667eea;box-shadow:0 0 20px rgba(102,126,234,0.3)}
-        .btn-outline:hover{background:#667eea;color:white;transform:translateY(-3px);box-shadow:0 15px 35px rgba(102,126,234,0.4)}
-        .btn-primary{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;box-shadow:0 10px 30px rgba(102,126,234,0.4)}
-        .btn-primary:hover{transform:translateY(-3px);box-shadow:0 20px 40px rgba(102,126,234,0.6)}
-        .btn-white{background:linear-gradient(135deg,#ffffff 0%,#f8faff 100%);color:#667eea;padding:1.2rem 2.5rem;font-size:1.05rem;font-weight:700;box-shadow:0 15px 40px rgba(255,255,255,0.2)}
-        .btn-white:hover{background:linear-gradient(135deg,#f8faff 0%,#ffffff 100%);transform:translateY(-4px);box-shadow:0 25px 50px rgba(255,255,255,0.3)}
-
-        .nav-toggle{display:none;background:transparent;border:none;font-size:1.25rem;color:#fff;padding:.5rem;border-radius:.5rem;cursor:pointer}
-        .nav-mobile{display:none;position:absolute;top:100%;right:0;background:rgba(15,15,35,0.98);backdrop-filter:blur(10px);width:100%;max-width:320px;padding:1rem;border-radius:10px;margin-top:.5rem;box-shadow:0 10px 30px rgba(0,0,0,.4)}
-        .nav-mobile a{display:block;padding:.6rem 1rem;border-radius:8px;color:#fff;margin-bottom:.5rem;text-decoration:none;border:1px solid rgba(255,255,255,0.03)}
-        .nav-mobile a:last-child{margin-bottom:0}
-        .nav-open .nav-mobile{display:block}
-
-        .hero{background:linear-gradient(135deg,#0f0f23 0%,#1a1a3e 50%,#2d2d5f 100%);min-height:100vh;display:flex;align-items:center;position:relative;overflow:hidden;padding-top:4.2rem}
-        .hero::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 20% 30%,rgba(102,126,234,0.08) 0%,transparent 50%),radial-gradient(circle at 80% 70%,rgba(118,75,162,0.08) 0%,transparent 50%);z-index:1}
-        .hero-container{max-width:1200px;margin:0 auto;padding:2rem;display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;position:relative;z-index:2}
-        .hero-content h1{font-size:3.6rem;font-weight:900;background:linear-gradient(135deg,#ffffff 0%,#667eea 50%,#764ba2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:1.5rem;line-height:1.05;text-shadow:0 0 50px rgba(102,126,234,0.3)}
-        .hero-content p{font-size:1.15rem;color:rgba(255,255,255,0.9);margin-bottom:2rem;line-height:1.6}
-        .hero-buttons{display:flex;gap:1rem;flex-wrap:wrap}
-        .hero-visual{display:flex;justify-content:center;align-items:center;position:relative}
-        .exam-card{background:rgba(255,255,255,0.06);backdrop-filter:blur(20px);border-radius:20px;padding:2.2rem;border:1px solid rgba(255,255,255,0.08);animation:float-card 8s ease-in-out infinite;max-width:450px;position:relative;box-shadow:0 30px 60px rgba(0,0,0,0.32)}
-        .exam-card h3{color:white;font-size:1.4rem;margin-bottom:1.25rem;font-weight:700;display:flex;align-items:center;gap:.6rem}
-        .exam-stats{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem}
-        .stat{background:rgba(255,255,255,0.06);padding:1rem;border-radius:12px;text-align:center;border:1px solid rgba(255,255,255,0.06)}
-        .stat-number{font-size:2rem;font-weight:800;color:#667eea}
-        .stat-label{color:rgba(255,255,255,0.95);font-size:.95rem;margin-top:.4rem}
-
-        .features{padding:6rem 0;background:linear-gradient(135deg,#f8faff 0%,#ffffff 50%,#f0f4ff 100%);position:relative}
-        .container{max-width:1200px;margin:0 auto;padding:0 1.5rem}
-        .section-header{text-align:center;margin-bottom:3.5rem}
-        .section-header h2{font-size:2.4rem;font-weight:900;background:linear-gradient(135deg,#1a202c 0%,#667eea 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:1rem}
-        .section-header p{font-size:1.05rem;color:#64748b;max-width:700px;margin:0 auto}
-        .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:2rem}
-        .feature-card{background:linear-gradient(135deg,#ffffff 0%,#f8faff 100%);padding:1.8rem;border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,0.08);transition:all .4s ease;border:1px solid #e2e8f0;position:relative;overflow:hidden}
-        .feature-card:hover{transform:translateY(-8px);box-shadow:0 30px 60px rgba(102,126,234,0.12);border-color:#667eea}
-        .feature-icon{width:64px;height:64px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;box-shadow:0 10px 30px rgba(102,126,234,0.2)}
-        .feature-icon i{font-size:1.25rem;color:white}
-        .feature-card h3{font-size:1.15rem;font-weight:700;color:#1a202c;margin-bottom:.8rem}
-        .feature-card p{color:#64748b;line-height:1.6;font-size:.98rem}
-
-        .cta{background:linear-gradient(135deg,#0f0f23 0%,#1a1a3e 100%);padding:5rem 0;text-align:center;position:relative;overflow:hidden}
-        .cta-content{position:relative;z-index:2}
-        .cta h2{font-size:2rem;font-weight:900;background:linear-gradient(135deg,#ffffff 0%,#667eea 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:1rem}
-        .cta p{font-size:1.05rem;color:rgba(255,255,255,0.85);margin-bottom:1.5rem;max-width:700px;margin-left:auto;margin-right:auto}
-
-        .professional-footer{background:linear-gradient(135deg,#1a1a3e 0%,#0f0f23 100%);color:#ecf0f1;padding:2rem 0;position:relative;box-shadow:0 -10px 30px rgba(0,0,0,0.3)}
-        .footer-content{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem}
-        .footer-brand{display:flex;align-items:center;font-size:1.1rem;font-weight:800;color:#667eea;gap:.5rem}
-        .footer-copyright{color:#bdc3c7;font-size:.95rem;margin:0}
-        .footer-links{display:flex;gap:1.25rem;align-items:center;flex-wrap:wrap}
-        .footer-links a{color:#ecf0f1;text-decoration:none;font-size:.95rem;transition:all .3s ease;padding:.25rem 0;border-bottom:2px solid transparent;font-weight:500}
-        .footer-links a:hover{color:#667eea;border-bottom-color:#667eea;transform:translateY(-2px)}
-        .footer-social{display:flex;gap:.75rem;align-items:center}
-        .footer-social a{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;background:linear-gradient(135deg,rgba(102,126,234,0.15),rgba(118,75,162,0.15));border-radius:50%;color:#ecf0f1;text-decoration:none;transition:all .4s ease;font-size:1rem}
-        .footer-social a:hover{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);transform:translateY(-3px) scale(1.05);box-shadow:0 10px 25px rgba(102,126,234,0.4)}
-
-        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-30px)}}
-        @keyframes float-card{0%,100%{transform:translateY(0) rotateY(0deg);box-shadow:0 30px 60px rgba(0,0,0,0.3)}50%{transform:translateY(-15px) rotateY(3deg);box-shadow:0 40px 80px rgba(102,126,234,0.4)}}
-
-        @media (max-width:1024px){
-            .hero-container{grid-template-columns:1fr;gap:2.5rem;padding:1.5rem}
-            .hero{padding-top:4.6rem}
-            .hero-content h1{font-size:2.8rem}
-            .exam-card{max-width:520px;margin:0 auto}
+        :root {
+            --ink: #0a0a0f;
+            --ink-60: rgba(10,10,15,0.6);
+            --ink-30: rgba(10,10,15,0.3);
+            --paper: #f7f6f2;
+            --paper-dark: #eeece6;
+            --accent: #2d5be3;
+            --accent-light: #4f7bf7;
+            --accent-pale: #eef2ff;
+            --gold: #c9a84c;
+            --gold-pale: #fdf8ed;
+            --success: #1a7a4a;
+            --surface: #ffffff;
+            --border: rgba(10,10,15,0.08);
+            --shadow-sm: 0 1px 3px rgba(10,10,15,0.08), 0 1px 2px rgba(10,10,15,0.06);
+            --shadow-md: 0 4px 16px rgba(10,10,15,0.08), 0 2px 6px rgba(10,10,15,0.05);
+            --shadow-lg: 0 20px 48px rgba(10,10,15,0.1), 0 8px 20px rgba(10,10,15,0.06);
+            --shadow-xl: 0 40px 80px rgba(10,10,15,0.14), 0 16px 32px rgba(10,10,15,0.08);
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--paper);
+            color: var(--ink);
+            overflow-x: hidden;
         }
 
-        @media (max-width:768px){
-            .nav-toggle{display:inline-flex}
-            .nav-buttons{display:none}
-            .nav-container{padding:0 1rem}
-            .hero{padding-top:4.8rem;min-height:calc(100vh - 64px)}
-            .hero-content h1{font-size:2.4rem}
-            .hero-content p{font-size:1rem}
-            .hero-buttons{justify-content:center;flex-direction:column;gap:.75rem}
-            .exam-card{padding:1.4rem;border-radius:14px;max-width:360px}
-            .exam-card h3{font-size:1.05rem}
-            .exam-stats{grid-template-columns:1fr;gap:.75rem}
-            .stat-number{font-size:1.6rem}
-            .stat-label{font-size:.9rem}
-            .features{padding:4rem 0}
-            .section-header h2{font-size:1.8rem}
-            .features-grid{grid-template-columns:1fr;gap:1.25rem}
-            .feature-card{padding:1.25rem;border-radius:12px}
-            .cta{padding:3.5rem 0}
-            .cta h2{font-size:1.6rem}
-            .professional-footer{padding:1.25rem 0;text-align:center}
-            .footer-content{flex-direction:column;gap:.75rem}
-            .footer-links{gap:1rem;justify-content:center}
-            .footer-social{justify-content:center}
-            .nav-mobile{right:1rem;left:auto}
+        /* ── NAV ── */
+        .nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 900;
+            padding: 0 2rem;
+            height: 64px;
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(247,246,242,0.88);
+            backdrop-filter: blur(16px) saturate(180%);
+            border-bottom: 1px solid var(--border);
+            transition: background 0.3s;
+        }
+        .nav-logo {
+            display: flex; align-items: center; gap: 10px;
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.35rem; color: var(--ink); text-decoration: none;
+            letter-spacing: -0.01em;
+        }
+        .nav-logo-icon {
+            width: 34px; height: 34px; border-radius: 9px;
+            background: var(--accent);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-logo-icon i { color: white; font-size: 0.9rem; }
+        .nav-links { display: flex; align-items: center; gap: 0.25rem; }
+        .nav-link {
+            padding: 0.45rem 0.9rem; border-radius: 8px;
+            color: var(--ink-60); text-decoration: none;
+            font-size: 0.875rem; font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-link:hover { color: var(--ink); background: var(--border); }
+        .nav-cta {
+            padding: 0.5rem 1.1rem; border-radius: 8px;
+            background: var(--ink); color: white;
+            font-size: 0.875rem; font-weight: 500;
+            text-decoration: none; transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(10,10,15,0.2);
+        }
+        .nav-cta:hover { background: #1a1a2e; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(10,10,15,0.2); }
+        .nav-toggle {
+            display: none; background: none; border: none;
+            color: var(--ink); font-size: 1.1rem; cursor: pointer;
+            padding: 0.5rem; border-radius: 6px;
+        }
+        .nav-mobile {
+            display: none; position: absolute;
+            top: calc(100% + 8px); left: 1rem; right: 1rem;
+            background: var(--surface); border-radius: 12px;
+            border: 1px solid var(--border); padding: 0.75rem;
+            box-shadow: var(--shadow-lg);
+        }
+        .nav-mobile a {
+            display: block; padding: 0.65rem 1rem; border-radius: 8px;
+            color: var(--ink); text-decoration: none;
+            font-size: 0.9rem; font-weight: 500;
+            transition: background 0.2s;
+        }
+        .nav-mobile a:hover { background: var(--paper); }
+        .nav-open .nav-mobile { display: block; }
+
+        /* ── HERO ── */
+        .hero {
+            min-height: 100vh; padding-top: 64px;
+            display: grid; place-items: center;
+            position: relative; overflow: hidden;
+            background: var(--paper);
+        }
+        .hero-grid-bg {
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 48px 48px;
+            mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 40%, transparent 100%);
+        }
+        .hero-glow {
+            position: absolute; top: 15%; left: 50%;
+            transform: translateX(-50%);
+            width: 600px; height: 400px;
+            background: radial-gradient(ellipse, rgba(45,91,227,0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-inner {
+            position: relative; z-index: 2;
+            max-width: 860px; margin: 0 auto;
+            padding: 5rem 2rem 4rem;
+            text-align: center;
+        }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 0.35rem 0.9rem 0.35rem 0.5rem;
+            background: var(--accent-pale); border-radius: 100px;
+            border: 1px solid rgba(45,91,227,0.15);
+            font-size: 0.78rem; font-weight: 600;
+            color: var(--accent); margin-bottom: 2rem;
+            letter-spacing: 0.02em; text-transform: uppercase;
+        }
+        .hero-badge-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--accent); animation: blink 2s ease-in-out infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .hero-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: clamp(2.6rem, 6vw, 4.2rem);
+            line-height: 1.08; letter-spacing: -0.02em;
+            color: var(--ink); margin-bottom: 1.5rem;
+        }
+        .hero-title em { font-style: italic; color: var(--accent); }
+        .hero-sub {
+            font-size: clamp(1rem, 2vw, 1.15rem);
+            color: var(--ink-60); max-width: 560px;
+            margin: 0 auto 2.5rem; line-height: 1.65; font-weight: 400;
+        }
+        .hero-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+        .btn-primary {
+            padding: 0.8rem 1.8rem; border-radius: 10px;
+            background: var(--ink); color: white;
+            font-size: 0.9rem; font-weight: 600;
+            text-decoration: none; border: none; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 2px 8px rgba(10,10,15,0.2);
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-primary:hover { background: #1a1a2e; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(10,10,15,0.2); }
+        .btn-secondary {
+            padding: 0.8rem 1.8rem; border-radius: 10px;
+            background: transparent; color: var(--ink);
+            font-size: 0.9rem; font-weight: 500;
+            text-decoration: none; border: 1.5px solid var(--border);
+            cursor: pointer; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-secondary:hover { border-color: var(--ink-30); background: var(--paper-dark); transform: translateY(-2px); }
+
+        /* hero stats strip */
+        .hero-stats {
+            margin-top: 4rem; padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            display: flex; justify-content: center; gap: 4rem; flex-wrap: wrap;
+        }
+        .hero-stat { text-align: center; }
+        .hero-stat-num {
+            font-family: 'DM Serif Display', serif;
+            font-size: 2rem; color: var(--ink); letter-spacing: -0.02em;
+        }
+        .hero-stat-label { font-size: 0.8rem; color: var(--ink-60); margin-top: 2px; font-weight: 500; }
+
+        /* ── FEATURES ── */
+        .features {
+            padding: 6rem 2rem;
+            max-width: 1100px; margin: 0 auto;
+        }
+        .section-eyebrow {
+            font-size: 0.75rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--accent); margin-bottom: 0.75rem;
+        }
+        .section-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            line-height: 1.12; letter-spacing: -0.02em;
+            color: var(--ink); margin-bottom: 1rem;
+        }
+        .section-sub {
+            font-size: 1rem; color: var(--ink-60);
+            max-width: 520px; line-height: 1.6;
+        }
+        .features-header { margin-bottom: 3rem; }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .feat {
+            background: var(--surface);
+            padding: 2rem 1.75rem;
+            transition: background 0.2s;
+        }
+        .feat:hover { background: var(--paper); }
+        .feat-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: var(--accent-pale);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 1rem;
+        }
+        .feat-icon i { color: var(--accent); font-size: 1rem; }
+        .feat-title { font-size: 0.95rem; font-weight: 600; color: var(--ink); margin-bottom: 0.5rem; }
+        .feat-desc { font-size: 0.85rem; color: var(--ink-60); line-height: 1.6; }
+
+        /* ── HOW IT WORKS ── */
+        .how {
+            padding: 6rem 2rem;
+            background: var(--ink);
+            color: white;
+        }
+        .how-inner { max-width: 1100px; margin: 0 auto; }
+        .how .section-eyebrow { color: var(--gold); }
+        .how .section-title { color: white; }
+        .how .section-sub { color: rgba(255,255,255,0.55); }
+        .how-steps {
+            margin-top: 3.5rem;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+            position: relative;
+        }
+        .how-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px; left: 10%; right: 10%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+        }
+        .how-step { padding: 0 1.5rem; text-align: center; }
+        .how-step-num {
+            width: 40px; height: 40px; border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.25rem;
+            font-family: 'DM Serif Display', serif;
+            font-size: 1rem; color: rgba(255,255,255,0.5);
+        }
+        .how-step-title { font-size: 0.9rem; font-weight: 600; color: white; margin-bottom: 0.5rem; }
+        .how-step-desc { font-size: 0.8rem; color: rgba(255,255,255,0.45); line-height: 1.6; }
+
+        /* ── EXAM TYPES ── */
+        .exam-types {
+            padding: 6rem 2rem;
+            max-width: 1100px; margin: 0 auto;
+        }
+        .types-grid {
+            margin-top: 3rem;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .type-card {
+            padding: 1.75rem;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            transition: all 0.25s;
+            position: relative; overflow: hidden;
+        }
+        .type-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--accent);
+            transform: scaleX(0); transform-origin: left;
+            transition: transform 0.3s;
+        }
+        .type-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: rgba(45,91,227,0.2); }
+        .type-card:hover::before { transform: scaleX(1); }
+        .type-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.1em; color: var(--accent); margin-bottom: 0.75rem;
+        }
+        .type-title { font-size: 1rem; font-weight: 600; color: var(--ink); margin-bottom: 0.5rem; }
+        .type-desc { font-size: 0.83rem; color: var(--ink-60); line-height: 1.6; }
+        .type-pills {
+            margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.4rem;
+        }
+        .pill {
+            padding: 0.25rem 0.65rem; border-radius: 100px;
+            background: var(--paper); font-size: 0.72rem;
+            color: var(--ink-60); font-weight: 500;
+            border: 1px solid var(--border);
         }
 
-        @media (max-width:420px){
-            .hero-content h1{font-size:1.9rem}
-            .btn-white{padding:.9rem 1.6rem;font-size:1rem}
-            .btn-primary{padding:.8rem 1.6rem;font-size:.95rem}
-            .exam-card{padding:1rem}
-            .hero-container{padding:1rem;gap:1.2rem}
+        /* ── TESTIMONIAL / PROOF STRIP ── */
+        .proof {
+            padding: 5rem 2rem;
+            background: var(--gold-pale);
+            border-top: 1px solid rgba(201,168,76,0.15);
+            border-bottom: 1px solid rgba(201,168,76,0.15);
+        }
+        .proof-inner {
+            max-width: 900px; margin: 0 auto;
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 2rem; align-items: center;
+        }
+        .proof-quote {
+            font-family: 'DM Serif Display', serif;
+            font-size: clamp(1.3rem, 3vw, 1.8rem);
+            line-height: 1.35; color: var(--ink);
+            letter-spacing: -0.01em;
+        }
+        .proof-quote em { font-style: italic; color: var(--gold); }
+        .proof-list { display: flex; flex-direction: column; gap: 1rem; }
+        .proof-item {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            padding: 1rem 1.25rem; background: white; border-radius: 12px;
+            border: 1px solid rgba(201,168,76,0.15);
+            box-shadow: var(--shadow-sm);
+        }
+        .proof-item-icon {
+            width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px;
+            background: var(--accent-pale);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .proof-item-icon i { color: var(--accent); font-size: 0.85rem; }
+        .proof-item-title { font-size: 0.85rem; font-weight: 600; color: var(--ink); }
+        .proof-item-desc { font-size: 0.78rem; color: var(--ink-60); margin-top: 2px; }
+
+        /* ── CTA ── */
+        .cta-section {
+            padding: 7rem 2rem;
+            text-align: center; position: relative; overflow: hidden;
+        }
+        .cta-bg {
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, #0a0a0f 0%, #0d1a3e 60%, #0a0a0f 100%);
+        }
+        .cta-glow {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            width: 500px; height: 300px;
+            background: radial-gradient(ellipse, rgba(45,91,227,0.2) 0%, transparent 70%);
+        }
+        .cta-inner { position: relative; z-index: 2; max-width: 600px; margin: 0 auto; }
+        .cta-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: clamp(2rem, 5vw, 3rem);
+            color: white; margin-bottom: 1rem;
+            letter-spacing: -0.02em; line-height: 1.1;
+        }
+        .cta-sub { font-size: 1rem; color: rgba(255,255,255,0.55); margin-bottom: 2.5rem; line-height: 1.6; }
+        .btn-white {
+            padding: 0.9rem 2rem; border-radius: 10px;
+            background: white; color: var(--ink);
+            font-size: 0.9rem; font-weight: 600;
+            text-decoration: none; border: none; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 2px 8px rgba(255,255,255,0.2);
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-white:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(255,255,255,0.15); }
+
+        /* ── FOOTER ── */
+        .footer {
+            padding: 2rem;
+            background: var(--ink);
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .footer-inner {
+            max-width: 1100px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 1rem;
+        }
+        .footer-logo {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.1rem; color: white; text-decoration: none;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .footer-logo i { color: rgba(255,255,255,0.4); font-size: 0.9rem; }
+        .footer-links-row { display: flex; gap: 0.25rem; flex-wrap: wrap; align-items: center; }
+        .footer-link {
+            padding: 0.3rem 0.7rem; border-radius: 6px;
+            color: rgba(255,255,255,0.4); text-decoration: none;
+            font-size: 0.8rem; font-weight: 500; transition: color 0.2s;
+        }
+        .footer-link:hover { color: rgba(255,255,255,0.8); }
+        .footer-copy { font-size: 0.78rem; color: rgba(255,255,255,0.25); }
+
+        /* ── ANIMATIONS ── */
+        .fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 900px) {
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .how-steps { grid-template-columns: repeat(2, 1fr); gap: 2rem; }
+            .how-steps::before { display: none; }
+            .proof-inner { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 640px) {
+            .nav-links { display: none; }
+            .nav-toggle { display: inline-flex; }
+            .features-grid { grid-template-columns: 1fr; border-radius: 12px; }
+            .types-grid { grid-template-columns: 1fr; }
+            .how-steps { grid-template-columns: 1fr 1fr; }
+            .hero-stats { gap: 2rem; }
+            .footer-inner { flex-direction: column; align-items: flex-start; }
+        }
+        @media (max-width: 420px) {
+            .how-steps { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="particles">
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
+
+<!-- NAV -->
+<header class="nav" id="navWrap">
+    <a href="/" class="nav-logo">
+        <div class="nav-logo-icon"><i class="fas fa-graduation-cap"></i></div>
+        ExamPortal
+    </a>
+    <nav class="nav-links" id="desktopNav">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#how" class="nav-link">How it works</a>
+        <a href="{{ url_for('support') }}" class="nav-link">Support</a>
+        <a href="{{ url_for('login') }}" class="nav-link">Sign in</a>
+        <a href="{{ url_for('create_account') }}" class="nav-cta">Get started</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="nav-mobile" id="mobileNav">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="{{ url_for('support') }}">Support</a>
+        <a href="{{ url_for('login') }}">Sign in</a>
+        <a href="{{ url_for('create_account') }}">Get started →</a>
     </div>
+</header>
 
-    <header class="header" id="site-header">
-        <div class="nav-container" id="navRoot">
-            <div class="logo">
-                <i class="fas fa-graduation-cap"></i> ExamPortal
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-grid-bg"></div>
+    <div class="hero-glow"></div>
+    <div class="hero-inner">
+        <div class="hero-badge">
+            <div class="hero-badge-dot"></div>
+            Online Examination Platform
+        </div>
+        <h1 class="hero-title">
+            Conduct exams with<br><em>confidence and clarity</em>
+        </h1>
+        <p class="hero-sub">
+            ExamPortal is a complete examination system for institutions — create timed MCQ, MSQ, and numerical exams, manage students, analyse results, generate question banks with AI, and let students discuss doubts with an integrated AI study assistant.
+        </p>
+        <div class="hero-actions">
+            <a href="{{ url_for('create_account') }}" class="btn-primary">
+                <i class="fas fa-user-plus"></i> Create account
+            </a>
+            <a href="{{ url_for('login') }}" class="btn-secondary">
+                <i class="fas fa-sign-in-alt"></i> Sign in
+            </a>
+        </div>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-num">MCQ</div>
+                <div class="hero-stat-label">Multiple choice questions</div>
             </div>
-            <div style="display:flex;align-items:center;gap:.5rem">
-                <nav class="nav-buttons" id="desktopNav">
-                    <a href="/login" class="btn btn-outline">
-                        <i class="fas fa-sign-in-alt"></i> Sign In
-                    </a>
-                    <a href="/create_account" class="btn btn-primary">
-                        <i class="fas fa-user-plus"></i> Register
-                    </a>
-                </nav>
-                <button class="nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
-                    <i class="fas fa-bars"></i>
-                </button>
+            <div class="hero-stat">
+                <div class="hero-stat-num">MSQ</div>
+                <div class="hero-stat-label">Multiple selection questions</div>
+            </div>            
+            <div class="hero-stat">
+                <div class="hero-stat-num">NIT</div>
+                <div class="hero-stat-label">Numerical input questions</div>
             </div>
-            <div class="nav-mobile" id="mobileNav" role="menu" aria-hidden="true">
-                <a href="/login" role="menuitem"><i class="fas fa-sign-in-alt"></i> Sign In</a>
-                <a href="/create_account" role="menuitem"><i class="fas fa-user-plus"></i> Register</a>
+            <div class="hero-stat">
+                <div class="hero-stat-num">±</div>
+                <div class="hero-stat-label">Marking scheme with negatives</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num"><i class="fas fa-wand-magic-sparkles" style="font-size:1.5rem;color:var(--ink)"></i></div>
+                <div class="hero-stat-label">AI question generation</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-num"><i class="fas fa-comments" style="font-size:1.5rem;color:var(--ink)"></i></div>
+                <div class="hero-stat-label">AI study assistant</div>
+            </div>           
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+    <div class="features-header fade-up">
+        <div class="section-eyebrow">Platform capabilities</div>
+        <h2 class="section-title">Everything you need<br>to run an exam</h2>
+        <p class="section-sub">Built around real workflows — from publishing exams to reviewing every student's response.</p>
+    </div>
+    <div class="features-grid fade-up">
+        <div class="feat">
+            <div class="feat-icon"><i class="fas fa-file-alt"></i></div>
+            <div class="feat-title">Exam builder</div>
+            <div class="feat-desc">Create exams with custom duration, date, marking scheme (positive/negative marks), max attempts, and per-question configuration.</div>
+        </div>
+        <div class="feat">
+            <div class="feat-icon"><i class="fas fa-question-circle"></i></div>
+            <div class="feat-title">Question bank</div>
+            <div class="feat-desc">Organise questions by subject. Supports MCQ, MSQ, numerical input, and image-based questions with individual mark weightage.</div>
+        </div>
+        <div class="feat">
+            <div class="feat-icon"><i class="fas fa-robot"></i></div>
+            <div class="feat-title">AI question generation</div>
+            <div class="feat-desc">Generate MCQ, MSQ and numerical questions automatically using our AI command centre. Review, edit, and publish to any exam instantly.</div>
+        </div>
+        <div class="feat">
+            <div class="feat-icon"><i class="fas fa-chart-bar"></i></div>
+            <div class="feat-title">Detailed analytics</div>
+            <div class="feat-desc">Per-exam and per-student analytics — score trends, accuracy by subject, time taken, attempt history, and grade distribution.</div>
+        </div>
+        <div class="feat">
+            <div class="feat-icon"><i class="fas fa-comments"></i></div>
+            <div class="feat-title">Question discussions</div>
+            <div class="feat-desc">Students can discuss any question after the exam. Threaded replies, live updates, pinned explanations, and best answer marking by admin.</div>
+        </div>
+        <div class="feat">
+            <div class="feat-icon"><i class="fas fa-lock"></i></div>
+            <div class="feat-title">Session & access control</div>
+            <div class="feat-desc">Single-device session enforcement, rate-limited login, admin role requests, and secure password setup via email link.</div>
+        </div>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+    <div class="how-inner">
+        <div class="fade-up">
+            <div class="section-eyebrow">How it works</div>
+            <h2 class="section-title">From setup to results<br>in minutes</h2>
+            <p class="section-sub">A straightforward workflow for admins and a distraction-free experience for students.</p>
+        </div>
+        <div class="how-steps fade-up">
+            <div class="how-step">
+                <div class="how-step-num">1</div>
+                <div class="how-step-title">Admin creates exam</div>
+                <div class="how-step-desc">Set title, date, duration, marking scheme, and add questions from the bank or via CSV upload.</div>
+            </div>
+            <div class="how-step">
+                <div class="how-step-num">2</div>
+                <div class="how-step-title">Students register</div>
+                <div class="how-step-desc">Students create an account, receive a setup email, and access their dashboard with assigned exams.</div>
+            </div>
+            <div class="how-step">
+                <div class="how-step-num">3</div>
+                <div class="how-step-title">Exam is attempted</div>
+                <div class="how-step-desc">Timed, locked session. MCQ, MSQ or numerical answers. Auto-submit on time expiry. One device at a time.</div>
+            </div>
+            <div class="how-step">
+                <div class="how-step-num">4</div>
+                <div class="how-step-title">Results & review</div>
+                <div class="how-step-desc">Instant score, grade, and detailed response page. Discuss each question. Admin views all analytics.</div>
             </div>
         </div>
-    </header>
+    </div>
+</section>
 
-    <section class="hero" id="hero">
-        <div class="hero-container">
-            <div class="hero-content">
-                <h1>Next-Gen Examination Platform</h1>
-                <p>Experience the future of assessment with our AI-powered, secure, and intuitive examination system designed for modern educational institutions.</p>
-                <div class="hero-buttons">
-                    <a href="/create_account" class="btn btn-white">
-                        <i class="fas fa-rocket"></i> Launch Free Trial
-                    </a>
-                    <a href="/login" class="btn btn-outline" style="border-color: white; color: white;">
-                        <i class="fas fa-sign-in-alt"></i> Sign In
-                    </a>
+<!-- EXAM TYPES -->
+<section class="exam-types">
+    <div class="fade-up">
+        <div class="section-eyebrow">Question types</div>
+        <h2 class="section-title">Built for technical<br>and competitive exams</h2>
+        <p class="section-sub">Handles the formats used in JEE, NEET, university papers, and institutional tests.</p>
+    </div>
+    <div class="types-grid fade-up">
+        <div class="type-card">
+            <div class="type-label">MCQ/MSQ</div>
+            <div class="type-title">Multiple Choice/Select Questions</div>
+            <div class="type-desc">Single or multi correct answers from four options. Supports image-based questions. Full positive/negative marking per question.</div>
+            <div class="type-pills">
+                <span class="pill">4 options</span>
+                <span class="pill">Image support</span>
+                <span class="pill">Negative marking</span>
+                <span class="pill">Per-question marks</span>
+            </div>
+        </div>
+        <div class="type-card">
+            <div class="type-label">NIT</div>
+            <div class="type-title">Numerical Input Type</div>
+            <div class="type-desc">Student types the exact numerical answer. Configurable tolerance range for decimal answers. Used in papers like JEE Advanced.</div>
+            <div class="type-pills">
+                <span class="pill">Decimal tolerance</span>
+                <span class="pill">Exact match</span>
+                <span class="pill">Range validation</span>
+            </div>
+        </div>
+        <div class="type-card">
+            <div class="type-label">Marking</div>
+            <div class="type-title">Flexible Marking Scheme</div>
+            <div class="type-desc">Set positive marks, negative marks, and unattempted penalty per exam or per question. Total score and percentage calculated instantly.</div>
+            <div class="type-pills">
+                <span class="pill">+/- marks</span>
+                <span class="pill">Unattempted = 0</span>
+                <span class="pill">Grade assignment</span>
+            </div>
+        </div>
+        <div class="type-card">
+            <div class="type-label">Attempts</div>
+            <div class="type-title">Attempt Control</div>
+            <div class="type-desc">Limit how many times a student can attempt an exam. View full attempt history, time taken, and score for each attempt.</div>
+            <div class="type-pills">
+                <span class="pill">Max attempts</span>
+                <span class="pill">Attempt history</span>
+                <span class="pill">Time tracking</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PROOF STRIP -->
+<section class="proof">
+    <div class="proof-inner fade-up">
+        <div class="proof-quote">
+            "A complete system — <em>exams, analytics, discussions,</em> and AI tools, all in one place."
+        </div>
+        <div class="proof-list">
+            <div class="proof-item">
+                <div class="proof-item-icon"><i class="fas fa-chart-line"></i></div>
+                <div>
+                    <div class="proof-item-title">Performance tracking per student</div>
+                    <div class="proof-item-desc">Score trends, subject accuracy, grade history across all exams.</div>
                 </div>
             </div>
-            <div class="hero-visual">
-                <div class="exam-card" id="examCard">
-                    <h3><i class="fas fa-brain"></i> AI-Powered Exams</h3>
-                    <div class="exam-stats">
-                        <div class="stat">
-                            <div class="stat-number"><i class="fas fa-zap"></i></div>
-                            <div class="stat-label">Instant Analytics</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-number"><i class="fas fa-shield-alt"></i></div>
-                            <div class="stat-label">Military-Grade Security</div>
-                        </div>
-                    </div>
-                    <div style="background: rgba(102, 126, 234, 0.14); padding: 1rem; border-radius: 10px; border: 1px solid rgba(102, 126, 234, 0.25);">
-                        <p style="color: white; margin: 0; font-size: .95rem; font-weight: 600;">
-                            <i class="fas fa-eye"></i> Advanced Proctoring & Real-time Monitoring
-                        </p>
-                    </div>
+            <div class="proof-item">
+                <div class="proof-item-icon"><i class="fas fa-shield-alt"></i></div>
+                <div>
+                    <div class="proof-item-title">Single-device session lock</div>
+                    <div class="proof-item-desc">Auto logout if the same account logs in from another device.</div>
+                </div>
+            </div>
+            <div class="proof-item">
+                <div class="proof-item-icon"><i class="fas fa-upload"></i></div>
+                <div>
+                    <div class="proof-item-title">Bulk CSV question upload</div>
+                    <div class="proof-item-desc">Import hundreds of questions at once. Supports images and all question types.</div>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <section class="features">
-        <div class="container">
-            <div class="section-header">
-                <h2>Revolutionary Features</h2>
-                <p>Discover cutting-edge technology that transforms traditional assessment into an engaging, secure, and insightful experience.</p>
-            </div>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-shield-virus"></i>
-                    </div>
-                    <h3>Ultra-Secure Infrastructure</h3>
-                    <p>Enterprise-grade security with end-to-end encryption, biometric authentication, and real-time threat detection to ensure absolute exam integrity.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-brain"></i>
-                    </div>
-                    <h3>AI-Driven Analytics</h3>
-                    <p>Advanced machine learning algorithms analyze performance patterns, detect anomalies, and provide actionable insights for educational improvement.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-eye"></i>
-                    </div>
-                    <h3>Smart Proctoring</h3>
-                    <p>Intelligent monitoring system with facial recognition, behavior analysis, and automated flagging of suspicious activities.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-mobile-alt"></i>
-                    </div>
-                    <h3>Universal Compatibility</h3>
-                    <p>Seamlessly works across all devices and platforms with adaptive UI that ensures optimal experience regardless of screen size.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-cogs"></i>
-                    </div>
-                    <h3>Intelligent Automation</h3>
-                    <p>Automated question generation, smart grading algorithms, and instant report generation that saves hours of manual work.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-chart-network"></i>
-                    </div>
-                    <h3>Real-time Insights</h3>
-                    <p>Live dashboards with comprehensive analytics, performance metrics, and predictive modeling for data-driven decision making.</p>
-                </div>
-            </div>
+<!-- CTA -->
+<section class="cta-section">
+    <div class="cta-bg"></div>
+    <div class="cta-glow"></div>
+    <div class="cta-inner fade-up">
+        <h2 class="cta-title">Ready to run your first exam?</h2>
+        <p class="cta-sub">Create an account in under a minute. No setup fees, no complexity — just a clean, capable examination platform.</p>
+        <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap">
+            <a href="{{ url_for('create_account') }}" class="btn-white">
+                <i class="fas fa-user-plus"></i> Create account
+            </a>
+            <a href="{{ url_for('admin.admin_login') }}" class="btn-secondary" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);">
+                <i class="fas fa-user-shield"></i> Admin portal
+            </a>
         </div>
-    </section>
+    </div>
+</section>
 
-    <section class="cta">
-        <div class="container">
-            <div class="cta-content">
-                <h2>Ready to Revolutionize Your Assessments?</h2>
-                <p>Join the educational revolution with thousands of institutions worldwide who trust ExamPortal for their critical assessments. Start your transformation today!</p>
-                <div class="hero-buttons">
-                    <button onclick="showComingSoon()" class="btn btn-primary" style="padding: 1.2rem 2rem; font-size: 1.05rem; font-weight: 700;">
-                        <i class="fas fa-rocket"></i> Start Your Journey
-                    </button>
-                </div>
-            </div>
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="footer-inner">
+        <a href="/" class="footer-logo">
+            <i class="fas fa-graduation-cap"></i> ExamPortal
+        </a>
+        <div class="footer-links-row">
+            <a href="{{ url_for('privacy_policy') }}" class="footer-link">Privacy</a>
+            <a href="{{ url_for('terms_of_service') }}" class="footer-link">Terms</a>
+            <a href="{{ url_for('support') }}" class="footer-link">Support</a>
+            <a href="{{ url_for('contact') }}" class="footer-link">Contact</a>
         </div>
-    </section>
+        <div class="footer-copy">© {{ CURRENT_YEAR }} ExamPortal. All rights reserved.</div>
+    </div>
+</footer>
 
-    <footer class="professional-footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-brand">
-                    <i class="fas fa-graduation-cap"></i> ExamPortal
-                </div>
-                <div class="footer-links">
-                    <a href="{{ url_for('privacy_policy') }}">Privacy Policy</a>
-                    <a href="{{ url_for('terms_of_service') }}">Terms of Service</a>
-                    <a href="{{ url_for('support') }}">Support</a>
-                    <a href="{{ url_for('contact') }}">Contact</a>
-                </div>
-                <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;justify-content:center">
-                    <p class="footer-copyright">
-                        © {{ CURRENT_YEAR }} ExamPortal. All rights reserved.
-                    </p>
-                    <div class="footer-social" role="navigation" aria-label="social links">
-                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
-                        <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
-                        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </footer>
+<script>
+    const navToggle = document.getElementById('navToggle');
+    const navWrap = document.getElementById('navWrap');
+    const mobileNav = document.getElementById('mobileNav');
+    navToggle.addEventListener('click', function() {
+        const open = navWrap.classList.toggle('nav-open');
+        this.setAttribute('aria-expanded', String(open));
+        mobileNav.setAttribute('aria-hidden', String(!open));
+    });
+    document.addEventListener('click', function(e) {
+        if (!navWrap.contains(e.target) && navWrap.classList.contains('nav-open')) {
+            navWrap.classList.remove('nav-open');
+            navToggle.setAttribute('aria-expanded', 'false');
+        }
+    });
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 640) navWrap.classList.remove('nav-open');
+    });
 
-    <script>
-        function showComingSoon(){alert('🚀 Coming Soon!\n\nFree trial feature is under development.')}
-        document.querySelectorAll('a[href^="#"]').forEach(anchor=>{anchor.addEventListener('click',function(e){e.preventDefault();const target=document.querySelector(this.getAttribute('href'));if(target){target.scrollIntoView({behavior:'smooth',block:'start'})}})})
-        window.addEventListener('scroll',function(){const header=document.querySelector('.header');if(window.scrollY>100){header.style.background='rgba(15, 15, 35, 0.98)';header.style.boxShadow='0 10px 40px rgba(0, 0, 0, 0.3)'}else{header.style.background='rgba(15, 15, 35, 0.95)';header.style.boxShadow='none'}})
-        const observerOptions={threshold:.1,rootMargin:'0px 0px -100px 0px'}
-        const observer=new IntersectionObserver(function(entries){entries.forEach(entry=>{if(entry.isIntersecting){entry.target.style.opacity='1';entry.target.style.transform='translateY(0) scale(1)'}})},observerOptions)
-        document.querySelectorAll('.feature-card').forEach((card,index)=>{card.style.opacity='0';card.style.transform='translateY(50px) scale(0.95)';card.style.transition=`all 0.8s ease ${index*0.08}s`;observer.observe(card)})
-        document.querySelectorAll('.particle').forEach(particle=>{particle.addEventListener('mouseenter',function(){this.style.animation='float 2s ease-in-out infinite'})})
-        function createDynamicParticle(){const particle=document.createElement('div');particle.className='particle';particle.style.width=Math.random()*6+2+'px';particle.style.height=particle.style.width;particle.style.left=Math.random()*100+'%';particle.style.top=Math.random()*100+'%';particle.style.animationDuration=Math.random()*4+4+'s';particle.style.animationDelay=Math.random()*2+'s';document.querySelector('.particles').appendChild(particle);setTimeout(()=>{particle.remove()},10000)}
-        setInterval(createDynamicParticle,3000)
-
-        const navToggle=document.getElementById('navToggle')
-        const navRoot=document.getElementById('navRoot')
-        const mobileNav=document.getElementById('mobileNav')
-        navToggle.addEventListener('click',function(e){const expanded=this.getAttribute('aria-expanded')==='true';this.setAttribute('aria-expanded',String(!expanded));navRoot.classList.toggle('nav-open');mobileNav.setAttribute('aria-hidden',String(expanded))})
-        document.addEventListener('click',function(e){if(!navRoot.contains(e.target)){if(navRoot.classList.contains('nav-open')){navRoot.classList.remove('nav-open');navToggle.setAttribute('aria-expanded','false');mobileNav.setAttribute('aria-hidden','true')}}})
-        window.addEventListener('resize',function(){if(window.innerWidth>768){if(navRoot.classList.contains('nav-open')){navRoot.classList.remove('nav-open');navToggle.setAttribute('aria-expanded','false');mobileNav.setAttribute('aria-hidden','true')}}})
-    </script>
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+    document.querySelectorAll('.fade-up').forEach((el, i) => {
+        el.style.transitionDelay = (i * 0.05) + 's';
+        observer.observe(el);
+    });
+</script>
 </body>
 </html>
