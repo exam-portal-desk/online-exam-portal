@@ -1,214 +1,140 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Us - ExamPortal</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .content-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-        }
-        .feature-card {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
-            text-center;
-        }
-        .feature-card:hover {
-            transform: translateY(-5px);
-        }
-        .btn-back {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border: none;
-            border-radius: 25px;
-            color: white;
-            transition: all 0.3s ease;
-        }
-        .btn-back:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-            color: white;
-        }
-        .hero-section {
-            background: linear-gradient(45deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-            border-radius: 15px;
-            padding: 3rem;
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-        .stats-card {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            border-radius: 15px;
-            padding: 2rem;
-            text-align: center;
-        }
-        .feature-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="container my-5">
-        <div class="content-card p-5">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="text-primary"><i class="fas fa-info-circle"></i> About ExamPortal</h1>
-                <a href="javascript:history.back()" class="btn btn-back">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
+{% extends "base.html" %}
+{% block title %}About Us - ExamPortal{% endblock %}
+{% block content %}
+<style>
+*{box-sizing:border-box;}
+.pw{background:#0a0a0f;min-height:100vh;padding:2.5rem 0 4rem;font-family:'DM Sans',sans-serif;color:#fff;}
+.tl{height:1px;background:linear-gradient(90deg,transparent,rgba(45,91,227,0.4),transparent);margin-bottom:2.5rem;}
+.ph{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;}
+.ph h1{font-family:'DM Serif Display',serif;font-size:2rem;font-weight:400;color:#fff;margin:0;display:flex;align-items:center;gap:0.6rem;}
+.ph h1 i{color:#7da4ff;font-size:1.3rem;}
+.btn-bk{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.8);padding:0.45rem 1rem;border-radius:8px;font-size:0.82rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;transition:all .2s;font-family:'DM Sans',sans-serif;}
+.btn-bk:hover{background:rgba(255,255,255,0.12);color:#fff;}
+.hero{background:#111118;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:2.2rem;margin-bottom:2rem;text-align:center;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,91,227,0.5),transparent);}
+.hero h2{font-family:'DM Serif Display',serif;font-size:1.6rem;font-weight:400;color:#fff;margin-bottom:0.8rem;}
+.hero p{color:rgba(255,255,255,0.55);font-size:0.88rem;line-height:1.7;max-width:640px;margin:0 auto 1.2rem;}
+.badge-row{display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap;}
+.bp{padding:0.28rem 0.85rem;border-radius:99px;font-size:0.74rem;font-weight:600;}
+.b-blue{background:rgba(45,91,227,0.15);color:#7da4ff;border:1px solid rgba(45,91,227,0.25);}
+.b-green{background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.2);}
+.b-amber{background:rgba(251,191,36,0.12);color:#fbbf24;border:1px solid rgba(251,191,36,0.2);}
+.b-purple{background:rgba(139,92,246,0.12);color:#a78bfa;border:1px solid rgba(139,92,246,0.2);}
+.sc{background:#111118;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.8rem;margin-bottom:1.5rem;position:relative;overflow:hidden;}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,91,227,0.25),transparent);}
+.st{font-family:'DM Serif Display',serif;font-size:1.15rem;font-weight:400;color:#fff;margin-bottom:1rem;}
+.st2{font-size:0.88rem;color:rgba(255,255,255,0.55);line-height:1.75;margin-bottom:0;}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:0.9rem;margin-top:1rem;}
+.fi{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:1.1rem;}
+.fi .ico{font-size:1.4rem;margin-bottom:0.5rem;}
+.fi h6{color:#fff;font-size:0.85rem;font-weight:700;margin-bottom:0.3rem;}
+.fi p{color:rgba(255,255,255,0.45);font-size:0.78rem;margin:0;line-height:1.5;}
+.cl{list-style:none;padding:0;margin:0.7rem 0 0;}
+.cl li{color:rgba(255,255,255,0.6);font-size:0.84rem;padding:0.3rem 0;display:flex;align-items:center;gap:0.55rem;}
+.cl li i{color:#10b981;font-size:0.72rem;flex-shrink:0;}
+.sk{background:#111118;border:1px solid rgba(45,91,227,0.2);border-radius:14px;padding:1.6rem;margin-bottom:1.2rem;position:relative;overflow:hidden;}
+.sk::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,91,227,0.45),transparent);}
+.sk h5{color:#fff;font-size:0.9rem;font-weight:700;margin-bottom:1.1rem;display:flex;align-items:center;gap:0.5rem;}
+.sk h5 i{color:#7da4ff;}
+.sr{padding:0.65rem 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+.sr:last-child{border-bottom:none;}
+.sr h3{font-family:'DM Serif Display',serif;font-size:1.5rem;font-weight:400;color:#fff;margin:0;}
+.sr small{color:rgba(255,255,255,0.4);font-size:0.77rem;}
+.vc{background:#111118;border:1px solid rgba(255,255,255,0.07);border-radius:14px;overflow:hidden;}
+.vh{background:rgba(45,91,227,0.1);border-bottom:1px solid rgba(255,255,255,0.07);padding:0.9rem 1.3rem;}
+.vh h5{color:#fff;margin:0;font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:0.5rem;}
+.vh h5 i{color:#7da4ff;}
+.vb{padding:1rem 1.3rem;}
+.vi{padding:0.65rem 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+.vi:last-child{border-bottom:none;}
+.vi h6{font-size:0.82rem;font-weight:700;margin-bottom:0.2rem;}
+.vi small{color:rgba(255,255,255,0.4);font-size:0.76rem;}
+.cta{background:#111118;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:2rem;text-align:center;margin-top:1.5rem;position:relative;overflow:hidden;}
+.cta::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,91,227,0.4),transparent);}
+.cta h4{font-family:'DM Serif Display',serif;font-size:1.3rem;font-weight:400;color:#fff;margin-bottom:0.6rem;}
+.cta p{color:rgba(255,255,255,0.45);font-size:0.84rem;margin-bottom:1.3rem;}
+.btn-p{background:#2d5be3;border:none;color:#fff;padding:0.5rem 1.3rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:background .2s;font-family:'DM Sans',sans-serif;}
+.btn-p:hover{background:#3d6bf3;}
+.btn-o{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);padding:0.5rem 1.3rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;}
+.btn-o:hover{background:rgba(255,255,255,0.1);color:#fff;}
+.particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden;}
+.particle{position:absolute;background:rgba(45,91,227,0.22);border-radius:50%;}
+.pw>.container{position:relative;z-index:1;}
+@media(max-width:768px){.fg{grid-template-columns:1fr;}.ph h1{font-size:1.5rem;}}
+</style>
+<div class="particles">
+    <div class="particle" style="width:3px;height:3px;top:18%;left:12%;"></div>
+    <div class="particle" style="width:4px;height:4px;top:55%;left:78%;"></div>
+    <div class="particle" style="width:2px;height:2px;top:75%;left:25%;"></div>
+    <div class="particle" style="width:3px;height:3px;top:35%;left:62%;"></div>
+</div>
+<div class="pw">
+    <div class="tl"></div>
+    <div class="container">
+        <div class="ph">
+            <h1><i class="fas fa-info-circle"></i> About ExamPortal</h1>
+            <a href="javascript:history.back()" class="btn-bk"><i class="fas fa-arrow-left"></i> Back</a>
+        </div>
+        <div class="hero">
+            <h2>Revolutionizing Online Examinations</h2>
+            <p>ExamPortal is a cutting-edge online examination platform designed to provide secure, efficient, and user-friendly testing solutions for educational institutions and organizations.</p>
+            <div class="badge-row">
+                <span class="bp b-blue">Secure</span>
+                <span class="bp b-green">Reliable</span>
+                <span class="bp b-amber">User-Friendly</span>
+                <span class="bp b-purple">Professional</span>
             </div>
-            
-            <div class="hero-section">
-                <h2 class="text-primary mb-4">Revolutionizing Online Examinations</h2>
-                <p class="lead">ExamPortal is a cutting-edge online examination platform designed to provide secure, efficient, and user-friendly testing solutions for educational institutions and organizations.</p>
-                <div class="mt-4">
-                    <span class="badge bg-primary fs-6 me-2">Secure</span>
-                    <span class="badge bg-success fs-6 me-2">Reliable</span>
-                    <span class="badge bg-info fs-6 me-2">User-Friendly</span>
-                    <span class="badge bg-warning fs-6">Professional</span>
+        </div>
+        <div class="row">
+            <div class="col-md-8">
+                <div class="sc">
+                    <div class="st">Our Mission</div>
+                    <p class="st2">To democratize access to quality education assessment tools by providing institutions with a robust, secure, and intuitive online examination platform that ensures academic integrity while delivering exceptional user experience.</p>
                 </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-8">
-                    <h3 class="text-primary mb-4">Our Mission</h3>
-                    <p>To democratize access to quality education assessment tools by providing institutions with a robust, secure, and intuitive online examination platform that ensures academic integrity while delivering exceptional user experience.</p>
-
-                    <h3 class="text-primary mb-4 mt-5">Key Features</h3>
+                <div class="sc">
+                    <div class="st">Key Features</div>
+                    <div class="fg">
+                        <div class="fi"><div class="ico" style="color:#7da4ff;"><i class="fas fa-shield-alt"></i></div><h6>Secure Testing</h6><p>Advanced security measures to prevent cheating and ensure exam integrity</p></div>
+                        <div class="fi"><div class="ico" style="color:#10b981;"><i class="fas fa-clock"></i></div><h6>Real-time Monitoring</h6><p>Live exam tracking with timer and progress monitoring</p></div>
+                        <div class="fi"><div class="ico" style="color:#a78bfa;"><i class="fas fa-chart-bar"></i></div><h6>Instant Results</h6><p>Automated grading with detailed performance analytics</p></div>
+                        <div class="fi"><div class="ico" style="color:#fbbf24;"><i class="fas fa-mobile-alt"></i></div><h6>Multi-device Support</h6><p>Responsive design works on desktop, tablet, and mobile</p></div>
+                    </div>
+                </div>
+                <div class="sc">
+                    <div class="st">Why Choose ExamPortal?</div>
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="feature-card">
-                                <i class="fas fa-shield-alt feature-icon text-primary"></i>
-                                <h5>Secure Testing</h5>
-                                <p class="text-muted">Advanced security measures to prevent cheating and ensure exam integrity</p>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="feature-card">
-                                <i class="fas fa-clock feature-icon text-success"></i>
-                                <h5>Real-time Monitoring</h5>
-                                <p class="text-muted">Live exam tracking with timer and progress monitoring</p>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="feature-card">
-                                <i class="fas fa-chart-bar feature-icon text-info"></i>
-                                <h5>Instant Results</h5>
-                                <p class="text-muted">Automated grading with detailed performance analytics</p>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="feature-card">
-                                <i class="fas fa-mobile-alt feature-icon text-warning"></i>
-                                <h5>Multi-device Support</h5>
-                                <p class="text-muted">Responsive design works on desktop, tablet, and mobile</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h3 class="text-primary mb-4 mt-5">Why Choose ExamPortal?</h3>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <ul class="list-unstyled">
-                                <li class="mb-3"><i class="fas fa-check-circle text-success me-2"></i> Easy to use interface</li>
-                                <li class="mb-3"><i class="fas fa-check-circle text-success me-2"></i> Bank-level security</li>
-                                <li class="mb-3"><i class="fas fa-check-circle text-success me-2"></i> 24/7 technical support</li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <ul class="list-unstyled">
-                                <li class="mb-3"><i class="fas fa-check-circle text-success me-2"></i> Automated grading system</li>
-                                <li class="mb-3"><i class="fas fa-check-circle text-success me-2"></i> Detailed analytics</li>
-                                <li class="mb-3"><i class="fas fa-check-circle text-success me-2"></i> Scalable infrastructure</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="stats-card mb-4">
-                        <h4><i class="fas fa-users"></i> Our Impact</h4>
-                        <div class="mt-4">
-                            <div class="mb-3">
-                                <h2 class="mb-0">50,000+</h2>
-                                <small>Students Served</small>
-                            </div>
-                            <div class="mb-3">
-                                <h2 class="mb-0">200+</h2>
-                                <small>Institutions</small>
-                            </div>
-                            <div class="mb-3">
-                                <h2 class="mb-0">1M+</h2>
-                                <small>Exams Conducted</small>
-                            </div>
-                            <div>
-                                <h2 class="mb-0">99.9%</h2>
-                                <small>Uptime</small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card border-0">
-                        <div class="card-header bg-primary text-white">
-                            <h5><i class="fas fa-award"></i> Our Values</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <h6 class="text-primary">Integrity</h6>
-                                <small class="text-muted">Maintaining highest standards of academic honesty</small>
-                            </div>
-                            <div class="mb-3">
-                                <h6 class="text-success">Innovation</h6>
-                                <small class="text-muted">Continuously improving our technology and features</small>
-                            </div>
-                            <div class="mb-3">
-                                <h6 class="text-info">Accessibility</h6>
-                                <small class="text-muted">Making quality education assessment available to all</small>
-                            </div>
-                            <div>
-                                <h6 class="text-warning">Excellence</h6>
-                                <small class="text-muted">Delivering superior service and support</small>
-                            </div>
-                        </div>
+                        <div class="col-6"><ul class="cl"><li><i class="fas fa-check-circle"></i>Easy to use interface</li><li><i class="fas fa-check-circle"></i>Bank-level security</li><li><i class="fas fa-check-circle"></i>24/7 technical support</li></ul></div>
+                        <div class="col-6"><ul class="cl"><li><i class="fas fa-check-circle"></i>Automated grading system</li><li><i class="fas fa-check-circle"></i>Detailed analytics</li><li><i class="fas fa-check-circle"></i>Scalable infrastructure</li></ul></div>
                     </div>
                 </div>
             </div>
-
-            <div class="row mt-5">
-                <div class="col-12">
-                    <div class="card border-0 bg-gradient" style="background: linear-gradient(45deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));">
-                        <div class="card-body text-center py-4">
-                            <h4 class="text-primary mb-3">Ready to Get Started?</h4>
-                            <p class="text-muted mb-4">Join thousands of institutions and students who trust ExamPortal for their examination needs.</p>
-                            <div class="d-flex gap-3 justify-content-center flex-wrap">
-                                <button class="btn btn-primary btn-lg" onclick="alert('Contact sales team!')">
-                                    <i class="fas fa-handshake"></i> Contact Sales
-                                </button>
-                                <button class="btn btn-outline-primary btn-lg" onclick="alert('Demo request form!')">
-                                    <i class="fas fa-play"></i> Request Demo
-                                </button>
-                            </div>
-                        </div>
+            <div class="col-md-4 mt-3 mt-md-0">
+                <div class="sk">
+                    <h5><i class="fas fa-users"></i> Our Impact</h5>
+                    <div class="sr"><h3>50,000+</h3><small>Students Served</small></div>
+                    <div class="sr"><h3>200+</h3><small>Institutions</small></div>
+                    <div class="sr"><h3>1M+</h3><small>Exams Conducted</small></div>
+                    <div class="sr"><h3>99.9%</h3><small>Uptime</small></div>
+                </div>
+                <div class="vc">
+                    <div class="vh"><h5><i class="fas fa-award"></i> Our Values</h5></div>
+                    <div class="vb">
+                        <div class="vi"><h6 style="color:#7da4ff;">Integrity</h6><small>Maintaining highest standards of academic honesty</small></div>
+                        <div class="vi"><h6 style="color:#10b981;">Innovation</h6><small>Continuously improving our technology and features</small></div>
+                        <div class="vi"><h6 style="color:#a78bfa;">Accessibility</h6><small>Making quality education assessment available to all</small></div>
+                        <div class="vi"><h6 style="color:#fbbf24;">Excellence</h6><small>Delivering superior service and support</small></div>
                     </div>
                 </div>
             </div>
         </div>
+        <div class="cta">
+            <h4>Ready to Get Started?</h4>
+            <p>Join thousands of institutions and students who trust ExamPortal for their examination needs.</p>
+            <div class="d-flex gap-3 justify-content-center flex-wrap">
+                <button class="btn-p" onclick="alert('Contact sales team!')"><i class="fas fa-handshake me-2"></i>Contact Sales</button>
+                <button class="btn-o" onclick="alert('Demo request form!')"><i class="fas fa-play me-2"></i>Request Demo</button>
+            </div>
+        </div>
     </div>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+</div>
+{% endblock %}

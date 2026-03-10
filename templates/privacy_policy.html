@@ -1,385 +1,144 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy - ExamPortal</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d2d5f 100%);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #e8eaed;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        .particles {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: 1;
-            pointer-events: none;
-        }
-
-        .particle {
-            position: absolute;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border-radius: 50%;
-            animation: float 6s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-30px); }
-        }
-
-        .content-wrapper {
-            position: relative;
-            z-index: 2;
-            padding: 3rem 0;
-        }
-
-        .header-section {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 2.5rem;
-            margin-bottom: 3rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        .page-title {
-            font-size: 3rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #ffffff 0%, #667eea 50%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 0.5rem;
-        }
-
-        .page-subtitle {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 1.2rem;
-            font-weight: 400;
-        }
-
-        .btn-back {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 12px;
-            color: white;
-            padding: 0.8rem 1.5rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-back:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
-            color: white;
-        }
-
-        .content-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 2.5rem;
-            margin-bottom: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-        }
-
-        .section-title {
-            color: white;
-            font-weight: 700;
-            font-size: 1.8rem;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 3px solid;
-            border-image: linear-gradient(90deg, #667eea, #764ba2) 1;
-        }
-
-        .content-card p {
-            color: rgba(255, 255, 255, 0.8);
-            line-height: 1.8;
-            font-size: 1.05rem;
-            margin-bottom: 1.2rem;
-        }
-
-        .content-card ul {
-            color: rgba(255, 255, 255, 0.8);
-            line-height: 1.8;
-            font-size: 1.05rem;
-            margin-bottom: 1.5rem;
-            padding-left: 1.5rem;
-        }
-
-        .content-card ul li {
-            margin-bottom: 0.8rem;
-            padding-left: 0.5rem;
-        }
-
-        .content-card ul li::marker {
-            color: #667eea;
-        }
-
-        .sidebar-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 2rem;
-            position: sticky;
-            top: 2rem;
-        }
-
-        .sidebar-card h5 {
-            color: white;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-            font-size: 1.3rem;
-        }
-
-        .check-item {
-            display: flex;
-            align-items: center;
-            padding: 0.8rem 0;
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 1rem;
-        }
-
-        .check-item i {
-            color: #10b981;
-            margin-right: 1rem;
-            font-size: 1.2rem;
-        }
-
-        .contact-box {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-top: 2rem;
-        }
-
-        .contact-box h5 {
-            color: white;
-            font-weight: 700;
-            margin-bottom: 1rem;
-        }
-
-        .contact-item {
-            display: flex;
-            align-items: center;
-            padding: 0.8rem 0;
-            color: rgba(255, 255, 255, 0.8);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .contact-item:last-child {
-            border-bottom: none;
-        }
-
-        .contact-item i {
-            color: #667eea;
-            margin-right: 1rem;
-            font-size: 1.1rem;
-            width: 20px;
-        }
-
-        .update-date {
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.95rem;
-            font-style: italic;
-            margin-top: 2rem;
-        }
-
-        @media (max-width: 768px) {
-            .page-title {
-                font-size: 2rem;
-            }
-
-            .header-section {
-                padding: 1.5rem;
-            }
-
-            .content-card {
-                padding: 1.5rem;
-            }
-
-            .sidebar-card {
-                position: relative;
-                top: 0;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="particles">
-        <div class="particle" style="width: 4px; height: 4px; top: 20%; left: 10%; animation-delay: 0s;"></div>
-        <div class="particle" style="width: 6px; height: 6px; top: 60%; left: 80%; animation-delay: 1s;"></div>
-        <div class="particle" style="width: 3px; height: 3px; top: 80%; left: 20%; animation-delay: 2s;"></div>
-        <div class="particle" style="width: 5px; height: 5px; top: 40%; left: 60%; animation-delay: 3s;"></div>
-    </div>
-
-    <div class="content-wrapper">
-        <div class="container">
-            <div class="header-section">
-                <div class="d-flex justify-content-between align-items-center flex-wrap">
-                    <div>
-                        <h1 class="page-title">
-                            <i class="fas fa-shield-alt me-3"></i>Privacy Policy
-                        </h1>
-                        <p class="page-subtitle">Your privacy is important to us</p>
-                    </div>
-                    <a href="javascript:history.back()" class="btn btn-back mt-3 mt-md-0">
-                        <i class="fas fa-arrow-left me-2"></i>Back
-                    </a>
-                </div>
+{% extends "base.html" %}
+{% block title %}Privacy Policy - ExamPortal{% endblock %}
+{% block content %}
+<style>
+*{box-sizing:border-box;}
+.pw{background:#0a0a0f;min-height:100vh;padding:2.5rem 0 4rem;font-family:'DM Sans',sans-serif;color:#fff;}
+.tl{height:1px;background:linear-gradient(90deg,transparent,rgba(45,91,227,0.4),transparent);margin-bottom:2.5rem;}
+.ph{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;}
+.ph h1{font-family:'DM Serif Display',serif;font-size:2rem;font-weight:400;color:#fff;margin:0;display:flex;align-items:center;gap:0.6rem;}
+.ph h1 i{color:#7da4ff;font-size:1.3rem;}
+.ph p{color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0.3rem 0 0;}
+.btn-bk{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.8);padding:0.45rem 1rem;border-radius:8px;font-size:0.82rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;transition:all .2s;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.btn-bk:hover{background:rgba(255,255,255,0.12);color:#fff;}
+.upd{display:inline-flex;align-items:center;gap:0.4rem;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:6px;padding:0.22rem 0.65rem;font-size:0.74rem;color:#10b981;margin-top:0.4rem;}
+.doc-layout{display:grid;grid-template-columns:210px 1fr;gap:1.5rem;align-items:start;}
+.toc{background:#111118;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.2rem;position:sticky;top:1.5rem;}
+.toc-ttl{color:rgba(255,255,255,0.4);font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.7rem;}
+.toc a{display:block;color:rgba(255,255,255,0.45);font-size:0.79rem;padding:0.38rem 0.6rem;border-radius:6px;text-decoration:none;transition:all .2s;margin-bottom:2px;}
+.toc a:hover{background:rgba(45,91,227,0.1);color:#7da4ff;}
+.sc{background:#111118;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.8rem;margin-bottom:1.2rem;position:relative;overflow:hidden;}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,91,227,0.28),transparent);}
+.sn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:rgba(45,91,227,0.15);border:1px solid rgba(45,91,227,0.25);border-radius:6px;color:#7da4ff;font-size:0.72rem;font-weight:700;margin-right:0.55rem;flex-shrink:0;}
+.st{font-family:'DM Serif Display',serif;font-size:1.1rem;font-weight:400;color:#fff;margin-bottom:1rem;display:flex;align-items:center;}
+.sp{color:rgba(255,255,255,0.55);font-size:0.85rem;line-height:1.8;margin-bottom:0.7rem;}
+.sp:last-child{margin-bottom:0;}
+.dl{color:rgba(255,255,255,0.55);font-size:0.83rem;line-height:1.8;padding-left:1.3rem;margin:0.4rem 0 0.7rem;}
+.dl li{margin-bottom:0.15rem;}
+.cb{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18);border-radius:10px;padding:1.1rem 1.2rem;margin-top:0.5rem;}
+.cb p{color:rgba(255,255,255,0.55);font-size:0.82rem;margin:0 0 0.35rem;line-height:1.6;}
+.cb p:last-child{margin:0;}
+.cb strong{color:rgba(255,255,255,0.8);}
+.particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden;}
+.particle{position:absolute;background:rgba(45,91,227,0.22);border-radius:50%;}
+.pw>.container{position:relative;z-index:1;}
+@media(max-width:768px){.doc-layout{grid-template-columns:1fr;}.toc{display:none;}.ph h1{font-size:1.5rem;}}
+</style>
+<div class="particles">
+    <div class="particle" style="width:3px;height:3px;top:18%;left:12%;"></div>
+    <div class="particle" style="width:4px;height:4px;top:55%;left:78%;"></div>
+    <div class="particle" style="width:2px;height:2px;top:75%;left:25%;"></div>
+    <div class="particle" style="width:3px;height:3px;top:38%;left:60%;"></div>
+</div>
+<div class="pw">
+    <div class="tl"></div>
+    <div class="container">
+        <div class="ph">
+            <div>
+                <h1><i class="fas fa-shield-alt"></i> Privacy Policy</h1>
+                <p>How we collect, use, and protect your information</p>
+                <div class="upd"><i class="fas fa-clock"></i> Last updated: January 2026</div>
             </div>
+            <a href="javascript:history.back()" class="btn-bk"><i class="fas fa-arrow-left"></i> Back</a>
+        </div>
 
-            <div class="row">
-                <div class="col-lg-8">
-                    <div class="content-card">
-                        <h3 class="section-title">Information We Collect</h3>
-                        <p>We collect information you provide directly to us when you create an account, take an exam, or contact us for support. This information helps us provide and improve our services.</p>
-                        <ul>
-                            <li>Personal information such as name, email address, and phone number</li>
-                            <li>Academic information including institution and course details</li>
-                            <li>Exam responses and performance data</li>
-                            <li>Device information and usage patterns</li>
-                            <li>Communication preferences and feedback</li>
-                        </ul>
-                    </div>
-
-                    <div class="content-card">
-                        <h3 class="section-title">How We Use Your Information</h3>
-                        <p>We use the information we collect to provide, maintain, and improve our examination services. Specifically, we use your information to:</p>
-                        <ul>
-                            <li>Provide and maintain our online examination platform</li>
-                            <li>Process exam submissions and generate detailed performance reports</li>
-                            <li>Communicate important updates about your account and scheduled exams</li>
-                            <li>Improve our platform functionality and develop new features</li>
-                            <li>Ensure platform security, prevent fraud, and maintain data integrity</li>
-                            <li>Respond to support requests and provide technical assistance</li>
-                        </ul>
-                    </div>
-
-                    <div class="content-card">
-                        <h3 class="section-title">Information Sharing and Disclosure</h3>
-                        <p>We respect your privacy and do not sell, trade, or otherwise transfer your personal information to third parties. We may share your information only in the following limited circumstances:</p>
-                        <ul>
-                            <li>With your explicit consent for specific purposes</li>
-                            <li>With authorized educational institutions for legitimate exam administration purposes</li>
-                            <li>When required by law, legal process, or government request</li>
-                            <li>To protect our rights, property, or safety and that of our users</li>
-                            <li>With service providers who assist in platform operations under strict confidentiality agreements</li>
-                        </ul>
-                    </div>
-
-                    <div class="content-card">
-                        <h3 class="section-title">Data Security</h3>
-                        <p>We implement industry-standard security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. Our security practices include:</p>
-                        <ul>
-                            <li>End-to-end encryption for sensitive data transmission</li>
-                            <li>Secure server infrastructure with regular security audits</li>
-                            <li>Access controls and authentication protocols</li>
-                            <li>Regular security assessments and vulnerability testing</li>
-                            <li>Employee training on data protection and privacy practices</li>
-                        </ul>
-                        <p>While we strive to protect your personal information, no method of transmission over the internet is completely secure. We continuously work to improve our security measures.</p>
-                    </div>
-
-                    <div class="content-card">
-                        <h3 class="section-title">Data Retention</h3>
-                        <p>We retain your personal information for as long as necessary to fulfill the purposes outlined in this Privacy Policy, unless a longer retention period is required or permitted by law. Exam data is typically retained for academic record purposes as specified by educational institutions.</p>
-                        <p>You may request deletion of your account and associated data at any time, subject to legal and contractual obligations.</p>
-                    </div>
-
-                    <div class="content-card">
-                        <h3 class="section-title">Your Privacy Rights</h3>
-                        <p>You have certain rights regarding your personal information. These rights may vary depending on your location, but generally include:</p>
-                        <ul>
-                            <li>Access and review your personal information stored in our systems</li>
-                            <li>Request corrections to inaccurate or incomplete data</li>
-                            <li>Request deletion of your account and associated personal data</li>
-                            <li>Opt-out of non-essential communications and marketing materials</li>
-                            <li>Export your data in a commonly used, machine-readable format</li>
-                            <li>Object to processing of your personal information in certain circumstances</li>
-                        </ul>
-                        <p>To exercise these rights, please contact us using the information provided below.</p>
-                    </div>
-
-                    <div class="content-card">
-                        <h3 class="section-title">Contact Us</h3>
-                        <p>If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:</p>
-                        <div class="contact-box">
-                            <div class="contact-item">
-                                <i class="fas fa-envelope"></i>
-                                <span><strong>Email:</strong> examportaldesk@gmail.com</span>
-                            </div>
-                            <div class="contact-item">
-                                <i class="fas fa-phone"></i>
-                                <span><strong>Phone:</strong> +91-755-123-4567</span>
-                            </div>
-                            <div class="contact-item">
-                                <i class="fas fa-map-marker-alt"></i>
-                                <span><strong>Address:</strong> ExamPortal Pvt. Ltd., Tech Park, Noida, Uttar Pradesh, India</span>
-                            </div>
-                        </div>
-                        <p class="update-date">Last updated: January 15, 2025</p>
-                    </div>
+        <div class="doc-layout">
+            <div class="toc">
+                <div class="toc-ttl">Contents</div>
+                <a href="#s1">1. Information We Collect</a>
+                <a href="#s2">2. How We Use Information</a>
+                <a href="#s3">3. Information Sharing</a>
+                <a href="#s4">4. Data Security</a>
+                <a href="#s5">5. Data Retention</a>
+                <a href="#s6">6. Your Rights</a>
+                <a href="#s7">7. Contact Us</a>
+            </div>
+            <div>
+                <div class="sc" id="s1">
+                    <div class="st"><span class="sn">1</span>Information We Collect</div>
+                    <p class="sp">We collect information you provide directly to us when you create an account, take an exam, or contact us for support.</p>
+                    <ul class="dl">
+                        <li>Personal information such as name, email address, and phone number</li>
+                        <li>Academic information including institution and course details</li>
+                        <li>Exam responses and performance data</li>
+                        <li>Device information and usage patterns</li>
+                        <li>Communication preferences and feedback</li>
+                    </ul>
                 </div>
-
-                <div class="col-lg-4">
-                    <div class="sidebar-card">
-                        <h5><i class="fas fa-info-circle me-2"></i>Privacy Highlights</h5>
-                        <div class="check-item">
-                            <i class="fas fa-check-circle"></i>
-                            <span>We protect your data with encryption</span>
-                        </div>
-                        <div class="check-item">
-                            <i class="fas fa-check-circle"></i>
-                            <span>No selling data to third parties</span>
-                        </div>
-                        <div class="check-item">
-                            <i class="fas fa-check-circle"></i>
-                            <span>You control your information</span>
-                        </div>
-                        <div class="check-item">
-                            <i class="fas fa-check-circle"></i>
-                            <span>Industry-standard security measures</span>
-                        </div>
-                        <div class="check-item">
-                            <i class="fas fa-check-circle"></i>
-                            <span>Data used for academic purposes only</span>
-                        </div>
-                        <div class="check-item">
-                            <i class="fas fa-check-circle"></i>
-                            <span>Regular security audits and updates</span>
-                        </div>
+                <div class="sc" id="s2">
+                    <div class="st"><span class="sn">2</span>How We Use Information</div>
+                    <p class="sp">We use the information we collect to provide, maintain, and improve our examination services.</p>
+                    <ul class="dl">
+                        <li>Provide and maintain our online examination platform</li>
+                        <li>Process exam submissions and generate detailed performance reports</li>
+                        <li>Communicate important updates about your account and scheduled exams</li>
+                        <li>Improve our platform functionality and develop new features</li>
+                        <li>Ensure platform security, prevent fraud, and maintain data integrity</li>
+                        <li>Respond to support requests and provide technical assistance</li>
+                    </ul>
+                </div>
+                <div class="sc" id="s3">
+                    <div class="st"><span class="sn">3</span>Information Sharing</div>
+                    <p class="sp">We respect your privacy and do not sell, trade, or otherwise transfer your personal information to third parties. We may share your information only in the following limited circumstances:</p>
+                    <ul class="dl">
+                        <li>With your explicit consent for specific purposes</li>
+                        <li>With authorized educational institutions for legitimate exam administration purposes</li>
+                        <li>When required by law, legal process, or government request</li>
+                        <li>To protect our rights, property, or safety and that of our users</li>
+                        <li>With service providers who assist in platform operations under strict confidentiality agreements</li>
+                    </ul>
+                </div>
+                <div class="sc" id="s4">
+                    <div class="st"><span class="sn">4</span>Data Security</div>
+                    <p class="sp">We implement industry-standard security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.</p>
+                    <ul class="dl">
+                        <li>End-to-end encryption for sensitive data transmission</li>
+                        <li>Secure server infrastructure with regular security audits</li>
+                        <li>Access controls and authentication protocols</li>
+                        <li>Regular security assessments and vulnerability testing</li>
+                        <li>Employee training on data protection and privacy practices</li>
+                    </ul>
+                    <p class="sp">While we strive to protect your personal information, no method of transmission over the internet is completely secure. We continuously work to improve our security measures.</p>
+                </div>
+                <div class="sc" id="s5">
+                    <div class="st"><span class="sn">5</span>Data Retention</div>
+                    <p class="sp">We retain your personal information for as long as necessary to fulfill the purposes outlined in this Privacy Policy, unless a longer retention period is required or permitted by law. Exam data is typically retained for academic record purposes as specified by educational institutions.</p>
+                    <p class="sp">You may request deletion of your account and associated data at any time, subject to legal and contractual obligations.</p>
+                </div>
+                <div class="sc" id="s6">
+                    <div class="st"><span class="sn">6</span>Your Rights</div>
+                    <p class="sp">You have certain rights regarding your personal information. These rights may vary depending on your location, but generally include:</p>
+                    <ul class="dl">
+                        <li>Access and review your personal information stored in our systems</li>
+                        <li>Request corrections to inaccurate or incomplete data</li>
+                        <li>Request deletion of your account and associated personal data</li>
+                        <li>Opt-out of non-essential communications and marketing materials</li>
+                        <li>Export your data in a commonly used, machine-readable format</li>
+                        <li>Object to processing of your personal information in certain circumstances</li>
+                    </ul>
+                    <p class="sp">To exercise these rights, please contact us using the information provided below.</p>
+                </div>
+                <div class="sc" id="s7">
+                    <div class="st"><span class="sn">7</span>Contact Us</div>
+                    <p class="sp">If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:</p>
+                    <div class="cb">
+                        <p><strong>Email:</strong> privacy@examportal.com</p>
+                        <p><strong>Phone:</strong> +91-755-123-4567</p>
+                        <p><strong>Address:</strong> Tech Park, Noida, Uttar Pradesh, India</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+</div>
+{% endblock %}

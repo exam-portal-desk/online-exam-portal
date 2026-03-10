@@ -324,55 +324,22 @@ body, .container, main, .result-card { -webkit-font-smoothing:antialiased; text-
   to { text-shadow: 0 14px 36px rgba(255,220,80,0.36); transform: scale(1.06); }
 }
 
-/* ===== Response Loading Glowing Style (same as submit_confirm) ===== */
+/* Response Loading - clean matte */
 #responseLoadingAlert {
-  background: linear-gradient(180deg, rgba(34,197,94,0.08), rgba(34,197,94,0.03));
-  border: 1px solid rgba(34,197,94,0.12);
-  border-radius: 14px;
-  padding: 18px;
-  box-shadow: 0 10px 30px rgba(34,197,94,0.08);
+  background: #16161f;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: none;
 }
-
-#responseLoadingTitle {
-  color: #bbf7d0 !important;
-  font-weight: 700;
-  text-shadow: 0 0 8px rgba(34,197,94,0.9),
-               0 0 16px rgba(34,197,94,0.6),
-               0 0 22px rgba(34,197,94,0.5);
-}
-
-#responseLoadingSubtitle {
-  color: #d1fae5 !important;
-  font-weight: 500;
-  text-shadow: 0 0 6px rgba(16,185,129,0.8),
-               0 0 14px rgba(16,185,129,0.5);
-}
-
-#responseLoadingDetails {
-  color: #86efac !important;
-  font-weight: 500;
-}
-
-/* glowing animated green progress bar */
+#responseLoadingTitle      { color: rgba(255,255,255,0.85) !important; font-weight: 700; text-shadow: none; }
+#responseLoadingSubtitle   { color: rgba(255,255,255,0.5)  !important; font-weight: 500; text-shadow: none; }
+#responseLoadingDetails    { color: rgba(255,255,255,0.4)  !important; font-weight: 500; }
+#responseLoadingPercentage { color: #34d399 !important; font-weight: 700; text-shadow: none; }
 #responseProgress.bg-primary {
-  background: linear-gradient(90deg, #22c55e, #2dd4bf 40%, #16a34a);
-  background-size: 200% 100%;
-  animation: pulseResponseBar 3s linear infinite;
-  box-shadow: 0 8px 40px rgba(34,197,94,0.18),
-              inset 0 0 10px rgba(255,255,255,0.04);
-}
-
-@keyframes pulseResponseBar {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-#responseLoadingPercentage {
-  color: #bbf7d0 !important;
-  font-weight: 700;
-  text-shadow: 0 0 6px rgba(34,197,94,0.9),
-               0 0 12px rgba(34,197,94,0.6);
+  background: #059669;
+  animation: none;
+  box-shadow: none;
 }
 
 
@@ -389,6 +356,174 @@ body, .container, main, .result-card { -webkit-font-smoothing:antialiased; text-
         </div>
     </div>
     {% endif %}
+<style>
+:root{
+  --card: #111118;
+  --border: rgba(255,255,255,0.07);
+  --accent: #2d5be3;
+  --success: #059669;
+  --white: #ffffff;
+  --muted: rgba(255,255,255,0.5);
+  --gold-1: #ffd166;
+  --gold-2: #ffb703;
+}
+
+html, body { background: #0a0a0f !important; font-family: 'DM Sans', sans-serif !important; }
+.container.mt-5 { position: relative; z-index: 10; }
+
+.result-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.6rem;
+  color: var(--white);
+  animation: fadeUp .4s ease both;
+}
+@keyframes fadeUp { from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:translateY(0);} }
+
+.fa-trophy { display:inline-block; padding:16px; border-radius:12px; background:rgba(255,209,102,0.15); color:#ffd166; }
+
+.result-card h2, .result-card h3, .result-card h4, .result-card h5,
+.result-card p, .result-card strong, .result-card small { color: var(--white) !important; font-family:'DM Sans',sans-serif; }
+.result-card .text-muted { color: rgba(255,255,255,0.55) !important; font-weight: 500; }
+.result-card, .result-card * { color: inherit !important; }
+
+/* Cards */
+.card { border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); color:#fff; }
+.card .card-header { background: rgba(255,255,255,0.04); font-weight: 600; color: #fff; border-bottom: 1px solid var(--border); }
+.card .card-body { background: transparent; }
+
+/* Buttons */
+.btn {
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  font-family: 'DM Sans', sans-serif;
+  transition: transform .15s ease, box-shadow .18s ease;
+  position: relative;
+  color: #fff !important;
+  padding: .42rem .9rem;
+  border: none;
+}
+.btn.btn-lg { font-size: 0.82rem !important; padding: .42rem .9rem !important; }
+.btn:focus { outline: none; box-shadow: 0 0 0 3px rgba(45,91,227,0.2); }
+.btn::before { display: none; }
+
+#viewResponseBtn, .btn.btn-success {
+  background: var(--success);
+  box-shadow: 0 2px 8px rgba(5,150,105,0.25);
+}
+#viewResponseBtn:hover, .btn.btn-success:hover {
+  background: #10b981;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(5,150,105,0.35);
+}
+
+.btn.btn-primary {
+  background: var(--accent);
+  box-shadow: 0 2px 8px rgba(45,91,227,0.25);
+}
+.btn.btn-primary:hover {
+  background: #3d6bf3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(45,91,227,0.35);
+}
+
+.btn.btn-outline-secondary {
+  border: 1px solid rgba(255,255,255,0.15) !important;
+  color: rgba(255,255,255,0.7) !important;
+  background: transparent;
+}
+.btn.btn-outline-secondary:hover {
+  background: rgba(255,255,255,0.07);
+  transform: translateY(-1px);
+}
+
+/* Alerts */
+.alert { border-radius: 10px; font-weight: 500; font-family: 'DM Sans', sans-serif; }
+.alert strong { font-weight: 700; }
+.alert-success { background: rgba(5,150,105,0.15); border: 1px solid rgba(5,150,105,0.3); color: #6ee7b7 !important; }
+.alert-info    { background: rgba(45,91,227,0.12); border: 1px solid rgba(45,91,227,0.3); color: #93c5fd !important; }
+.alert-warning { background: rgba(217,119,6,0.15); border: 1px solid rgba(217,119,6,0.3); color: #fcd34d !important; }
+.alert-danger  { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5 !important; }
+
+/* Badges */
+.badge { font-weight: 700; color: #fff !important; }
+.pct-badge { padding:.3rem .65rem; border-radius:999px; font-weight:700; color:#fff; display:inline-block; font-size:0.8rem; }
+.pct-badge.green  { background: var(--success); }
+.pct-badge.info   { background: var(--accent); }
+.pct-badge.warn   { background: #d97706; }
+.pct-badge.danger { background: #dc2626; }
+
+/* Score metric */
+.metric-glow {
+  background: linear-gradient(90deg, var(--gold-1), var(--gold-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 900;
+  font-size: 2rem;
+}
+.glow-star {
+  background: linear-gradient(90deg, var(--gold-1), var(--gold-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 1.6rem;
+}
+.golden-trophy {
+  background: linear-gradient(135deg, #ffd700, #ffa500);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Custom header */
+.custom-header {
+  background: rgba(5,150,105,0.2) !important;
+  border-bottom: 1px solid rgba(5,150,105,0.3) !important;
+  padding: 0.7rem 1rem;
+  display: flex; justify-content: center; align-items: center;
+}
+.custom-header *, .custom-header { background: transparent !important; }
+.custom-header .exam-name { color: #fff !important; font-weight: 700 !important; font-size: 1rem; margin: 0; }
+.custom-header .exam-name i { color: #34d399; margin-right: 0.5rem; }
+
+.exam-success-title { color: #fff !important; font-weight: 700; font-family: 'DM Serif Display', serif; }
+
+/* Stats */
+.stats-header { background: var(--accent); color: #fff; font-weight: 600; font-size: 1rem; border: none; padding: 0.8rem 1rem; }
+.stats-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.stat-box { padding: 1rem 0.5rem; }
+.stat-inner { background: rgba(255,255,255,0.04); border-radius: 10px; padding: 1.1rem 0.8rem; border: 1px solid var(--border); }
+.stat-inner.attempt  { border-color: rgba(45,91,227,0.3); }
+.stat-inner.accuracy { border-color: rgba(5,150,105,0.3); }
+.stat-inner.overall  { border-color: rgba(217,119,6,0.3); }
+.stat-value { font-size: 1.4rem; font-weight: 800; color: #fff; }
+.stat-label { margin-top: 0.3rem; font-size: 0.82rem; color: rgba(255,255,255,0.5); font-weight: 500; }
+
+/* Response loading */
+#responseLoadingAlert {
+  background: #16161f;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 16px;
+}
+#responseLoadingTitle   { color: rgba(255,255,255,0.85) !important; font-weight: 700; }
+#responseLoadingSubtitle{ color: rgba(255,255,255,0.5) !important; font-weight: 500; }
+#responseLoadingDetails { color: rgba(255,255,255,0.4) !important; font-weight: 500; }
+#responseLoadingPercentage { color: #34d399 !important; font-weight: 700; }
+#responseProgress.bg-primary {
+  background: linear-gradient(90deg, #059669, #34d399);
+  animation: none;
+}
+
+/* FA icons protection */
+i.fas, i.far, i.fab { font-family: 'Font Awesome 6 Free','FontAwesome' !important; font-weight: 900 !important; }
+
+@media print {
+  .navbar, .btn { display: none !important; }
+  body { background: white !important; color: #000 !important; }
+  .result-card { box-shadow: none !important; border: none !important; background: transparent !important; }
+}
+</style>
 
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -583,17 +718,15 @@ body, .container, main, .result-card { -webkit-font-smoothing:antialiased; text-
                     </div>
                 </div>
 
-                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-                    <button class="btn btn-success btn-lg me-md-2" id="viewResponseBtn" onclick="openResponseAnalysisWithLoading()">
-                        <i class="fas fa-clipboard-check"></i> View Detailed Response
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <button class="btn btn-success" id="viewResponseBtn" onclick="openResponseAnalysisWithLoading()">
+                        <i class="fas fa-clipboard-check me-1"></i> View Response
                     </button>
-
-                    <button class="btn btn-primary btn-lg me-md-2" onclick="closeExamWindow()">
-                        <i class="fas fa-times"></i> Close Exam
+                    <button class="btn btn-primary" onclick="closeExamWindow()">
+                        <i class="fas fa-times me-1"></i> Close Exam
                     </button>
-
-                    <button class="btn btn-outline-secondary btn-lg" onclick="window.print()">
-                        <i class="fas fa-print"></i> Print Result
+                    <button class="btn btn-outline-secondary" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i> Print
                     </button>
                 </div>
 
@@ -665,12 +798,12 @@ function openResponseAnalysisWithLoading() {
     let left = (screen.availWidth - width) / 2;
     let top = (screen.availHeight - height) / 2;
     let features = `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,menubar=no,toolbar=no,location=no,status=no`;
-    let responseWindow = window.open('{{ url_for("response_page", exam_id=exam.id) }}', '_blank', features);
+    let responseWindow = window.open('{{ url_for("response_page", exam_id=exam.id, result_id=result.id) }}', '_blank', features);
     if (responseWindow) {
       responseWindow.focus();
     } else {
       alert('Please allow popups for this site to view detailed response.');
-      window.location.href = '{{ url_for("response_page", exam_id=exam.id) }}';
+      window.location.href = '{{ url_for("response_page", exam_id=exam.id, result_id=result.id) }}';
     }
   }
 
@@ -691,7 +824,7 @@ function openResponseAnalysis() {
   let left = (screen.availWidth - width) / 2;
   let top = (screen.availHeight - height) / 2;
   let features = `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,menubar=no,toolbar=no,location=no,status=no`;
-  let responseWindow = window.open('{{ url_for("response_page", exam_id=exam.id) }}', '_blank', features);
+  let responseWindow = window.open('{{ url_for("response_page", exam_id=exam.id, result_id=result.id) }}', '_blank', features);
   if (responseWindow) {
     responseWindow.focus();
   } else {

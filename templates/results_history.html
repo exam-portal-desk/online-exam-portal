@@ -4,185 +4,90 @@
 
 {% block content %}
 <style>
-:root{
-  --bg-1:#0f0f23;
-  --bg-2:#1a1a3e;
-  --accent-a:#667eea;
-  --accent-b:#764ba2;
-  --success:#10b981;
-  --muted:#cbd5e1;
-}
+.results-body{background:#0a0a0f;min-height:calc(100vh - 120px);padding:2rem 0;position:relative;overflow-x:hidden;color:rgba(255,255,255,0.7);}
+.particles{position:fixed;inset:0;z-index:1;pointer-events:none;}
+.particle{position:absolute;background:rgba(45,91,227,0.25);border-radius:50%;animation:float 8s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
 
-.results-body {
-  background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 50%, #2d2d5f 100%);
-  /* reduce bottom padding because base footer will be visible */
-  min-height: calc(100vh - 120px);
-  padding: 2.5rem 0 2.5rem;
-  position: relative;
-  overflow-x: hidden;
-  color: var(--muted);
-}
-.particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.35; }
-.particle { position: absolute; background: linear-gradient(45deg,var(--accent-a),var(--accent-b)); border-radius:50%; animation:float 6s ease-in-out infinite; }
-@keyframes float{ 0%,100%{transform:translateY(0)}50%{transform:translateY(-30px)} }
+.container-results{position:relative;z-index:2;max-width:1500px;margin:0 auto;padding:0 1.2rem;}
 
-.container-results {
-  position: relative;
-  z-index: 2;
-  max-width: 1500px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
+.results-header{text-align:center;margin-bottom:1.2rem;}
+.results-header h2{font-family:'DM Serif Display',serif;font-size:1.8rem;font-weight:400;color:#fff;margin-bottom:.25rem;}
+.results-header p{color:rgba(255,255,255,0.35);margin:0;font-size:.85rem;}
 
-.results-header { text-align:center; margin-bottom:1.5rem; color:#e9f0ff; }
-.results-header h2 {
-  font-size:2.2rem; font-weight:800; margin-bottom:.25rem;
-  background: linear-gradient(135deg,#fff 0%, var(--accent-a) 50%, var(--accent-b) 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-}
-.results-header p { color: rgba(233,240,255,0.7); margin:0; }
+.results-card{background:#111118;border:1px solid rgba(255,255,255,0.07);border-radius:16px;overflow:hidden;position:relative;}
+.results-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,91,227,0.4),transparent);}
 
-.results-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 18px;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.45);
-  overflow: hidden;
-}
+.controls-row{display:grid;grid-template-columns:1fr 1fr 1fr auto auto;gap:.65rem;padding:.85rem 1rem;align-items:center;border-bottom:1px solid rgba(255,255,255,0.05);background:rgba(255,255,255,0.01);}
+.controls-row .form-control{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);padding:.55rem .85rem;border-radius:9px;transition:all .2s;font-size:.83rem;font-family:inherit;outline:none;}
+.controls-row .form-control:focus{border-color:rgba(45,91,227,0.5);box-shadow:0 0 0 3px rgba(45,91,227,0.1);}
+.controls-row .form-control::placeholder{color:rgba(255,255,255,0.2);}
 
-/* Controls row */
-.controls-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
-  gap: 0.75rem;
-  padding: 1rem;
-  align-items: center;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-}
-.controls-row .form-control {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  color: rgba(255,255,255,0.9);
-  padding: 0.6rem 0.9rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-.controls-row .form-control:focus {
-  outline: none;
-  border-color: var(--accent-a);
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
-}
-.controls-row .form-control::placeholder { color: rgba(255,255,255,0.5); }
+.action-btn{padding:.5rem .85rem;border-radius:9px;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;position:relative;overflow:hidden;text-decoration:none;color:white;transition:all .2s;font-size:.82rem;font-family:inherit;}
+.action-btn:hover{transform:translateY(-1px);}
+.action-btn:disabled{opacity:.35;cursor:not-allowed;transform:none !important;}
+.action-btn.view-result{background:#2d5be3;box-shadow:0 4px 14px rgba(45,91,227,0.3);}
+.action-btn.view-result:hover{background:#3d6bf3;color:white;text-decoration:none;}
+.action-btn.response{background:#059669;box-shadow:0 4px 14px rgba(5,150,105,0.25);}
+.action-btn.response:hover{background:#10b981;color:white;text-decoration:none;}
+.action-btn.small{padding:.45rem .75rem;font-size:.8rem;}
 
-.action-btn{
-  padding:0.6rem 0.9rem;
-  border-radius:12px;
-  font-weight:700;
-  border:none;
-  cursor:pointer;
-  display:inline-flex;
-  align-items:center;
-  gap:0.6rem;
-  position:relative;
-  overflow:hidden;
-  text-decoration:none;
-  color: white;
-  transition: all 0.3s ease;
-  background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+.pagination-btn{background:rgba(255,255,255,0.04) !important;border:1px solid rgba(255,255,255,0.08) !important;color:rgba(255,255,255,0.6) !important;box-shadow:none !important;}
+.pagination-btn:hover:not(:disabled){background:rgba(45,91,227,0.15) !important;border-color:rgba(45,91,227,0.3) !important;color:white !important;}
+.pagination-btn:disabled{background:rgba(255,255,255,0.02) !important;border-color:rgba(255,255,255,0.04) !important;color:rgba(255,255,255,0.2) !important;}
+
+.form-select{background:rgba(255,255,255,0.04) !important;border:1px solid rgba(255,255,255,0.08) !important;color:rgba(255,255,255,0.7) !important;padding:.4rem .65rem;border-radius:8px;font-weight:500;font-size:.82rem;transition:all .2s;outline:none;}
+.form-select:focus{border-color:rgba(45,91,227,0.4);box-shadow:0 0 0 3px rgba(45,91,227,0.1);}
+.form-select option{background:#111118 !important;color:rgba(255,255,255,0.85) !important;}
+#sortDate option{background:#111118 !important;color:rgba(255,255,255,0.85) !important;}
+
+.table-wrap{padding:.85rem;overflow:auto;}
+.results-table{width:100%;border-collapse:collapse;overflow:hidden;}
+.results-table thead{background:rgba(255,255,255,0.03);}
+.results-table thead th{color:rgba(255,255,255,0.35);font-weight:600;padding:.75rem .85rem;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);position:sticky;top:0;z-index:2;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;}
+.results-table tbody tr{background:transparent;transition:background .15s;}
+.results-table tbody tr:hover td{background:rgba(45,91,227,0.05);}
+.results-table td{padding:.72rem .85rem;color:rgba(255,255,255,0.7);border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;white-space:nowrap;font-size:.83rem;}
+.results-table tbody tr:last-child td{border-bottom:none;}
+
+.pct-badge{padding:.25rem .6rem;border-radius:20px;font-weight:700;color:#fff;display:inline-block;font-size:.75rem;}
+.pct-badge.green{background:rgba(5,150,105,0.2);color:#34d399;border:1px solid rgba(5,150,105,0.2);}
+.pct-badge.info{background:rgba(45,91,227,0.15);color:#93c5fd;border:1px solid rgba(45,91,227,0.2);}
+.pct-badge.warn{background:rgba(245,158,11,0.15);color:#fcd34d;border:1px solid rgba(245,158,11,0.2);}
+.pct-badge.danger{background:rgba(239,68,68,0.12);color:#fca5a5;border:1px solid rgba(239,68,68,0.15);}
+
+.card-list{display:none;padding:.85rem;}
+.result-card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:.9rem;margin-bottom:.8rem;}
+.result-card .row-top{display:flex;justify-content:space-between;gap:.6rem;align-items:center;}
+.result-card .meta{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.6rem;color:rgba(255,255,255,0.55);font-size:.82rem;}
+.result-card .meta strong{color:rgba(255,255,255,0.4);}
+
+.pagination-row{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.75rem 1rem;border-top:1px solid rgba(255,255,255,0.05);background:rgba(255,255,255,0.01);}
+.page-controls{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;}
+.page-info{color:rgba(255,255,255,0.5);font-weight:600;font-size:.8rem;background:rgba(255,255,255,0.03);padding:.4rem .85rem;border-radius:8px;border:1px solid rgba(255,255,255,0.07);}
+.page-size-controls{display:flex;gap:.5rem;align-items:center;background:rgba(255,255,255,0.02);padding:.4rem .7rem;border-radius:8px;border:1px solid rgba(255,255,255,0.06);}
+.page-size-label{color:rgba(255,255,255,0.35);font-weight:500;font-size:.8rem;}
+
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,0.25);transform:scale(0);animation:ripple-animation .6s linear;pointer-events:none;}
+@keyframes ripple-animation{to{transform:scale(4);opacity:0;}}
+
+@media(max-width:992px){
+  .controls-row{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;}
+  .pagination-row{flex-direction:column;gap:.6rem;}
+  .page-controls{order:2;}
 }
-.action-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(102,126,234,0.4); }
-.action-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
-.action-btn::before{ content:''; position:absolute; top:0; left:-100%; width:100%; height:100%; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent); transition:left .45s; }
-.action-btn:hover::before{ left:100%; }
-.action-btn.view-result { background: linear-gradient(135deg,var(--accent-a),var(--accent-b)); box-shadow:0 10px 30px rgba(102,126,234,0.25); }
-.action-btn.response { background: linear-gradient(135deg,var(--success), #059669); box-shadow:0 10px 30px rgba(16,185,129,0.25); }
-.action-btn.small { padding: .45rem .65rem; font-size: .9rem; border-radius: 10px; }
-
-/* Pagination specific button styles */
-.pagination-btn {
-  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04)) !important;
-  border: 1px solid rgba(255,255,255,0.12) !important;
-  color: rgba(255,255,255,0.9) !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+@media(max-width:768px){
+  .table-wrap{display:none;}
+  .card-list{display:block;}
+  .controls-row{grid-template-columns:1fr;gap:.5rem;}
+  .results-header h2{font-size:1.35rem;}
+  .pagination-row{padding:.6rem;flex-wrap:wrap;}
+  .page-controls{justify-content:center;width:100%;}
+  .mobile-pagination{display:flex;}
 }
-.pagination-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--accent-a), var(--accent-b)) !important;
-  border-color: var(--accent-a) !important;
-  color: white !important;
-}
-.pagination-btn:disabled {
-  background: rgba(255,255,255,0.03) !important;
-  border-color: rgba(255,255,255,0.05) !important;
-  color: rgba(255,255,255,0.3) !important;
-}
-
-/* Form select styling */
-.form-select {
-  background: rgba(255,255,255,0.05) !important;
-  border: 1px solid rgba(255,255,255,0.12) !important;
-  color: rgba(255,255,255,0.9) !important;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-.form-select:focus {
-  outline: none;
-  border-color: var(--accent-a);
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
-}
-.form-select option { background: var(--bg-2); color: white; padding: 0.5rem; }
-
-/* Table */
-.table-wrap { padding:1rem; overflow:auto; }
-.results-table { width: 100%; border-collapse: collapse; overflow: hidden; }
-.results-table thead { background: linear-gradient(90deg, rgba(102,126,234,0.12), rgba(118,75,162,0.08)); }
-.results-table thead th{ color:#fff; font-weight:700; padding:1rem 1rem; text-align:left; border-bottom: 1px solid rgba(255,255,255,0.04); position: sticky; top:0; z-index:2; }
-.results-table tbody tr { background: rgba(255,255,255,0.02); transition: transform .18s ease, box-shadow .18s ease; }
-.results-table tbody tr:hover { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(0,0,0,0.45); background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); }
-.results-table td{ padding: 0.85rem 1rem; color: rgba(255,255,255,0.9); border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle; white-space: nowrap; word-break: break-word; font-size: 0.95rem; }
-
-/* Badges */
-.pct-badge { padding: .35rem .6rem; border-radius: 999px; font-weight:700; color: #fff; display:inline-block; }
-.pct-badge.green{ background: linear-gradient(135deg,#06b285,#059669); box-shadow:0 6px 18px rgba(6,178,133,0.12); }
-.pct-badge.info{ background: linear-gradient(135deg,#3fb0f5,#1d7ed6); }
-.pct-badge.warn{ background: linear-gradient(135deg,#f59e0b,#f97316); color:#212529; }
-.pct-badge.danger{ background: linear-gradient(135deg,#ef4444,#dc2626); }
-
-/* Card-list (mobile) */
-.card-list { display:none; padding:1rem; }
-.result-card { background: rgba(255,255,255,0.03); border-radius:12px; padding:0.9rem; margin-bottom:0.9rem; box-shadow: 0 10px 30px rgba(0,0,0,0.28); }
-.result-card .row-top { display:flex; justify-content:space-between; gap:0.6rem; align-items:center; }
-.result-card .meta { display:flex; gap:0.8rem; flex-wrap:wrap; margin-top:0.6rem; color: rgba(255,255,255,0.9); font-size:0.95rem; }
-
-/* Pagination controls */
-.pagination-row { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:0.9rem 1rem; border-top:1px solid rgba(255,255,255,0.03); background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02)); }
-.page-controls { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
-.page-info { color: rgba(255,255,255,0.9); font-weight:700; background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
-
-.page-size-controls { display: flex; gap: 0.5rem; align-items: center; background: rgba(255,255,255,0.03); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); }
-.page-size-label { color: rgba(255,255,255,0.8); font-weight: 600; font-size: 0.9rem; }
-
-/* Responsive toggles */
-@media (max-width: 992px){
-  .controls-row { grid-template-columns: 1fr 1fr; }
-  .pagination-row { flex-direction: column; gap: 0.75rem; }
-  .page-controls { order: 2; }
-}
-@media (max-width: 768px){
-  .table-wrap { display:none; }
-  .card-list { display:block; }
-  .controls-row { grid-template-columns: 1fr; gap:.6rem; }
-  .results-header h2{ font-size:1.6rem; }
-  .pagination-row { padding: 0.75rem; }
-  .page-controls { justify-content: center; width: 100%; }
-}
-
-/* Ripple effect */
-.ripple{ position:absolute; border-radius:50%; background:rgba(255,255,255,0.6); transform:scale(0); animation:ripple-animation .6s linear; pointer-events:none; }
-@keyframes ripple-animation { to { transform:scale(4); opacity:0; } }
+.mobile-pagination{display:none;flex-direction:column;gap:.6rem;padding:.6rem;border-top:1px solid rgba(255,255,255,0.05);background:rgba(255,255,255,0.01);}
+.mobile-pagination .page-controls{display:flex;gap:.4rem;align-items:center;justify-content:center;flex-wrap:wrap;}
+.mobile-pagination .page-bottom{display:flex;gap:.7rem;align-items:center;justify-content:center;flex-wrap:wrap;}
 </style>
 
 <div class="results-body">
@@ -212,6 +117,11 @@
         <input id="filterDate" class="form-control" placeholder="Search Date (YYYY-MM-DD or part)" />
         <input id="filterExam" class="form-control" placeholder="Search Exam name" />
         <input id="filterSubject" class="form-control" placeholder="Search Subject" />
+        <select id="sortDate" class="form-control" style="cursor:pointer;">
+          <option value="default">Sort by Date</option>
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+        </select>
         <div style="display:flex; gap:.6rem; justify-content:flex-end; align-items:center;">
           <button id="applyFilter" class="action-btn small view-result" title="Filter">
             <i class="fas fa-search"></i> Apply Filter
@@ -362,6 +272,29 @@
         {% endif %}
       </div>
 
+      <!-- Mobile Pagination -->
+      <div class="mobile-pagination" id="mobilePaginationRow">
+        <div class="page-controls">
+          <button id="mFirstPage" class="action-btn small pagination-btn" title="First"><i class="fas fa-angle-double-left"></i> First</button>
+          <button id="mPrevPage" class="action-btn small pagination-btn" title="Previous"><i class="fas fa-angle-left"></i> Prev</button>
+          <button id="mNextPage" class="action-btn small pagination-btn" title="Next">Next <i class="fas fa-angle-right"></i></button>
+          <button id="mLastPage" class="action-btn small pagination-btn" title="Last">Last <i class="fas fa-angle-double-right"></i></button>
+        </div>
+        <div class="page-bottom">
+          <div class="page-info" id="mPageInfo">Page 1 of 1</div>
+          <div class="page-size-controls">
+            <label for="mPageSizeSelect" class="page-size-label">Rows:</label>
+            <select id="mPageSizeSelect" class="form-select">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="0">All</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -378,6 +311,7 @@ document.addEventListener('DOMContentLoaded', function () {
       p.className = 'particle';
       p.style.width = Math.random() * 6 + 2 + 'px';
       p.style.height = p.style.width;
+      p.style.background = 'rgba(45,91,227,0.2)';
       p.style.left = Math.random() * 100 + '%';
       p.style.top = Math.random() * 100 + '%';
       p.style.animationDuration = Math.random() * 4 + 4 + 's';
@@ -395,6 +329,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const dateInput = document.getElementById('filterDate');
   const examInput = document.getElementById('filterExam');
   const subjectInput = document.getElementById('filterSubject');
+  const sortSelect   = document.getElementById('sortDate');
 
   // Pagination elements
   const pageSizeSelect = document.getElementById('pageSizeSelect');
@@ -477,12 +412,56 @@ document.addEventListener('DOMContentLoaded', function () {
     if (lastPageBtn) lastPageBtn.disabled = currentPage === totalPages;
 
     if (paginationRow) paginationRow.style.display = 'flex';
+    const mPageInfo = document.getElementById('mPageInfo');
+    const mPaginationRow = document.getElementById('mobilePaginationRow');
+    if (mPageInfo) mPageInfo.textContent = `Page ${currentPage} of ${totalPages} • ${totalItems} results`;
+    if (mPaginationRow) mPaginationRow.style.display = 'flex';
+    const mFPB = document.getElementById('mFirstPage');
+    const mPPB = document.getElementById('mPrevPage');
+    const mNPB = document.getElementById('mNextPage');
+    const mLPB = document.getElementById('mLastPage');
+    if (mFPB) mFPB.disabled = currentPage === 1;
+    if (mPPB) mPPB.disabled = currentPage === 1;
+    if (mNPB) mNPB.disabled = currentPage === totalPages;
+    if (mLPB) mLPB.disabled = currentPage === totalPages;
+  }
+
+  function sortByDate(direction) {
+    const tbody = document.querySelector('#resultsTable tbody');
+    const cardList = document.querySelector('.card-list');
+
+    if (tbody) {
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.sort((a, b) => {
+        const dA = new Date(a.querySelector('td')?.textContent || 0);
+        const dB = new Date(b.querySelector('td')?.textContent || 0);
+        return direction === 'newest' ? dB - dA : dA - dB;
+      });
+      rows.forEach(row => tbody.appendChild(row));
+      allTableRows.length = 0;
+      allTableRows.push(...Array.from(tbody.querySelectorAll('tr')));
+    }
+
+    if (cardList) {
+      const cards = Array.from(cardList.querySelectorAll('.result-card'));
+      cards.sort((a, b) => {
+        const dA = new Date(a.dataset.date || 0);
+        const dB = new Date(b.dataset.date || 0);
+        return direction === 'newest' ? dB - dA : dA - dB;
+      });
+      cards.forEach(card => cardList.appendChild(card));
+      allCards.length = 0;
+      allCards.push(...Array.from(cardList.querySelectorAll('.result-card')));
+    }
   }
 
   function applyFilters() {
     const dateVal = (dateInput?.value || '').trim().toLowerCase();
     const examVal = (examInput?.value || '').trim().toLowerCase();
     const subjectVal = (subjectInput?.value || '').trim().toLowerCase();
+    const sortVal = sortSelect?.value || 'default';
+
+    if (sortVal !== 'default') sortByDate(sortVal);
 
     allTableRows.forEach(row => {
       const cells = row.querySelectorAll('td');
@@ -521,6 +500,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (dateInput) dateInput.value = '';
     if (examInput) examInput.value = '';
     if (subjectInput) subjectInput.value = '';
+    if (sortSelect) sortSelect.value = 'default';
 
     allTableRows.forEach(row => row.classList.remove('filtered-out'));
     allCards.forEach(card => card.classList.remove('filtered-out'));
@@ -556,6 +536,22 @@ document.addEventListener('DOMContentLoaded', function () {
   if (lastPageBtn) lastPageBtn.addEventListener('click', function() {
     const { totalPages } = calculatePagination();
     currentPage = totalPages; renderPage();
+  });
+
+  const mPrevPageBtn = document.getElementById('mPrevPage');
+  const mNextPageBtn = document.getElementById('mNextPage');
+  const mFirstPageBtn = document.getElementById('mFirstPage');
+  const mLastPageBtn = document.getElementById('mLastPage');
+  const mPageSizeSelect = document.getElementById('mPageSizeSelect');
+  if (mFirstPageBtn) mFirstPageBtn.addEventListener('click', function() { currentPage = 1; renderPage(); });
+  if (mPrevPageBtn) mPrevPageBtn.addEventListener('click', function() { if (currentPage > 1) { currentPage--; renderPage(); } });
+  if (mNextPageBtn) mNextPageBtn.addEventListener('click', function() { const { totalPages } = calculatePagination(); if (currentPage < totalPages) { currentPage++; renderPage(); } });
+  if (mLastPageBtn) mLastPageBtn.addEventListener('click', function() { const { totalPages } = calculatePagination(); currentPage = totalPages; renderPage(); });
+  if (mPageSizeSelect) mPageSizeSelect.addEventListener('change', function() {
+    pageSize = this.value === '0' ? 0 : parseInt(this.value);
+    const mainSelect = document.getElementById('pageSizeSelect');
+    if (mainSelect) mainSelect.value = this.value;
+    currentPage = 1; renderPage();
   });
 
   function addRippleEffect() {
