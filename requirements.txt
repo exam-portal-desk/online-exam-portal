@@ -29,4 +29,6 @@ aiohttp==3.10.5
 orjson==3.11.7
 
 flask-socketio==5.3.6
+
 gevent-websocket==0.10.1
+gunicorn==22.0.0
