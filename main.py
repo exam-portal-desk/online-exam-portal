@@ -33,7 +33,9 @@ import tempfile
 from reportlab.lib.pagesizes import letter
 from dotenv import load_dotenv
 from admin import admin_bp
-from discussion import discussion_bp
+from discussion import discussion_bp, init_socketio, register_socketio_events
+from chat import chat_bp, init_chat_socketio, register_chat_socketio_events
+from flask_socketio import SocketIO
 import queue
 from collections import deque
 import uuid
@@ -114,6 +116,12 @@ print(f"✅ AI Config: Model={AI_MODEL_NAME}, Limit={AI_DAILY_LIMIT}, MaxLen={AI
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', manage_session=False)
+socketio_app = socketio
+init_socketio(socketio)
+register_socketio_events(socketio)
+init_chat_socketio(socketio)
+register_chat_socketio_events(socketio)
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = 7200  # 2 hours
 
@@ -178,6 +186,7 @@ def add_cache_control_headers(response):
 # Register admin blueprint
 app.register_blueprint(admin_bp, url_prefix="/admin")
 app.register_blueprint(discussion_bp)
+app.register_blueprint(chat_bp)
 
 # Configuration
 USERS_CSV = 'users.csv'
@@ -2259,49 +2268,58 @@ def get_groq_response(user_message, chat_history=None):
         messages = [
             {
                 "role": "system",
-                "content": """You are an expert tutor specializing in physics, chemistry, mathematics, biology, computer science, and engineering.
+                "content": """You are an expert tutor for physics, chemistry, mathematics, biology, and engineering.
 
-═══════════════════════════════════════════════════
-LATEX NOTATION GUIDE (Auto-detect subject)
-═══════════════════════════════════════════════════
+FORMATTING RULES — FOLLOW STRICTLY:
+1. NEVER use ** or __ for bold. NEVER use * or _ for italic. NEVER use markdown bold/italic.
+2. NEVER use *** or --- or === as separators.
+3. Use plain section headers like: [FINAL ANSWER], [GIVEN], [SOLUTION], [EXPLANATION]
+4. Use numbered lists (1. 2. 3.) or lettered lists (a. b. c.) for steps.
+5. For bullet points use a dash: - item
 
-MATHEMATICS:
-- Inline: $x^2$, $\\frac{a}{b}$, $\\sqrt{x}$, $\\int_a^b f(x)dx$
-- Display: $$E = mc^2$$
-- Greek: $\\alpha$, $\\beta$, $\\gamma$, $\\theta$, $\\mu$, $\\Delta$, $\\Sigma$, $\\pi$
-- Vectors: $\\vec{F}$, $\\vec{v}$, $\\hat{i}$, $\\hat{j}$, $\\hat{k}$
+LATEX RULES — MANDATORY:
+- Every mathematical expression MUST be in LaTeX. NO plain text math.
+- Inline math: $expression$ — for variables, small formulas, values with units
+- Display math (new line, centered): $$expression$$ — for main equations and derivations
+- Greek letters: $\alpha$, $\beta$, $\gamma$, $\theta$, $\lambda$, $\mu$, $\pi$, $\Sigma$, $\Delta$, $\omega$
+- Fractions: $\frac{numerator}{denominator}$
+- Powers: $x^{2}$, $e^{-x}$
+- Subscripts: $v_{0}$, $a_{x}$
+- Square root: $\sqrt{x}$, $\sqrt[n]{x}$
+- Integrals: $\int_{a}^{b} f(x)\,dx$
+- Summation: $\sum_{i=1}^{n} x_i$
+- Vectors: $\vec{F}$, $\hat{i}$
+- Units in math: $9.8\,\text{m/s}^2$, $5\,\text{kg}$
 
-CHEMISTRY:
-- Formulas: \\ce{H2O}, \\ce{C6H5CHO}, \\ce{CH3COOH}
-- Reactions: \\ce{A + B -> C}, \\ce{2H2 + O2 -> 2H2O}
-- Equilibrium: \\ce{A <=> B}
-- Ions: \\ce{Na+}, \\ce{SO4^2-}
+CHEMISTRY RULES:
+- Use mhchem for ALL chemical formulas and reactions: $\ce{H2O}$, $\ce{CO2}$
+- Reactions: $\ce{2H2 + O2 -> 2H2O}$
+- Equilibrium: $\ce{A <=> B}$
+- Ions: $\ce{Na+}$, $\ce{SO4^{2-}}$
+- Organic: $\ce{C6H5CHO}$, $\ce{CH3COOH}$
 
-PHYSICS:
-- Units: $5\\text{ m/s}$, $10\\text{ kg}$, $9.8\\text{ m/s}^2$
-- Vectors: $\\vec{F} = m\\vec{a}$
+RESPONSE STRUCTURE (always use this):
+[FINAL ANSWER]
+State the direct answer here with LaTeX.
 
-═══════════════════════════════════════════════════
-RESPONSE FORMAT
-═══════════════════════════════════════════════════
+[GIVEN]
+List known values with LaTeX: $m = 5\,\text{kg}$, $v = 10\,\text{m/s}$
 
-━━━ FINAL ANSWER ━━━
-[Direct answer]
+[SOLUTION]
+Step 1. Description
+$$equation$$
 
-━━━ GIVEN INFORMATION ━━━
-[Known values]
+Step 2. Description
+$$equation$$
 
-━━━ SOLUTION STEPS ━━━
-[Step-by-step with equations]
-
-━━━ EXPLANATION ━━━
-[Brief concept summary]
+[EXPLANATION]
+Brief concept summary in 2-3 lines.
 
 RULES:
-1. NEVER use ** for bold
-2. Always write complete LaTeX
-3. Show ALL steps
-4. Explain WHY, not just HOW"""
+- Show EVERY step explicitly
+- Explain WHY each step is done
+- Keep language simple and clear
+- Always use LaTeX for ANY number with a unit"""
             }
         ]
         
@@ -3205,8 +3223,9 @@ def ai_assistant():
 @app.route('/api/study-chat', methods=['POST'])
 @require_user_role
 def api_study_chat():
-    """API endpoint for AI chat interactions"""
+    """API endpoint for AI chat interactions - optimized for speed"""
     try:
+        import threading
         data = request.get_json()
         if not data or not data.get('message'):
             return jsonify({
@@ -3230,6 +3249,7 @@ def api_study_chat():
             
         user_id = session.get('user_id')
         
+        # ── Fast limit check (single DB read) ──────────────────────────
         limits = get_user_chat_limits(user_id)
         if limits['questions_used'] >= limits['daily_limit']:
             return jsonify({
@@ -3238,45 +3258,52 @@ def api_study_chat():
                 'limit_reached': True
             }), 429
 
-        chat_history = get_user_chat_history(user_id, limit=6)
-        
-        print(f"💬 [CHAT] User {user_id} asking: {user_message[:50]}...")
-        
-        user_msg_data = {
-            'user_id': user_id,
-            'message': user_message,
-            'is_user': True,
-            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        if not save_chat_message(user_msg_data):
-            print(f"⚠️ [CHAT] Failed to save user message")
+        # ── Fetch last 4 history messages + save user msg IN PARALLEL ──
+        def save_user_msg():
+            save_chat_message({
+                'user_id': user_id,
+                'message': user_message,
+                'is_user': True,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
 
+        history_result = [None]
+        def load_history():
+            history_result[0] = get_user_chat_history(user_id, limit=6)
+
+        t_save  = threading.Thread(target=save_user_msg, daemon=True)
+        t_hist  = threading.Thread(target=load_history,  daemon=True)
+        t_save.start()
+        t_hist.start()
+        t_hist.join()   # need history before calling Groq
+        t_save.join()   # fire-and-forget (already fast)
+
+        chat_history = history_result[0] or []
+        print(f"💬 [CHAT] User {user_id} asking: {user_message[:50]}...")
+
+        # ── Call Groq AI ───────────────────────────────────────────────
         ai_response = get_groq_response(user_message, chat_history)
-        
         print(f"🤖 [CHAT] AI responding: {ai_response[:50]}...")
 
-        ai_msg_data = {
-            'user_id': user_id,
-            'message': ai_response,
-            'is_user': False,
-            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        if not save_chat_message(ai_msg_data):
-            print(f"⚠️ [CHAT] Failed to save AI message")
-        
-        if not increment_usage(user_id):
-            print(f"⚠️ [CHAT] Failed to increment usage")
-        
-        updated_limits = get_user_chat_limits(user_id)
-        
-        print(f"✅ [CHAT] Chat completed. Usage: {updated_limits['questions_used']}/{updated_limits['daily_limit']}")
-        
+        # ── Save AI reply + increment usage in background ──────────────
+        def post_response_tasks():
+            save_chat_message({
+                'user_id': user_id,
+                'message': ai_response,
+                'is_user': False,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+            increment_usage(user_id)
+
+        threading.Thread(target=post_response_tasks, daemon=True).start()
+
+        updated_used = limits['questions_used'] + 1
+        print(f"✅ [CHAT] Chat completed. Usage: {updated_used}/{limits['daily_limit']}")
+
         return jsonify({
             'success': True,
             'response': ai_response,
-            'questions_remaining': updated_limits['daily_limit'] - updated_limits['questions_used']
+            'questions_remaining': limits['daily_limit'] - updated_used
         })
         
     except Exception as e:
@@ -3286,27 +3313,6 @@ def api_study_chat():
         return jsonify({
             'success': False,
             'message': 'Error processing your request'
-        }), 500
-
-
-@app.route('/api/get-chat-history')
-@require_user_role
-def api_get_chat_history():
-    """Get user's chat history"""
-    try:
-        user_id = session.get('user_id')
-        history = get_user_chat_history(user_id, limit=50)
-        
-        return jsonify({
-            'success': True,
-            'history': history
-        })
-        
-    except Exception as e:
-        print(f"[API_GET_CHAT_HISTORY] Error: {e}")
-        return jsonify({
-            'success': False,
-            'message': 'Error fetching history'
         }), 500
 
 
@@ -3336,28 +3342,36 @@ def api_clear_chat_history():
         }), 500
 
 
-@app.route('/api/get-user-limits')
+# In-memory limits cache: { user_id: {'data': {...}, 'ts': float} }
+_limits_cache = {}
+
+@app.route('/api/assistant-init')
 @require_user_role
-def api_get_user_limits():
-    """Get user's daily chat limits"""
+def api_assistant_init():
+    """Single endpoint: limits + history combined — replaces 2 separate calls"""
+    import time
     try:
         user_id = session.get('user_id')
-        limits = get_user_chat_limits(user_id)
-        
+
+        # Limits: serve from cache if < 30s old
+        cached = _limits_cache.get(user_id)
+        if cached and time.time() - cached['ts'] < 30:
+            limits = cached['data']
+        else:
+            limits = get_user_chat_limits(user_id)
+            _limits_cache[user_id] = {'data': limits, 'ts': time.time()}
+
+        history = get_user_chat_history(user_id, limit=50)
+
         return jsonify({
             'success': True,
             'dailyLimit': limits['daily_limit'],
             'questionsUsed': limits['questions_used'],
-            'questionsRemaining': limits['daily_limit'] - limits['questions_used']
+            'history': history
         })
-        
     except Exception as e:
-        print(f"[API_GET_USER_LIMITS] Error: {e}")
-        return jsonify({
-            'success': False,
-            'message': 'Error fetching limits'
-        }), 500
-
+        print(f"[API_ASSISTANT_INIT] Error: {e}")
+        return jsonify({'success': False}), 500
 
 
 @app.route('/analytics')
@@ -3429,7 +3443,7 @@ def results_history():
                 "exam_id": exam_id,
                 "exam_name": exam_name,
                 "subject": exam_name,
-                "completed_at": result.get("completed_at", ""),
+                "completed_at": datetime.fromisoformat(result.get("completed_at")).strftime("%d %B %Y %I:%M:%S %p") if result.get("completed_at") else "",
                 "score": result.get("score", 0),
                 "max_score": result.get("max_score", 0),
                 "percentage": round(float(result.get("percentage", 0)), 2),
@@ -4271,10 +4285,19 @@ def result(exam_id, result_id):
             flash('Result not found!', 'error')
             return redirect(url_for('dashboard'))
         
-        return render_template('result.html', 
-                             result=result_data, 
-                             exam=exam_data, 
-                             from_history=(request.args.get("from_history", "0") == "1"))
+        if result_data and result_data.get('completed_at'):
+            try:
+                dt = datetime.fromisoformat(result_data['completed_at'])
+                result_data['completed_at'] = dt.strftime("%d %B %Y %I:%M:%S %p")
+            except Exception:
+                pass
+
+        return render_template(
+            'result.html',
+            result=result_data,
+            exam=exam_data,
+            from_history=(request.args.get("from_history", "0") == "1")
+        )
                              
     except Exception as e:
         print(f"Error loading result: {e}")
@@ -4299,21 +4322,31 @@ def response_page(exam_id, result_id):
             flash('Exam not found!', 'error')
             return redirect(url_for('dashboard'))
         
-        # ✅ Determine result_id
-        actual_result_id = result_id or session.get('latest_result_id')
-        
+        # ✅ Determine result_id — prefer URL param, then exam-specific lookup
+        actual_result_id = result_id  # URL param takes highest priority
+
         if not actual_result_id:
-            # Fallback: Get latest result
-            user_results = get_results_by_exam(exam_id)
-            user_results = [r for r in user_results if int(r.get('student_id')) == user_id]
-            
-            if user_results:
-                user_results.sort(key=lambda x: x.get('completed_at', ''), reverse=True)
-                actual_result_id = int(user_results[0].get('id'))
-                session['latest_result_id'] = actual_result_id
-            else:
-                flash('No results found.', 'error')
-                return redirect(url_for('results_history'))
+            # Try session but ONLY if it belongs to THIS exam
+            session_rid = session.get('latest_result_id')
+            if session_rid:
+                _chk = get_result_by_id(session_rid)
+                if _chk and int(_chk.get('exam_id', 0)) == exam_id and int(_chk.get('student_id', 0)) == user_id:
+                    actual_result_id = session_rid
+
+        if not actual_result_id:
+            # Fallback: fetch latest result for this user+exam directly
+            try:
+                from supabase_db import get_latest_result_by_user_exam
+                _latest = get_latest_result_by_user_exam(user_id, exam_id)
+                if _latest:
+                    actual_result_id = int(_latest.get('id'))
+                    session['latest_result_id'] = actual_result_id
+            except Exception as _e:
+                print(f"Fallback result fetch error: {_e}")
+
+        if not actual_result_id:
+            flash('No results found for this exam.', 'error')
+            return redirect(url_for('results_history'))
         
         # ✅ Load result from Supabase
         result_data = get_result_by_id(actual_result_id)
@@ -4324,10 +4357,7 @@ def response_page(exam_id, result_id):
         
         # ✅ Load responses from Supabase
         user_responses = get_responses_by_result(actual_result_id)
-        
-        if not user_responses:
-            flash('No responses found.', 'info')
-            return redirect(url_for('results_history'))
+        print(f"📋 [RESPONSE] Found {len(user_responses)} responses for result_id={actual_result_id}, exam_id={exam_id}")
         
         user_responses.sort(key=lambda x: int(x.get('question_id', 0)))
         
@@ -4418,22 +4448,33 @@ def response_pdf(exam_id):
             flash('Exam not found.', 'error')
             return redirect(url_for('dashboard'))
         
-        # ✅ FIX: Get result_id from session
+        # ✅ FIX: Try session first, fallback to fetching latest result by exam_id + user_id
         result_id = session.get('latest_result_id')
-        
-        if not result_id:
-            flash('Result ID not found. Please view responses first.', 'error')
-            return redirect(url_for('results_history'))
-        
-        print(f"📊 Generating PDF for result_id: {result_id}")
-        
-        # Get result data
-        # ✅ Get result data from Supabase
-        result_data = get_result_by_id(result_id)
+        result_data = None
 
-        if not result_data or int(result_data.get('student_id')) != user_id:
-            flash('Result not found.', 'error')
-            return redirect(url_for('dashboard'))
+        if result_id:
+            result_data = get_result_by_id(result_id)
+            # Verify it belongs to this user AND this exam
+            if result_data:
+                if int(result_data.get('student_id', 0)) != user_id or int(result_data.get('exam_id', 0)) != exam_id:
+                    result_data = None
+                    result_id = None
+
+        # Fallback: fetch latest result for this user + exam directly from DB
+        if not result_data:
+            try:
+                from supabase_db import get_latest_result_by_user_exam
+                result_data = get_latest_result_by_user_exam(user_id, exam_id)
+            except Exception as _e:
+                print(f"Fallback result fetch error: {_e}")
+                result_data = None
+
+        if not result_data:
+            flash('Result not found. Please complete the exam first.', 'error')
+            return redirect(url_for('results_history'))
+
+        result_id = result_data.get('id') or result_data.get('result_id')
+        print(f"📊 Generating PDF for result_id: {result_id}")
 
         result = result_data
         
@@ -4645,6 +4686,14 @@ def logout():
         
         if user_id and token:
             invalidate_session(user_id, token)
+        
+        try:
+            from chat import socketio as chat_sio, _set_offline
+            if user_id and chat_sio:
+                _set_offline(user_id)
+                chat_sio.emit('user_offline', {'user_id': user_id})
+        except:
+            pass
         
         session.clear()
         flash('Logged out successfully!', 'success')
@@ -5333,7 +5382,7 @@ if __name__ == '__main__':
         print("❌ Google Drive integration: INACTIVE")
         print("⚠️ App will run in limited mode")
 
-    app.run(debug=True if not IS_PRODUCTION else False)
+    socketio.run(app, debug=True if not IS_PRODUCTION else False)
 else:
     # CRITICAL: This runs when deployed with Gunicorn
     print("🌐 Gunicorn detected - initializing services for production...")

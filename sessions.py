@@ -118,13 +118,12 @@ def require_user_role(f):
             flash("Please login to access this page.", "warning")
             return redirect(url_for("login"))
         
-        session_data = get_session_by_token(tok)
+        session_data = get_session_by_token(tok)  # retry already inside
         if not session_data:
             session.clear()
             flash("Your session has expired.", "warning")
             return redirect(url_for("login"))
         
-        # ✅ Check if admin session (prevent admin accessing user portal)
         if session_data.get('admin_session', False):
             flash("You are logged in as Admin. Please logout to access User portal.", "warning")
             return redirect(url_for("admin.dashboard"))

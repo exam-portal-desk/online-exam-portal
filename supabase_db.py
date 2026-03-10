@@ -190,13 +190,17 @@ def create_session(session_data: Dict) -> bool:
         return False
 
 def get_session_by_token(token: str) -> Optional[Dict]:
-    """Get session by token"""
-    try:
-        response = supabase.table('sessions').select('*').eq('token', token).eq('active', True).execute()
-        return response.data[0] if response.data else None
-    except Exception as e:
-        print(f"Error getting session: {e}")
-        return None
+    """Get session by token with retry"""
+    import time
+    for attempt in range(3):
+        try:
+            response = supabase.table('sessions').select('*').eq('token', token).eq('active', True).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error getting session (attempt {attempt+1}): {e}")
+            if attempt < 2:
+                time.sleep(0.3 * (attempt + 1))
+    return None
 
 def invalidate_session(user_id: int, token: Optional[str] = None) -> bool:
     """Invalidate session(s)"""
@@ -210,8 +214,15 @@ def invalidate_session(user_id: int, token: Optional[str] = None) -> bool:
         print(f"Error invalidating session: {e}")
         return False
 
+_last_seen_cache: Dict[str, float] = {}
+
 def update_session_last_seen(token: str) -> bool:
-    """Update last seen timestamp"""
+    """Update last seen — throttled to once per 60s per token"""
+    import time
+    now = time.time()
+    if _last_seen_cache.get(token, 0) > now - 60:
+        return True
+    _last_seen_cache[token] = now
     try:
         from datetime import datetime
         supabase.table('sessions').update({
@@ -336,6 +347,23 @@ def get_result_by_id(result_id: int) -> Optional[Dict]:
         return response.data[0] if response.data else None
     except Exception as e:
         print(f"Error getting result: {e}")
+        return None
+
+def get_latest_result_by_user_exam(user_id: int, exam_id: int) -> Optional[Dict]:
+    """Get the most recent result for a specific user + exam combination"""
+    try:
+        response = (
+            supabase.table('results')
+            .select('*')
+            .eq('student_id', user_id)
+            .eq('exam_id', exam_id)
+            .order('completed_at', desc=True)
+            .limit(1)
+            .execute()
+        )
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"Error getting latest result by user+exam: {e}")
         return None
 
 def get_results_by_user(user_id: int) -> List[Dict]:
@@ -556,29 +584,28 @@ def get_today_usage(user_id: int) -> Optional[Dict]:
         return None
 
 def increment_usage(user_id: int) -> bool:
-    """Increment usage count for today"""
+    """Increment usage count for today - optimized with single upsert"""
     try:
         from datetime import datetime
         today = datetime.now().strftime('%Y-%m-%d')
-        
-        existing = get_today_usage(user_id)
-        
-        if existing:
-            # Update existing
-            new_count = int(existing.get('questions_used', 0)) + 1
+
+        # Try direct increment via RPC if available, else fallback to read-modify-write
+        existing = supabase.table('ai_usage_tracking').select('id,questions_used')\
+            .eq('user_id', user_id).eq('date', today).execute()
+
+        if existing.data:
+            row = existing.data[0]
             supabase.table('ai_usage_tracking')\
-                .update({'questions_used': new_count})\
-                .eq('user_id', user_id)\
-                .eq('date', today)\
+                .update({'questions_used': int(row.get('questions_used', 0)) + 1})\
+                .eq('id', row['id'])\
                 .execute()
         else:
-            # Create new
             supabase.table('ai_usage_tracking').insert({
                 'user_id': user_id,
                 'date': today,
                 'questions_used': 1
             }).execute()
-        
+
         return True
     except Exception as e:
         print(f"Error incrementing usage: {e}")
