@@ -672,102 +672,75 @@ def questions_index():
                          selected_exam_id=selected_exam_id,
                          questions=questions_list)
 
-@admin_bp.route("/questions/add", methods=["GET", "POST"])
-@require_admin_role
-def add_question():
-    """Add question using Supabase"""
-    
-    # Get exams for dropdown
-    exams = get_all_exams()
-    exams_list = []
-    for exam in exams:
-        exams_list.append({
-            "id": int(exam.get("id")),
-            "name": exam.get("name", f"Exam {exam.get('id')}")
-        })
-    
-    if request.method == "POST":
-        data = request.form.to_dict()
-        
-        new_question = {
-            "exam_id": int(data.get("exam_id") or 0),
-            "question_text": data.get("question_text", "").strip(),
-            "option_a": data.get("option_a", "").strip(),
-            "option_b": data.get("option_b", "").strip(),
-            "option_c": data.get("option_c", "").strip(),
-            "option_d": data.get("option_d", "").strip(),
-            "correct_answer": data.get("correct_answer", "").strip(),
-            "question_type": data.get("question_type", "MCQ").strip(),
-            "image_path": data.get("image_path", "").strip(),
-            "tolerance": safe_float(data.get("tolerance"), 0),
-            "positive_marks": safe_int(data.get("positive_marks"), 4),
-            "negative_marks": safe_float(data.get("negative_marks"), 1)
-        }
-        
-        result = create_question(new_question)
-        
-        if result:
-            flash("Question added successfully.", "success")
-            return redirect(url_for("admin.questions_index", exam_id=new_question["exam_id"]))
-        else:
-            flash("Failed to add question.", "danger")
-            return redirect(url_for("admin.add_question"))
-    
-    return render_template("admin/add_question.html", exams=exams_list, question=None, form_mode="add")
 
-@admin_bp.route("/questions/edit/<int:question_id>", methods=["GET", "POST"])
+@admin_bp.route("/questions/add-ajax", methods=["POST"])
 @require_admin_role
-def edit_question(question_id):
-    """Edit question using Supabase"""
-    
-    # Get exams for dropdown
-    exams = get_all_exams()
-    exams_list = []
-    for exam in exams:
-        exams_list.append({
-            "id": int(exam.get("id")),
-            "name": exam.get("name", f"Exam {exam.get('id')}")
-        })
-    
-    # Get question
+def add_question_ajax():
+    """Add question via AJAX (used by popup modal)"""
+    data = request.form.to_dict()
+    new_question = {
+        "exam_id":        int(data.get("exam_id") or 0),
+        "question_text":  data.get("question_text", "").strip(),
+        "option_a":       data.get("option_a", "").strip(),
+        "option_b":       data.get("option_b", "").strip(),
+        "option_c":       data.get("option_c", "").strip(),
+        "option_d":       data.get("option_d", "").strip(),
+        "correct_answer": data.get("correct_answer", "").strip(),
+        "question_type":  data.get("question_type", "MCQ").strip(),
+        "image_path":     data.get("image_path", "").strip(),
+        "tolerance":      safe_float(data.get("tolerance"), 0),
+        "positive_marks": safe_int(data.get("positive_marks"), 4),
+        "negative_marks": safe_float(data.get("negative_marks"), 1),
+    }
+    result = create_question(new_question)
+    if result:
+        return jsonify({"success": True, "message": "Question added successfully."})
+    return jsonify({"success": False, "message": "Failed to add question."}), 500
+
+@admin_bp.route("/questions/edit-ajax/<int:question_id>", methods=["POST"])
+@require_admin_role
+def edit_question_ajax(question_id):
+    """Edit question via AJAX (used by popup modal)"""
     from supabase_db import supabase
-    
     try:
-        response = supabase.table('questions').select('*').eq('id', question_id).execute()
-        question = response.data[0] if response.data else None
-    except:
+        resp = supabase.table('questions').select('*').eq('id', question_id).execute()
+        question = resp.data[0] if resp.data else None
+    except Exception:
         question = None
-    
     if not question:
-        flash("Question not found.", "danger")
-        return redirect(url_for("admin.questions_index"))
-    
-    if request.method == "POST":
-        data = request.form.to_dict()
-        
-        updated_data = {
-            "exam_id": int(data.get("exam_id") or question.get("exam_id")),
-            "question_text": data.get("question_text", "").strip(),
-            "option_a": data.get("option_a", "").strip(),
-            "option_b": data.get("option_b", "").strip(),
-            "option_c": data.get("option_c", "").strip(),
-            "option_d": data.get("option_d", "").strip(),
-            "correct_answer": data.get("correct_answer", "").strip(),
-            "question_type": data.get("question_type", "MCQ").strip(),
-            "image_path": data.get("image_path", "").strip(),
-            "tolerance": safe_float(data.get("tolerance"), 0),
-            "positive_marks": safe_int(data.get("positive_marks"), 4),
-            "negative_marks": safe_float(data.get("negative_marks"), 1)
-        }
-        
-        if update_question(question_id, updated_data):
-            flash("Question updated successfully.", "success")
-            return redirect(url_for("admin.questions_index", exam_id=updated_data["exam_id"]))
-        else:
-            flash("Failed to update question.", "danger")
-            return redirect(url_for("admin.edit_question", question_id=question_id))
-    
-    return render_template("admin/edit_question.html", exams=exams_list, question=question, form_mode="edit")
+        return jsonify({"success": False, "message": "Question not found."}), 404
+    data = request.form.to_dict()
+    updated_data = {
+        "exam_id":        int(data.get("exam_id") or question.get("exam_id")),
+        "question_text":  data.get("question_text", "").strip(),
+        "option_a":       data.get("option_a", "").strip(),
+        "option_b":       data.get("option_b", "").strip(),
+        "option_c":       data.get("option_c", "").strip(),
+        "option_d":       data.get("option_d", "").strip(),
+        "correct_answer": data.get("correct_answer", "").strip(),
+        "question_type":  data.get("question_type", "MCQ").strip(),
+        "image_path":     data.get("image_path", "").strip(),
+        "tolerance":      safe_float(data.get("tolerance"), 0),
+        "positive_marks": safe_int(data.get("positive_marks"), 4),
+        "negative_marks": safe_float(data.get("negative_marks"), 1),
+    }
+    if update_question(question_id, updated_data):
+        return jsonify({"success": True, "message": "Question updated successfully."})
+    return jsonify({"success": False, "message": "Failed to update question."}), 500
+
+@admin_bp.route("/questions/get/<int:question_id>", methods=["GET"])
+@require_admin_role
+def get_question_ajax(question_id):
+    """Return question data as JSON (used to populate the edit popup modal)"""
+    from supabase_db import supabase
+    try:
+        resp = supabase.table('questions').select('*').eq('id', question_id).execute()
+        question = resp.data[0] if resp.data else None
+    except Exception:
+        question = None
+    if not question:
+        return jsonify({"success": False, "message": "Question not found."}), 404
+    return jsonify({"success": True, "question": question})
 
 @admin_bp.route("/questions/delete/<int:question_id>", methods=["POST"])
 @require_admin_role
@@ -1359,8 +1332,20 @@ def attempts_modify():
 @admin_bp.route("/requests")
 @require_admin_role
 def requests_dashboard():
-    """Requests dashboard with new and history tabs"""
-    return render_template("admin/requests.html")
+    from supabase_db import supabase
+    try:
+        pend_r  = supabase.table('requests_raised').select('*').eq('request_status','pending').order('request_date',desc=True).execute()
+        hist_r  = supabase.table('requests_raised').select('*').in_('request_status',['completed','denied']).order('request_date',desc=True).execute()
+        users_r = supabase.table('users').select('*').order('username').execute()
+        def _map(req):
+            return {'request_id':int(req.get('request_id',0)),'username':req.get('username',''),'email':req.get('email',''),'current_access':req.get('current_access',''),'requested_access':req.get('requested_access',''),'request_date':req.get('request_date',''),'status':req.get('request_status',''),'reason':req.get('reason',''),'processed_by':req.get('processed_by','Admin'),'processed_date':req.get('processed_date','')}
+        pending_requests = [_map(r) for r in (pend_r.data or [])]
+        history_requests = [_map(r) for r in (hist_r.data or [])]
+        users_list = [{'id':int(u.get('id',0)),'username':u.get('username',''),'full_name':u.get('full_name',''),'email':u.get('email',''),'role':u.get('role','user'),'is_active':u.get('is_active',True)} for u in (users_r.data or [])]
+    except Exception as e:
+        print(f"Error loading requests dashboard: {e}")
+        pending_requests, history_requests, users_list = [], [], []
+    return render_template("admin/requests.html", pending_requests=pending_requests, history_requests=history_requests, users=users_list)
 
 @admin_bp.route("/requests/new")
 @require_admin_role
@@ -1827,159 +1812,167 @@ def api_users_stats():
 @admin_bp.route("/users-analytics")
 @require_admin_role
 def users_analytics():
-    """Main users analytics dashboard"""
-    return render_template("admin/users_analytics.html")
+    from supabase_db import supabase
+    try:
+        users_r  = supabase.table('users').select('id', count='exact').execute()
+        exams_r  = supabase.table('exams').select('id', count='exact').execute()
+        res_r    = supabase.table('results').select('id', count='exact').execute()
+        resp_r   = supabase.table('responses').select('id', count='exact').execute()
+        exams    = get_all_exams()
+        exams_list = [{'id': int(e['id']), 'name': e.get('name', f"Exam {e['id']}")} for e in exams]
+        stats = {
+            'total_users':     users_r.count  or 0,
+            'total_exams':     exams_r.count  or 0,
+            'total_results':   res_r.count    or 0,
+            'total_responses': resp_r.count   or 0,
+        }
+    except Exception as e:
+        print(f"Error loading analytics dashboard: {e}")
+        stats = {'total_users':0,'total_exams':0,'total_results':0,'total_responses':0}
+        exams_list = []
+    # Also pass first page of results and filter users for the results tab
+    try:
+        from supabase_db import supabase as _sb
+        res_page = _sb.table('results').select('*').order('completed_at', desc=True).range(0, 19).execute()
+        page_res = res_page.data or []
+        total_res = res_r.count or 0
+        sid_set = {str(r.get('student_id')) for r in page_res}
+        eid_set = {str(r.get('exam_id'))    for r in page_res}
+        um, em = {}, {}
+        if sid_set:
+            ur2 = _sb.table('users').select('id,username,full_name').in_('id', list(sid_set)).execute()
+            um = {str(u['id']): u for u in (ur2.data or [])}
+        if eid_set:
+            er2 = _sb.table('exams').select('id,name').in_('id', list(eid_set)).execute()
+            em = {str(e['id']): e for e in (er2.data or [])}
+        results = []
+        for r in page_res:
+            u = um.get(str(r.get('student_id','')),{}); e = em.get(str(r.get('exam_id','')),{})
+            results.append({'id':int(r.get('id',0)),'username':u.get('username','Unknown'),'full_name':u.get('full_name',''),'exam_id':int(r.get('exam_id',0)),'exam_name':e.get('name','Unknown'),'score':r.get('score') or 0,'max_score':r.get('max_score') or 0,'percentage':float(r.get('percentage') or 0),'grade':r.get('grade','N/A'),'duration':f"{r.get('time_taken_minutes',0):.1f} min" if r.get('time_taken_minutes') else 'N/A','created_at':r.get('completed_at','')})
+        total_pages = max(1,(total_res+19)//20)
+        pagination = {'page':1,'per_page':20,'total':total_res,'start':1 if results else 0,'end':len(results),'has_prev':False,'has_next':total_pages>1,'prev_num':None,'next_num':2 if total_pages>1 else None,'total_pages':total_pages}
+        def _ip():
+            for p in range(1, min(total_pages+1, 4)): yield p
+        pagination['iter_pages'] = _ip
+        filter_users_r = _sb.table('users').select('id,username,full_name').order('username').execute()
+        filter_users = [{'id':int(u['id']),'username':u.get('username',''),'full_name':u.get('full_name','')} for u in (filter_users_r.data or [])]
+    except Exception as e2:
+        print(f"Error loading initial results: {e2}")
+        results, pagination, filter_users = [], None, []
+    return render_template("admin/users_analytics.html", stats=stats, exams=exams_list,
+        results=results, pagination=pagination, filter_users=filter_users)
 
 @admin_bp.route("/api/users-analytics/stats")
 @require_admin_role
 def api_users_analytics_stats():
-    """API endpoint for users analytics overview stats from Supabase"""
+    from supabase_db import supabase
     try:
-        # Get data from Supabase
-        users = get_all_users()
-        exams = get_all_exams()
-        results = get_all_results()
-        
-        # Count responses
-        responses_count = 0
-        for result in results:
-            responses = get_responses_by_result(result['id'])
-            responses_count += len(responses)
-        
-        stats = {
-            'total_users': len(users),
-            'total_exams': len(exams),
-            'total_results': len(results),
-            'total_responses': responses_count
-        }
-        
-        return jsonify(stats)
-    
+        users_r    = supabase.table('users').select('id', count='exact').execute()
+        exams_r    = supabase.table('exams').select('id', count='exact').execute()
+        results_r  = supabase.table('results').select('id', count='exact').execute()
+        resp_r     = supabase.table('responses').select('id', count='exact').execute()
+        return jsonify({
+            'total_users':     users_r.count   or 0,
+            'total_exams':     exams_r.count   or 0,
+            'total_results':   results_r.count or 0,
+            'total_responses': resp_r.count    or 0,
+        })
     except Exception as e:
         print(f"Error getting analytics stats: {e}")
-        return jsonify({
-            'total_users': 0,
-            'total_exams': 0,
-            'total_results': 0,
-            'total_responses': 0
-        })
+        return jsonify({'total_users':0,'total_exams':0,'total_results':0,'total_responses':0})
 
 @admin_bp.route("/users-analytics/results")
 @require_admin_role
 def users_analytics_results():
-    """Results tab content for users analytics from Supabase"""
+    from supabase_db import supabase
     try:
-        # Get filter parameters
-        user_filter = request.args.get('user', '')
-        exam_filter = request.args.get('exam', '')
-        date_from = request.args.get('dateFrom', '')
-        date_to = request.args.get('dateTo', '')
-        page = int(request.args.get('page', 1))
-        per_page = 20
-        
-        # Load data from Supabase
-        all_results = get_all_results()
-        users = get_all_users()
-        exams = get_all_exams()
-        
-        # Create lookup maps
-        users_map = {str(u['id']): u for u in users}
-        exams_map = {str(e['id']): e for e in exams}
-        
-        # Filter results
-        filtered_results = []
-        for result in all_results:
-            # Apply filters
-            if user_filter and str(result.get('student_id')) != user_filter:
-                continue
-            if exam_filter and str(result.get('exam_id')) != exam_filter:
-                continue
-            
-            # Date filters
-            completed_at = result.get('completed_at', '')
-            if date_from and completed_at:
-                try:
-                    if completed_at < date_from:
-                        continue
-                except:
-                    pass
-            if date_to and completed_at:
-                try:
-                    if completed_at > date_to:
-                        continue
-                except:
-                    pass
-            
-            filtered_results.append(result)
-        
-        # Pagination
-        total_results = len(filtered_results)
+        user_filter = request.args.get('user', '').strip()
+        exam_filter = request.args.get('exam', '').strip()
+        date_from   = request.args.get('dateFrom', '').strip()
+        date_to     = request.args.get('dateTo', '').strip()
+        page        = max(1, int(request.args.get('page', 1)))
+        per_page    = 20
+
+        # Count query for pagination
+        count_q = supabase.table('results').select('id', count='exact')
+        if user_filter: count_q = count_q.eq('student_id', user_filter)
+        if exam_filter:  count_q = count_q.eq('exam_id', exam_filter)
+        if date_from:    count_q = count_q.gte('completed_at', date_from)
+        if date_to:      count_q = count_q.lte('completed_at', date_to + 'T23:59:59')
+        count_r = count_q.execute()
+        total_results = count_r.count or 0
+
+        # Data query with range
         start_idx = (page - 1) * per_page
-        end_idx = start_idx + per_page
-        paginated_results = filtered_results[start_idx:end_idx]
-        
-        # Convert to list for template
+        data_q = supabase.table('results').select('*').order('completed_at', desc=True).range(start_idx, start_idx + per_page - 1)
+        if user_filter: data_q = data_q.eq('student_id', user_filter)
+        if exam_filter:  data_q = data_q.eq('exam_id', exam_filter)
+        if date_from:    data_q = data_q.gte('completed_at', date_from)
+        if date_to:      data_q = data_q.lte('completed_at', date_to + 'T23:59:59')
+        data_r = data_q.execute()
+        page_results = data_r.data or []
+
+        # Lookup maps (only for IDs on this page)
+        sid_set = {str(r.get('student_id')) for r in page_results}
+        eid_set = {str(r.get('exam_id'))    for r in page_results}
+        users_map, exams_map = {}, {}
+        if sid_set:
+            ur = supabase.table('users').select('id,username,full_name').in_('id', list(sid_set)).execute()
+            users_map = {str(u['id']): u for u in (ur.data or [])}
+        if eid_set:
+            er = supabase.table('exams').select('id,name').in_('id', list(eid_set)).execute()
+            exams_map = {str(e['id']): e for e in (er.data or [])}
+
         results_list = []
-        for result in paginated_results:
-            student_id = str(result.get('student_id', ''))
-            exam_id = str(result.get('exam_id', ''))
-            
-            user = users_map.get(student_id, {})
-            exam = exams_map.get(exam_id, {})
-            
+        for result in page_results:
+            sid = str(result.get('student_id', ''))
+            eid = str(result.get('exam_id', ''))
+            u = users_map.get(sid, {}); e = exams_map.get(eid, {})
             results_list.append({
-                'id': int(result.get('id', 0)),
-                'username': user.get('username', 'Unknown'),
-                'full_name': user.get('full_name', 'Unknown'),
-                'exam_id': int(result.get('exam_id', 0)),
-                'exam_name': exam.get('name', 'Unknown Exam'),
-                'subject_name': 'N/A',
-                'score': result.get('score', 0),
-                'max_score': result.get('max_score', 0),
-                'percentage': float(result.get('percentage', 0)),
-                'grade': result.get('grade', 'N/A'),
-                'duration': f"{result.get('time_taken_minutes', 0):.1f} min" if result.get('time_taken_minutes') else 'N/A',
-                'created_at': result.get('completed_at', 'N/A')
+                'id':          int(result.get('id', 0)),
+                'username':    u.get('username', 'Unknown'),
+                'full_name':   u.get('full_name', 'Unknown'),
+                'exam_id':     int(result.get('exam_id', 0)),
+                'exam_name':   e.get('name', 'Unknown Exam'),
+                'score':       result.get('score') or 0,
+                'max_score':   result.get('max_score') or 0,
+                'percentage':  float(result.get('percentage') or 0),
+                'grade':       result.get('grade', 'N/A'),
+                'duration':    f"{result.get('time_taken_minutes', 0):.1f} min" if result.get('time_taken_minutes') else 'N/A',
+                'created_at':  result.get('completed_at', 'N/A'),
             })
-        
-        # Create pagination object
+
+        end_idx = start_idx + len(results_list)
+        total_pages = max(1, (total_results + per_page - 1) // per_page)
         pagination = {
-            'page': page,
-            'per_page': per_page,
-            'total': total_results,
-            'start': start_idx + 1 if results_list else 0,
-            'end': min(end_idx, total_results),
-            'has_prev': page > 1,
-            'has_next': end_idx < total_results,
+            'page': page, 'per_page': per_page, 'total': total_results,
+            'start': start_idx + 1 if results_list else 0, 'end': end_idx,
+            'has_prev': page > 1, 'has_next': page < total_pages,
             'prev_num': page - 1 if page > 1 else None,
-            'next_num': page + 1 if end_idx < total_results else None
+            'next_num': page + 1 if page < total_pages else None,
+            'total_pages': total_pages,
         }
-        
         def iter_pages():
-            total_pages = (total_results + per_page - 1) // per_page
-            for p in range(max(1, page - 2), min(total_pages + 1, page + 3)):
-                yield p
+            for p in range(max(1, page-2), min(total_pages+1, page+3)): yield p
         pagination['iter_pages'] = iter_pages
-        
-        # Get users and exams for filters
-        users_list = [{'id': int(u['id']), 'username': u.get('username', ''), 'full_name': u.get('full_name', '')} for u in users]
-        exams_list = [{'id': int(e['id']), 'name': e.get('name', '')} for e in exams]
-        
+
+        # Filter dropdowns — only needed for full page (not partial)
+        partial = request.args.get('partial', '0') == '1'
+        if partial:
+            return render_template("admin/users_analytics_results_table.html",
+                results=results_list, pagination=pagination)
+
+        users_all = supabase.table('users').select('id,username,full_name').order('username').execute()
+        exams_all = supabase.table('exams').select('id,name').order('name').execute()
+        users_list = [{'id': int(u['id']), 'username': u.get('username',''), 'full_name': u.get('full_name','')} for u in (users_all.data or [])]
+        exams_list = [{'id': int(e['id']), 'name': e.get('name','')} for e in (exams_all.data or [])]
+
         return render_template("admin/users_analytics_results.html",
-                             results=results_list,
-                             users=users_list,
-                             exams=exams_list,
-                             pagination=pagination)
-    
+            results=results_list, users=users_list, exams=exams_list, pagination=pagination)
     except Exception as e:
         print(f"Error loading results analytics: {e}")
-        import traceback
-        traceback.print_exc()
-        return render_template("admin/users_analytics_results.html",
-                             results=[],
-                             users=[],
-                             exams=[],
-                             pagination=None)
+        import traceback; traceback.print_exc()
+        return render_template("admin/users_analytics_results.html", results=[], users=[], exams=[], pagination=None)
 
 
 
