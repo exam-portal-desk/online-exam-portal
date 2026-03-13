@@ -162,6 +162,48 @@ window.MathJax = {
 .acc-toast.error   { border-left:3px solid #ef4444; }
 .acc-toast.info    { border-left:3px solid var(--accent); }
 @keyframes toastIn { from{transform:translateY(12px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+/* ── ACC Modals (Confirm / Success / Error) ── */
+.acc-modal-backdrop {
+  display:none; position:fixed; inset:0; z-index:10500;
+  background:rgba(0,0,0,0.55);
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+  align-items:center; justify-content:center; padding:1rem;
+}
+.acc-modal-backdrop.show { display:flex; }
+.acc-modal-box {
+  background:var(--modal-bg); border:1px solid var(--card-border);
+  border-radius:16px; width:100%; max-width:420px;
+  box-shadow:0 24px 60px rgba(0,0,0,0.45);
+  animation:accModalIn 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  overflow:hidden;
+}
+@keyframes accModalIn {
+  from{opacity:0;transform:scale(0.92) translateY(12px)}
+  to  {opacity:1;transform:scale(1)    translateY(0)}
+}
+.acc-modal-icon-wrap {
+  display:flex; align-items:center; justify-content:center;
+  width:60px; height:60px; border-radius:50%; margin:0 auto 1rem;
+  font-size:1.6rem;
+}
+.acc-modal-icon-wrap.confirm { background:rgba(45,91,227,0.12); color:var(--accent); border:1px solid var(--accent-border); }
+.acc-modal-icon-wrap.success { background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); }
+.acc-modal-icon-wrap.error   { background:rgba(239,68,68,0.12);  color:#ef4444; border:1px solid rgba(239,68,68,0.22); }
+.acc-modal-icon-wrap.warning { background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.22); }
+.acc-modal-body {
+  padding:2rem 1.75rem 1.5rem; text-align:center;
+}
+.acc-modal-title {
+  font-size:1.05rem; font-weight:700; color:var(--text-primary); margin-bottom:0.5rem;
+}
+.acc-modal-msg {
+  font-size:0.875rem; color:var(--text-secondary); line-height:1.55;
+}
+.acc-modal-footer {
+  padding:1rem 1.5rem 1.5rem; display:flex; gap:0.75rem; justify-content:center;
+}
+.acc-modal-footer .btn { min-width:110px; border-radius:9px; font-weight:600; }
 </style>
 
 <!-- Page Header -->
@@ -356,6 +398,85 @@ window.MathJax = {
   </div>
 </div>
 
+<!-- ── ACC Confirm Modal ── -->
+<div class="acc-modal-backdrop" id="accConfirmModal" role="dialog" aria-modal="true" aria-labelledby="accConfirmTitle">
+  <div class="acc-modal-box">
+    <div class="acc-modal-body">
+      <div class="acc-modal-icon-wrap confirm" id="accConfirmIcon">
+        <i class="fas fa-database"></i>
+      </div>
+      <div class="acc-modal-title" id="accConfirmTitle">Confirm Action</div>
+      <div class="acc-modal-msg" id="accConfirmMsg">Are you sure you want to proceed?</div>
+    </div>
+    <div class="acc-modal-footer">
+      <button class="btn btn-secondary" id="accConfirmCancelBtn" onclick="accModalClose('accConfirmModal')">
+        <i class="fas fa-times me-1"></i>Cancel
+      </button>
+      <button class="btn btn-primary" id="accConfirmOkBtn">
+        <i class="fas fa-check me-1"></i>Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ACC Success Modal ── -->
+<div class="acc-modal-backdrop" id="accSuccessModal" role="dialog" aria-modal="true" aria-labelledby="accSuccessTitle">
+  <div class="acc-modal-box">
+    <div class="acc-modal-body">
+      <div class="acc-modal-icon-wrap success">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="acc-modal-title" id="accSuccessTitle">Success</div>
+      <div class="acc-modal-msg" id="accSuccessMsg">Operation completed successfully.</div>
+    </div>
+    <div class="acc-modal-footer">
+      <button class="btn btn-primary" onclick="accModalClose('accSuccessModal')">
+        <i class="fas fa-check me-1"></i>Done
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ACC Error Modal ── -->
+<div class="acc-modal-backdrop" id="accErrorModal" role="dialog" aria-modal="true" aria-labelledby="accErrorTitle">
+  <div class="acc-modal-box">
+    <div class="acc-modal-body">
+      <div class="acc-modal-icon-wrap error">
+        <i class="fas fa-exclamation-circle"></i>
+      </div>
+      <div class="acc-modal-title" id="accErrorTitle">Operation Failed</div>
+      <div class="acc-modal-msg" id="accErrorMsg">Something went wrong. Please try again.</div>
+    </div>
+    <div class="acc-modal-footer">
+      <button class="btn btn-secondary" onclick="accModalClose('accErrorModal')">
+        <i class="fas fa-times me-1"></i>Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ACC Delete Confirm Modal ── -->
+<div class="acc-modal-backdrop" id="accDeleteModal" role="dialog" aria-modal="true" aria-labelledby="accDeleteTitle">
+  <div class="acc-modal-box">
+    <div class="acc-modal-body">
+      <div class="acc-modal-icon-wrap warning">
+        <i class="fas fa-trash-alt"></i>
+      </div>
+      <div class="acc-modal-title" id="accDeleteTitle">Delete Question</div>
+      <div class="acc-modal-msg">Are you sure you want to remove this question? This cannot be undone.</div>
+    </div>
+    <div class="acc-modal-footer">
+      <button class="btn btn-secondary" onclick="accModalClose('accDeleteModal')">
+        <i class="fas fa-times me-1"></i>Cancel
+      </button>
+      <button class="btn" id="accDeleteOkBtn"
+        style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);min-width:110px;border-radius:9px;font-weight:600;">
+        <i class="fas fa-trash me-1"></i>Delete
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 let genModal;
 let generatedQuestions = [];
@@ -366,7 +487,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function openModeModal(mode) {
-  if (!genModal) { alert('Page not ready, refresh.'); return; }
+  if (!genModal) { showToast('Page not ready — please refresh.', 'error'); return; }
   document.getElementById('modalMode').value = mode;
   document.getElementById('modalTitle').innerHTML =
     '<i class="fas fa-cog me-2"></i>' +
@@ -585,48 +706,151 @@ function saveEdit(index) {
   showToast(`Question ${index+1} updated successfully`, 'success');
 }
 function deleteQuestion(index) {
-  if (confirm('Delete this question?')) {
+  accShowConfirmDelete(() => {
     generatedQuestions.splice(index, 1);
     renderPreview();
     showToast('Question removed', 'info');
-  }
+  });
 }
 
 async function saveToDatabase() {
   if (!generatedQuestions.length) { showToast('No questions to save!', 'error'); return; }
-  if (!confirm(`Save ${generatedQuestions.length} questions to database?`)) return;
-  try {
-    const res = await fetch('/admin/ai-command-centre/save', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({questions: generatedQuestions})
-    });
-    const data = await res.json();
-    if (data.success) { showToast(`Saved ${data.count} questions!`, 'success'); setTimeout(()=>location.reload(), 1500); }
-    else showToast('Error: ' + (data.message || 'Save failed'), 'error');
-  } catch { showToast('Server error.', 'error'); }
+  accShowConfirm({
+    icon: 'fas fa-database',
+    iconType: 'confirm',
+    title: 'Save to Database',
+    msg: `Save <strong>${generatedQuestions.length} question${generatedQuestions.length !== 1 ? 's' : ''}</strong> to the database? This will permanently add them to the selected exam.`,
+    okLabel: '<i class="fas fa-save me-1"></i>Save',
+    onOk: async () => {
+      try {
+        const res = await fetch('/admin/ai-command-centre/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ questions: generatedQuestions })
+        });
+        const data = await res.json();
+        if (data.success) {
+          accShowSuccess({
+            title: 'Saved Successfully',
+            msg: `<strong>${data.count} question${data.count !== 1 ? 's' : ''}</strong> have been saved to the database successfully.`,
+            onClose: () => location.reload()
+          });
+        } else {
+          accShowError({
+            title: 'Save Failed',
+            msg: data.message || 'An error occurred while saving questions. Please try again.'
+          });
+        }
+      } catch {
+        accShowError({
+          title: 'Server Error',
+          msg: 'Could not connect to the server. Please check your connection and try again.'
+        });
+      }
+    }
+  });
 }
 
 async function exportToCSV() {
   if (!generatedQuestions.length) { showToast('No questions to export!', 'error'); return; }
   try {
     const res = await fetch('/admin/ai-command-centre/export-csv', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({questions: generatedQuestions})
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ questions: generatedQuestions })
     });
     if (res.ok) {
       const blob = await res.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       const examSelect = document.querySelector('select[name="exam_id"]');
-      const examName = examSelect.options[examSelect.selectedIndex].text.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+      const examName = examSelect.options[examSelect.selectedIndex].text
+        .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
       const now = new Date();
-      const dt = now.getFullYear()+('0'+(now.getMonth()+1)).slice(-2)+('0'+now.getDate()).slice(-2)+'_'+('0'+now.getHours()).slice(-2)+('0'+now.getMinutes()).slice(-2)+('0'+now.getSeconds()).slice(-2);
+      const dt = now.getFullYear()
+        + ('0'+(now.getMonth()+1)).slice(-2)
+        + ('0'+now.getDate()).slice(-2)
+        + '_' + ('0'+now.getHours()).slice(-2)
+        + ('0'+now.getMinutes()).slice(-2)
+        + ('0'+now.getSeconds()).slice(-2);
       a.download = `ai_generated_questions_${examName}_${dt}.csv`;
-      document.body.appendChild(a); a.click();
-      URL.revokeObjectURL(a.href); document.body.removeChild(a);
-    } else showToast('Export failed', 'error');
-  } catch { showToast('Server error.', 'error'); }
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      document.body.removeChild(a);
+      accShowSuccess({
+        title: 'Export Complete',
+        msg: `<strong>${generatedQuestions.length} question${generatedQuestions.length !== 1 ? 's' : ''}</strong> exported successfully as a CSV file.`
+      });
+    } else {
+      accShowError({
+        title: 'Export Failed',
+        msg: 'The export could not be completed. Please try again.'
+      });
+    }
+  } catch {
+    accShowError({
+      title: 'Server Error',
+      msg: 'Could not connect to the server. Please check your connection and try again.'
+    });
+  }
 }
+
+/* ── ACC Modal Controllers ── */
+function accModalClose(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('show');
+}
+
+function accShowConfirm({ icon = 'fas fa-question-circle', iconType = 'confirm', title, msg, okLabel = '<i class="fas fa-check me-1"></i>Confirm', onOk }) {
+  document.getElementById('accConfirmIcon').className = `acc-modal-icon-wrap ${iconType}`;
+  document.getElementById('accConfirmIcon').innerHTML = `<i class="${icon}"></i>`;
+  document.getElementById('accConfirmTitle').textContent = title;
+  document.getElementById('accConfirmMsg').innerHTML = msg;
+  const okBtn = document.getElementById('accConfirmOkBtn');
+  okBtn.innerHTML = okLabel;
+  okBtn.onclick = () => {
+    accModalClose('accConfirmModal');
+    if (typeof onOk === 'function') onOk();
+  };
+  document.getElementById('accConfirmModal').classList.add('show');
+}
+
+function accShowConfirmDelete(onOk) {
+  const okBtn = document.getElementById('accDeleteOkBtn');
+  okBtn.onclick = () => {
+    accModalClose('accDeleteModal');
+    if (typeof onOk === 'function') onOk();
+  };
+  document.getElementById('accDeleteModal').classList.add('show');
+}
+
+function accShowSuccess({ title = 'Success', msg, onClose }) {
+  document.getElementById('accSuccessTitle').textContent = title;
+  document.getElementById('accSuccessMsg').innerHTML = msg;
+  const modal = document.getElementById('accSuccessModal');
+  const doneBtn = modal.querySelector('.btn-primary');
+  doneBtn.onclick = () => {
+    accModalClose('accSuccessModal');
+    if (typeof onClose === 'function') onClose();
+  };
+  modal.classList.add('show');
+}
+
+function accShowError({ title = 'Operation Failed', msg }) {
+  document.getElementById('accErrorTitle').textContent = title;
+  document.getElementById('accErrorMsg').innerHTML = msg;
+  document.getElementById('accErrorModal').classList.add('show');
+}
+
+// Close modal on backdrop click
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.acc-modal-backdrop').forEach(backdrop => {
+    backdrop.addEventListener('click', function (e) {
+      if (e.target === this) accModalClose(this.id);
+    });
+  });
+});
 
 function showToast(msg, type='info') {
   const id = 'toast-' + Date.now();
