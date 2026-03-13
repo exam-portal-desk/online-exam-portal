@@ -1,616 +1,195 @@
-{% extends "admin/admin_base.html" %}
+{% extends "admin_base.html" %}
 {% block title %}Manage Exams{% endblock %}
 
 {% block content %}
 <style>
-  .page-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 28px 32px;
-    margin: -32px -32px 32px -32px;
-    border-radius: 0 0 24px 24px;
-    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2);
-  }
-  
-  .page-title {
-    font-size: 2.2rem;
-    font-weight: 800;
-    margin: 0;
-  }
-  
-  .add-btn {
-    background: rgba(255, 255, 255, 0.2);
-    color: rgba(36, 35, 35, 0.849);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 12px;
-    padding: 12px 24px;
-    font-weight: 900;
-    font-size: 16px;
-    transition: all 0.3s ease;
-  }
-  
-  .add-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.5);
-    color: white;
-    transform: translateY(-2px);
-  }
-  
-  .exams-table {
-    background: white;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-    border: none;
-  }
-  
-  .exams-table thead th {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    font-weight: 700;
-    padding: 20px 16px;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  
-  .exams-table tbody td {
-    border: none;
-    border-bottom: 1px solid #f1f5f9;
-    padding: 20px 16px;
-    color: #4a5568;
-    font-weight: 500;
-    vertical-align: middle;
-  }
-  
-  .exams-table tbody tr:hover {
-    background: linear-gradient(135deg, #f8faff 0%, rgba(102, 126, 234, 0.02) 100%);
-  }
-  
-  .exams-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-  
-  .exam-id {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 12px;
+  .exam-id-badge {
+    background: rgba(102,126,234,0.15);
+    color: var(--brand1);
+    padding: 3px 10px; border-radius: 6px;
+    font-weight: 700; font-size: 0.75rem;
     display: inline-block;
   }
-  
-  .exam-name {
-    font-weight: 700;
-    color: #2d3748;
-    font-size: 15px;
+
+  .exam-name-text {
+    font-weight: 600; color: var(--text-primary); font-size: 0.875rem;
   }
-  
-  .exam-date {
-    background: linear-gradient(135deg, #f0f4ff 0%, #e6f2ff 100%);
-    color: #667eea;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 12px;
-    display: inline-block;
+
+  .meta-pill {
+    background: var(--table-head-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+    padding: 3px 9px; border-radius: 6px;
+    font-weight: 600; font-size: 0.75rem;
+    display: inline-block; white-space: nowrap;
   }
-  
-  .exam-time {
-    color: #4a5568;
-    font-weight: 600;
-  }
-  
-  .exam-duration {
-    background: linear-gradient(135deg, #fff8e6 0%, #ffeaa7 100%);
-    color: #d68910;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 12px;
-    display: inline-block;
-  }
-  
-  .question-count {
-    background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
-    color: #2e7d32;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 12px;
-    display: inline-block;
-  }
-  
+
   .status-badge {
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-weight: 700;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    padding: 3px 10px; border-radius: 20px;
+    font-weight: 700; font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    display: inline-block;
   }
-  
-  .status-upcoming {
-    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-    color: #1565c0;
-  }
-  
-  .status-ongoing {
-    background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
-    color: #2e7d32;
-  }
-  
-  .status-completed {
-    background: linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%);
-    color: #c2185b;
-  }
-  
-  .marks-info {
-    color: #4a5568;
-    font-weight: 600;
-    font-size: 13px;
-  }
-  
-  .marks-positive {
-    color: #198754;
-    font-weight: 700;
-  }
-  
-  .marks-negative {
-    color: #dc3545;
-    font-weight: 700;
-  }
-  
-  .instructions-cell {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: #6c757d;
-    font-style: italic;
-  }
-  
-  .action-buttons .btn {
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 12px;
-    margin: 0 2px;
-    transition: all 0.2s ease;
-  }
-  
-  .action-buttons .btn:hover {
-    transform: translateY(-1px);
-  }
-  
-  /* Modal Styling - Simplified */
-  .modal-content {
-    border-radius: 20px;
-    border: none;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-    overflow: hidden;
-  }
-  
-  .modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 24px 28px;
-  }
-  
-  .modal-title {
-    font-weight: 800;
-    font-size: 20px;
-    margin: 0;
-  }
-  
-  .btn-close {
-    filter: brightness(0) invert(1);
-    opacity: 0.8;
-  }
-  
-  .btn-close:hover {
-    opacity: 1;
-  }
-  
-  .modal-body {
-    padding: 28px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
-  }
-  
-  .modal-footer {
-    border: none;
-    padding: 24px 28px;
-    background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
-  }
-  
-  .modal .form-control, .modal .form-select {
-    border: 2px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-weight: 500;
-  }
-  
-  .modal .form-control:focus, .modal .form-select:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-    background: white;
-    outline: none;
-  }
-  
-  .modal .form-label {
-    font-weight: 700;
-    color: #2d3748;
-    margin-bottom: 8px;
+  .status-upcoming  { background: rgba(102,126,234,0.12); color: #667eea; }
+  .status-ongoing   { background: rgba(16,185,129,0.12);  color: #10b981; }
+  .status-completed { background: rgba(255,255,255,0.08); color: var(--text-muted); }
+
+  [data-theme="light"] .status-completed { background: rgba(0,0,0,0.06); color: #6b7280; }
+
+  .marks-pos { color: #10b981; font-weight: 700; font-size: 0.82rem; }
+  .marks-neg { color: #ef4444; font-weight: 700; font-size: 0.82rem; }
+
+  .instructions-text {
+    max-width: 180px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+    color: var(--text-muted); font-size: 0.8rem; font-style: italic;
   }
 
-  .modal {
-    z-index: 1055;
-  }
-  
-  .modal-backdrop {
-    z-index: 1050;
-  }
+  .action-btns { display: flex; gap: 0.35rem; align-items: center; }
 
-/* MOBILE RESPONSIVE CSS - COMPLETELY REWRITTEN FOR MAXIMUM COMPATIBILITY */
-@media (max-width: 768px) {
-  /* Force mobile layout fixes with highest specificity */
-  body .page-header {
-    padding: 15px !important;
-    margin: -20px -20px 20px -20px !important;
-    border-radius: 0 0 15px 15px !important;
-    text-align: center !important;
+  .icon-btn {
+    width: 32px; height: 32px;
+    border-radius: 8px; border: 1px solid var(--card-border);
+    background: var(--card-bg); color: var(--text-secondary);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.15s; font-size: 0.78rem;
   }
+  .icon-btn:hover { border-color: var(--brand1); color: var(--brand1); background: rgba(102,126,234,0.08); }
+  .icon-btn.danger:hover { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.08); }
 
-  body .page-title {
-    font-size: 1.4rem !important;
-    margin-bottom: 15px !important;
-    text-align: center !important;
+  /* Page header */
+  .page-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
   }
+  .page-top h1 { font-size: clamp(1.2rem,3vw,1.6rem); font-weight: 700; margin: 0; color: var(--text-primary); }
+  .page-top p  { margin: 0.15rem 0 0; font-size: 0.82rem; color: var(--text-muted); }
 
-  body .page-header .d-flex {
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center !important;
-    gap: 15px !important;
+  /* Empty state */
+  .empty-state {
+    text-align: center; padding: 3rem 1rem;
+    color: var(--text-muted);
   }
+  .empty-state i { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.3; display: block; }
+  .empty-state p { font-size: 0.9rem; margin: 0; }
 
-  body .add-btn {
-    width: 100% !important;
-    max-width: 300px !important;
-    padding: 12px 20px !important;
-    font-size: 0.9rem !important;
-    margin: 0 !important;
+  /* Delete modal warning box */
+  .delete-warning {
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 10px; padding: 1rem;
+    margin-bottom: 1rem;
   }
+  .delete-warning ul { margin: 0.5rem 0 0; padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.85rem; }
+  .delete-warning li { margin-bottom: 0.2rem; }
 
-  /* Container and card mobile fixes */
-  body .content-wrap {
-    padding: 80px 15px 20px 15px !important;
+  /* Mobile */
+  @media (max-width: 768px) {
+    .page-top { flex-direction: column; align-items: flex-start; }
+    .instructions-text { display: none; }
+    .table-responsive { border-radius: 12px; }
   }
-
-  body .card {
-    margin: 0 -15px 20px -15px !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-  }
-
-  body .card-body {
-    padding: 0 !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  /* Table mobile optimization - Force horizontal scroll */
-  body .table.exams-table {
-    min-width: 900px !important;
-    font-size: 0.75rem !important;
-    margin: 0 !important;
-  }
-
-  body .exams-table thead th {
-    padding: 8px 4px !important;
-    font-size: 0.65rem !important;
-    text-align: center !important;
-    white-space: nowrap !important;
-    min-width: 80px !important;
-  }
-
-  body .exams-table tbody td {
-    padding: 8px 4px !important;
-    font-size: 0.7rem !important;
-    white-space: nowrap !important;
-    text-align: center !important;
-    min-width: 80px !important;
-  }
-
-  /* Table element mobile styling */
-  body .exam-id {
-    font-size: 0.55rem !important;
-    padding: 2px 4px !important;
-    border-radius: 3px !important;
-  }
-
-  body .exam-name {
-    font-size: 0.7rem !important;
-    max-width: 100px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-  }
-
-  body .exam-date {
-    font-size: 0.55rem !important;
-    padding: 2px 4px !important;
-    display: block !important;
-    margin-bottom: 2px !important;
-  }
-
-  body .exam-time {
-    font-size: 0.55rem !important;
-  }
-
-  body .exam-duration {
-    font-size: 0.55rem !important;
-    padding: 2px 4px !important;
-  }
-
-  body .question-count {
-    font-size: 0.55rem !important;
-    padding: 2px 4px !important;
-    margin-bottom: 2px !important;
-  }
-
-  body .question-count + .small {
-    font-size: 0.5rem !important;
-  }
-
-  body .status-badge {
-    font-size: 0.55rem !important;
-    padding: 2px 6px !important;
-    border-radius: 8px !important;
-  }
-
-  body .instructions-cell {
-    max-width: 60px !important;
-    font-size: 0.6rem !important;
-  }
-
-  body .marks-info {
-    font-size: 0.6rem !important;
-  }
-
-  body .marks-positive, 
-  body .marks-negative {
-    font-size: 0.55rem !important;
-  }
-
-  /* Action buttons mobile */
-  body .action-buttons .btn {
-    padding: 4px 6px !important;
-    font-size: 0.6rem !important;
-    margin: 1px !important;
-    min-width: 24px !important;
-    height: 24px !important;
-  }
-
-  body .action-buttons .btn i {
-    font-size: 0.6rem !important;
-  }
-
-  /* Modal mobile fixes */
-  body .modal-dialog {
-    margin: 10px !important;
-    max-width: calc(100% - 20px) !important;
-  }
-
-  body .modal-content {
-    border-radius: 15px !important;
-  }
-
-  body .modal-header,
-  body .modal-body,
-  body .modal-footer {
-    padding: 15px !important;
-  }
-
-  body .modal-title {
-    font-size: 1.1rem !important;
-  }
-
-  body .modal-footer {
-    flex-direction: column !important;
-    gap: 10px !important;
-  }
-
-  body .modal-footer .btn {
-    width: 100% !important;
-    margin: 0 !important;
-  }
-
-  /* Form elements in modals */
-  body .modal .form-control,
-  body .modal .form-select {
-    font-size: 16px !important;
-    padding: 12px 15px !important;
-  }
-
-  body .modal .form-label {
-    font-size: 0.9rem !important;
-    margin-bottom: 5px !important;
-  }
-
-  body .modal .row .col-md-6,
-  body .modal .row .col-md-3,
-  body .modal .row .col-md-4,
-  body .modal .row .col-md-12 {
-    width: 100% !important;
-    padding: 0 !important;
-    margin-bottom: 15px !important;
-  }
-
-  body .modal textarea {
-    min-height: 80px !important;
-  }
-
-  body .form-text {
-    font-size: 0.75rem !important;
-  }
-
-  /* Scrollbar styling for mobile */
-  body .card-body::-webkit-scrollbar {
-    height: 8px !important;
-  }
-
-  body .card-body::-webkit-scrollbar-track {
-    background: #f1f1f1 !important;
-  }
-
-  body .card-body::-webkit-scrollbar-thumb {
-    background: #c1c1c1 !important;
-    border-radius: 4px !important;
-  }
-
-  /* Hide elements on very small screens */
-  @media (max-width: 576px) {
-    body .instructions-cell,
-    body .exams-table thead th:nth-child(7),
-    body .exams-table tbody td:nth-child(7) {
-      display: none !important;
-    }
-
-    body .exam-time {
-      display: none !important;
-    }
-
-    body .question-count + .small {
-      display: none !important;
-    }
-  }
-}
-
-/* Extra small devices */
-@media (max-width: 575px) {
-  body .page-header {
-    padding: 12px !important;
-    margin: -15px -15px 15px -15px !important;
-  }
-
-  body .page-title {
-    font-size: 1.2rem !important;
-  }
-
-  body .exams-table thead th {
-    padding: 6px 3px !important;
-    font-size: 0.6rem !important;
-  }
-
-  body .exams-table tbody td {
-    padding: 6px 3px !important;
-    font-size: 0.65rem !important;
-  }
-
-  body .action-buttons .btn {
-    padding: 3px 4px !important;
-    font-size: 0.55rem !important;
-    min-width: 20px !important;
-    height: 20px !important;
-  }
-}
 </style>
 
-<div class="page-header">
-  <div class="d-flex justify-content-between align-items-center">
-    <h1 class="page-title">
-      <i class="fas fa-file-alt me-3"></i>Exams Management
-    </h1>
-    <button class="add-btn" data-bs-toggle="modal" data-bs-target="#addExamModal">
-      <i class="fas fa-plus me-2"></i>Add New Exam
-    </button>
+<!-- Page header -->
+<div class="page-top">
+  <div>
+    <h1><i class="fas fa-file-alt me-2" style="color:var(--brand1)"></i>Manage Exams</h1>
+    <p>Create, edit and manage all exams on the portal.</p>
   </div>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addExamModal">
+    <i class="fas fa-plus me-1"></i> Add Exam
+  </button>
 </div>
 
-<div class="card border-0 shadow-lg">
+<!-- Table card -->
+<div class="card">
   <div class="card-body p-0">
-    <table class="table exams-table mb-0">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Exam Name</th>
-          <th>Date & Time</th>
-          <th>Duration</th>
-          <th>Questions</th>
-          <th>Status</th>
-          <th>Instructions</th>
-          <th>Marks</th>
-          <th style="width: 120px;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for exam in exams %}
-        <tr>
-          <td>
-            <span class="exam-id">{{ exam.id }}</span>
-          </td>
-          <td>
-            <div class="exam-name">{{ exam.name }}</div>
-          </td>
-          <td>
-            <div class="exam-date">{{ exam.date }}</div>
-            <div class="exam-time mt-1">{{ exam.start_time }}</div>
-          </td>
-          <td>
-            <span class="exam-duration">{{ exam.duration }} mins</span>
-          </td>
-          <td>
-            <span class="question-count">{{ exam.total_questions }}</span>
-            <div class="small text-muted mt-1">Max Attempts: <strong>{{ exam.max_attempts if exam.max_attempts else '∞' }}</strong></div>
-          </td>
-          <td>
-            <span class="status-badge status-{{ exam.status }}">{{ exam.status }}</span>
-          </td>
-          <td>
-            <div class="instructions-cell" title="{{ exam.instructions }}">
-              {{ exam.instructions or 'No instructions' }}
-            </div>
-          </td>
-          <td>
-            <div class="marks-info">
-              <span class="marks-positive">+{{ exam.positive_marks }}</span> / 
-              <span class="marks-negative">-{{ exam.negative_marks }}</span>
-            </div>
-          </td>
-          <td class="action-buttons">
-            <button class="btn btn-warning btn-sm edit-exam-btn"
-                    data-bs-toggle="modal"
-                    data-bs-target="#editExamModal{{ exam.id }}"
-                    title="Edit Exam">
-              <i class="fas fa-edit"></i>
-            </button>
-<button class="btn btn-danger btn-sm" 
-        onclick="showDeleteConfirmation({{ exam.id }}, '{{ exam.name | replace("'", "\\'") }}')"
-        title="Delete Exam">
-  <i class="fas fa-trash"></i>
-</button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-responsive">
+      <table class="table mb-0" style="min-width:780px">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Exam Name</th>
+            <th>Date &amp; Time</th>
+            <th>Duration</th>
+            <th>Questions</th>
+            <th>Status</th>
+            <th>Instructions</th>
+            <th>Marks</th>
+            <th style="width:90px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if exams %}
+            {% for exam in exams %}
+            <tr>
+              <td><span class="exam-id-badge">{{ exam.id }}</span></td>
+              <td><div class="exam-name-text">{{ exam.name }}</div></td>
+              <td>
+                <div class="meta-pill">{{ exam.date }}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px">{{ exam.start_time }}</div>
+              </td>
+              <td><span class="meta-pill">{{ exam.duration }} min</span></td>
+              <td>
+                <span class="meta-pill">{{ exam.total_questions }}Q</span>
+                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">
+                  Max: <strong style="color:var(--text-secondary)">{{ exam.max_attempts if exam.max_attempts else '∞' }}</strong>
+                </div>
+              </td>
+              <td><span class="status-badge status-{{ exam.status }}">{{ exam.status }}</span></td>
+              <td>
+                <div class="instructions-text" title="{{ exam.instructions }}">
+                  {{ exam.instructions or '—' }}
+                </div>
+              </td>
+              <td>
+                <span class="marks-pos">+{{ exam.positive_marks }}</span>
+                <span style="color:var(--text-muted);margin:0 2px">/</span>
+                <span class="marks-neg">−{{ exam.negative_marks }}</span>
+              </td>
+              <td>
+                <div class="action-btns">
+                  <button class="icon-btn"
+                          data-bs-toggle="modal"
+                          data-bs-target="#editExamModal{{ exam.id }}"
+                          title="Edit Exam">
+                    <i class="fas fa-pencil-alt"></i>
+                  </button>
+                  <button class="icon-btn danger"
+                          onclick="showDeleteConfirm({{ exam.id }}, '{{ exam.name | replace("'", "\\'") }}')"
+                          title="Delete Exam">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="9">
+                <div class="empty-state">
+                  <i class="fas fa-file-alt"></i>
+                  <p>No exams found. Click <strong>Add Exam</strong> to create one.</p>
+                </div>
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
+<!-- ── Edit Modals ──────────────────────────────────── -->
 {% for exam in exams %}
-<div class="modal fade" id="editExamModal{{ exam.id }}" tabindex="-1" aria-labelledby="editExamModalLabel{{ exam.id }}" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+<div class="modal fade" id="editExamModal{{ exam.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <form method="POST" action="{{ url_for('admin.edit_exam', exam_id=exam.id) }}">
         <div class="modal-header">
-          <h5 class="modal-title" id="editExamModalLabel{{ exam.id }}">
-            <i class="fas fa-edit me-2"></i>Edit Exam: {{ exam.name }}
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title"><i class="fas fa-pencil-alt me-2"></i>Edit: {{ exam.name }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div class="row g-3">
@@ -618,54 +197,51 @@
               <label class="form-label">Exam Name</label>
               <input type="text" class="form-control" name="name" value="{{ exam.name }}" required>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-3 col-6">
               <label class="form-label">Date</label>
               <input type="date" class="form-control" name="date" value="{{ exam.date }}" required>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-3 col-6">
               <label class="form-label">Start Time</label>
               <input type="time" class="form-control" name="start_time" value="{{ exam.start_time }}" required>
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Duration (minutes)</label>
+            <div class="col-md-4 col-6">
+              <label class="form-label">Duration (min)</label>
               <input type="number" class="form-control" name="duration" value="{{ exam.duration }}" required>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 col-6">
               <label class="form-label">Total Questions</label>
               <input type="number" class="form-control" name="total_questions" value="{{ exam.total_questions }}" required>
             </div>
             <div class="col-md-4">
               <label class="form-label">Status</label>
               <select class="form-select" name="status">
-                <option value="upcoming" {% if exam.status == "upcoming" %}selected{% endif %}>Upcoming</option>
-                <option value="ongoing" {% if exam.status == "ongoing" %}selected{% endif %}>Ongoing</option>
+                <option value="upcoming"  {% if exam.status == "upcoming"  %}selected{% endif %}>Upcoming</option>
+                <option value="ongoing"   {% if exam.status == "ongoing"   %}selected{% endif %}>Ongoing</option>
                 <option value="completed" {% if exam.status == "completed" %}selected{% endif %}>Completed</option>
               </select>
             </div>
-            <div class="col-md-12">
+            <div class="col-12">
               <label class="form-label">Instructions</label>
               <textarea class="form-control" name="instructions" rows="3">{{ exam.instructions }}</textarea>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4 col-6">
               <label class="form-label">Positive Marks</label>
               <input type="text" class="form-control" name="positive_marks" value="{{ exam.positive_marks }}">
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4 col-6">
               <label class="form-label">Negative Marks</label>
               <input type="text" class="form-control" name="negative_marks" value="{{ exam.negative_marks }}">
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Max Attempts (blank = unlimited)</label>
-              <input type="number" class="form-control" name="max_attempts" min="0" step="1" value="{{ exam.max_attempts or '' }}">
-              <div class="form-text">Only whole non-negative numbers</div>
+            <div class="col-md-4">
+              <label class="form-label">Max Attempts <span style="color:var(--text-muted);font-weight:400">(blank = unlimited)</span></label>
+              <input type="number" class="form-control" name="max_attempts" min="0" step="1" value="{{ exam.max_attempts or '' }}" placeholder="e.g. 3">
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-1"></i>Cancel
-          </button>
-          <button type="submit" class="btn btn-warning">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">
             <i class="fas fa-save me-1"></i>Save Changes
           </button>
         </div>
@@ -675,15 +251,14 @@
 </div>
 {% endfor %}
 
-<div class="modal fade" id="addExamModal" tabindex="-1" aria-labelledby="addExamModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+<!-- ── Add Exam Modal ───────────────────────────────── -->
+<div class="modal fade" id="addExamModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
-      <form method="POST" action="{{ url_for('admin.exams') }}">
+      <form method="POST" action="{{ url_for('admin.exams') }}" id="addExamForm">
         <div class="modal-header">
-          <h5 class="modal-title" id="addExamModalLabel">
-            <i class="fas fa-plus me-2"></i>Add New Exam
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Add New Exam</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div class="row g-3">
@@ -691,19 +266,19 @@
               <label class="form-label">Exam Name</label>
               <input type="text" class="form-control" name="name" placeholder="Enter exam name" required>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-3 col-6">
               <label class="form-label">Date</label>
               <input type="date" class="form-control" name="date" required>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-3 col-6">
               <label class="form-label">Start Time</label>
               <input type="time" class="form-control" name="start_time" required>
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Duration (minutes)</label>
+            <div class="col-md-4 col-6">
+              <label class="form-label">Duration (min)</label>
               <input type="number" class="form-control" name="duration" placeholder="e.g. 180" required>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 col-6">
               <label class="form-label">Total Questions</label>
               <input type="number" class="form-control" name="total_questions" placeholder="e.g. 100" required>
             </div>
@@ -715,30 +290,27 @@
                 <option value="completed">Completed</option>
               </select>
             </div>
-            <div class="col-md-12">
+            <div class="col-12">
               <label class="form-label">Instructions</label>
               <textarea class="form-control" name="instructions" rows="3" placeholder="Enter exam instructions..."></textarea>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4 col-6">
               <label class="form-label">Positive Marks</label>
               <input type="text" class="form-control" name="positive_marks" placeholder="e.g. 4" value="4">
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4 col-6">
               <label class="form-label">Negative Marks</label>
               <input type="text" class="form-control" name="negative_marks" placeholder="e.g. 1" value="1">
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Max Attempts (blank = unlimited)</label>
+            <div class="col-md-4">
+              <label class="form-label">Max Attempts <span style="color:var(--text-muted);font-weight:400">(blank = unlimited)</span></label>
               <input type="number" class="form-control" name="max_attempts" min="0" step="1" placeholder="e.g. 3">
-              <div class="form-text">Only whole non-negative numbers</div>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-1"></i>Cancel
-          </button>
-          <button type="submit" class="btn btn-primary">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">
             <i class="fas fa-plus me-1"></i>Add Exam
           </button>
         </div>
@@ -747,103 +319,35 @@
   </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const forms = document.querySelectorAll('form');
-  forms.forEach(form => {
-    form.addEventListener('submit', function(e) {
-      const ma = this.querySelector('input[name="max_attempts"]');
-      if (ma) {
-        const v = ma.value.trim();
-        if (v !== "" && !/^\d+$/.test(v)) {
-          e.preventDefault();
-          alert('Max Attempts must be a whole non-negative number');
-          ma.focus();
-          return false;
-        }
-      }
-      const submitBtn = this.querySelector('button[type="submit"]');
-      if (submitBtn && !submitBtn.disabled) {
-        submitBtn.setAttribute('data-original-text', submitBtn.innerHTML);
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
-        submitBtn.disabled = true;
-      }
-    });
-  });
-
-  const modals = document.querySelectorAll('.modal');
-  modals.forEach(modal => {
-    modal.addEventListener('hidden.bs.modal', function() {
-      const forms = this.querySelectorAll('form');
-      forms.forEach(form => {
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          const orig = submitBtn.getAttribute('data-original-text');
-          if (orig) submitBtn.innerHTML = orig;
-        }
-      });
-    });
-  });
-
-  // Mobile enhancement - Force table wrapper if needed
-  if (window.innerWidth <= 768) {
-    const table = document.querySelector('.exams-table');
-    if (table && !table.closest('.table-responsive')) {
-      const cardBody = table.closest('.card-body');
-      if (cardBody) {
-        cardBody.style.overflowX = 'auto';
-        cardBody.style.webkitOverflowScrolling = 'touch';
-      }
-    }
-  }
-});
-</script>
-<!-- Beautiful Delete Confirmation Modal -->
+<!-- ── Delete Confirm Modal ─────────────────────────── -->
 <div class="modal fade" id="deleteExamModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden;">
-      <div class="modal-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 24px;">
-        <h5 class="modal-title" style="font-weight: 800; font-size: 1.3rem;">
-          <i class="fas fa-exclamation-triangle me-2"></i>Delete Exam
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+        <h5 class="modal-title"><i class="fas fa-trash me-2"></i>Delete Exam</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:brightness(0) invert(1)"></button>
       </div>
-      <div class="modal-body" style="padding: 28px; background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);">
-        <div class="text-center mb-4">
-          <div style="width: 80px; height: 80px; margin: 0 auto 20px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-            <i class="fas fa-trash-alt" style="font-size: 2rem; color: #dc2626;"></i>
-          </div>
-          <h4 style="color: #1f2937; font-weight: 700; margin-bottom: 10px;">Are you sure?</h4>
-          <p style="color: #6b7280; font-size: 0.95rem; margin-bottom: 0;">You are about to delete:</p>
-          <p id="examNameToDelete" style="color: #dc2626; font-weight: 700; font-size: 1.1rem; margin-top: 5px;"></p>
+      <div class="modal-body">
+        <p style="color:var(--text-secondary);margin-bottom:0.75rem;font-size:0.9rem">
+          You are about to permanently delete:
+        </p>
+        <p id="examNameToDelete" style="color:#ef4444;font-weight:700;font-size:1rem;margin-bottom:1rem"></p>
+        <div class="delete-warning">
+          <p style="color:#ef4444;font-weight:600;font-size:0.85rem;margin:0">This will permanently delete:</p>
+          <ul>
+            <li>All questions for this exam</li>
+            <li>All student results &amp; responses</li>
+            <li>All exam attempts</li>
+          </ul>
         </div>
-        
-        <div class="alert alert-danger" style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 2px solid #fca5a5; border-radius: 12px; padding: 16px;">
-          <h6 style="color: #991b1b; font-weight: 700; margin-bottom: 10px;">
-            <i class="fas fa-exclamation-circle me-2"></i>This will permanently delete:
-          </h6>
-            <ul style="color: #991b1b; margin-bottom: 0; padding-left: 20px;">
-              <li><strong>All questions</strong> for this exam only</li>
-              <li><strong>All student results</strong> for this exam only</li>
-              <li><strong>All student responses</strong> for this exam only</li>
-              <li><strong>All exam attempts</strong> for this exam only</li>
-            </ul>
-            <p style="color: #059669; font-size: 0.85rem; margin-top: 10px; margin-bottom: 0;">
-              <i class="fas fa-info-circle me-1"></i><strong>Note:</strong> Only data related to <u>this specific exam</u> will be deleted. Other exams and their data will remain safe.
-            </p>
-        </div>
-        
-        <p style="text-align: center; color: #4b5563; font-size: 0.9rem; margin-top: 15px; margin-bottom: 0;">
-          <i class="fas fa-info-circle me-1"></i>This action cannot be undone!
+        <p style="color:var(--text-muted);font-size:0.8rem;margin:0;text-align:center">
+          <i class="fas fa-exclamation-circle me-1"></i>This action cannot be undone.
         </p>
       </div>
-      <div class="modal-footer" style="border: none; padding: 20px 28px; background: linear-gradient(135deg, #fef2f2 0%, #f9fafb 100%); gap: 10px;">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="flex: 1; padding: 12px; border-radius: 10px; font-weight: 600;">
-          <i class="fas fa-times me-1"></i>Cancel
-        </button>
-        <button type="button" class="btn btn-danger" id="confirmDeleteBtn" style="flex: 1; padding: 12px; border-radius: 10px; font-weight: 600; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border: none;">
-          <i class="fas fa-trash-alt me-1"></i>Delete Everything
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" id="confirmDeleteBtn">
+          <i class="fas fa-trash me-1"></i>Delete Everything
         </button>
       </div>
     </div>
@@ -851,115 +355,70 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <script>
-let examIdToDelete = null;
+let _examIdToDelete = null;
 
-function showDeleteConfirmation(examId, examName) {
-  examIdToDelete = examId;
-  document.getElementById('examNameToDelete').textContent = examName;
-  const modal = new bootstrap.Modal(document.getElementById('deleteExamModal'));
-  modal.show();
+function showDeleteConfirm(id, name) {
+  _examIdToDelete = id;
+  document.getElementById('examNameToDelete').textContent = name;
+  new bootstrap.Modal(document.getElementById('deleteExamModal')).show();
 }
 
 document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-  if (!examIdToDelete) return;
-  
+  if (!_examIdToDelete) return;
   const btn = this;
-  const originalHtml = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Deleting...';
-  
-  fetch(`/admin/exams/delete/${examIdToDelete}`, {
+
+  fetch('/admin/exams/delete/' + _examIdToDelete, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest'
-    }
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
   })
-  .then(response => response.json())
+  .then(r => r.json())
   .then(data => {
+    bootstrap.Modal.getInstance(document.getElementById('deleteExamModal')).hide();
     btn.disabled = false;
-    btn.innerHTML = originalHtml;
-    
-    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteExamModal'));
-    modal.hide();
-    
+    btn.innerHTML = '<i class="fas fa-trash me-1"></i>Delete Everything';
     if (data.success) {
-      // Show success message
-      const alertDiv = document.createElement('div');
-      alertDiv.className = 'alert alert-success alert-dismissible fade show';
-      alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);';
-      alertDiv.innerHTML = `
-        <strong><i class="fas fa-check-circle me-2"></i>Success!</strong> ${data.message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      `;
-      document.body.appendChild(alertDiv);
-      
-      // Reload after 2 seconds
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      setTimeout(() => window.location.reload(), 600);
     } else {
       alert('Error: ' + data.message);
     }
   })
-  .catch(error => {
+  .catch(() => {
     btn.disabled = false;
-    btn.innerHTML = originalHtml;
-    console.error('Delete error:', error);
+    btn.innerHTML = '<i class="fas fa-trash me-1"></i>Delete Everything';
     alert('Error deleting exam. Please try again.');
   });
 });
 
-// Form validation for add/edit exams
+/* Form submit spinner + max_attempts validation */
 document.addEventListener('DOMContentLoaded', function() {
-  const forms = document.querySelectorAll('form');
-  forms.forEach(form => {
+  document.querySelectorAll('form').forEach(form => {
     form.addEventListener('submit', function(e) {
       const ma = this.querySelector('input[name="max_attempts"]');
-      if (ma) {
-        const v = ma.value.trim();
-        if (v !== "" && !/^\d+$/.test(v)) {
-          e.preventDefault();
-          alert('Max Attempts must be a whole non-negative number');
-          ma.focus();
-          return false;
-        }
+      if (ma && ma.value.trim() !== '' && !/^\d+$/.test(ma.value.trim())) {
+        e.preventDefault();
+        alert('Max Attempts must be a whole non-negative number');
+        ma.focus();
+        return;
       }
-      const submitBtn = this.querySelector('button[type="submit"]');
-      if (submitBtn && !submitBtn.disabled) {
-        submitBtn.setAttribute('data-original-text', submitBtn.innerHTML);
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
-        submitBtn.disabled = true;
+      const btn = this.querySelector('button[type="submit"]');
+      if (btn && !btn.disabled) {
+        btn.dataset.orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+        btn.disabled = true;
       }
     });
   });
 
-  const modals = document.querySelectorAll('.modal');
-  modals.forEach(modal => {
+  document.querySelectorAll('.modal').forEach(modal => {
     modal.addEventListener('hidden.bs.modal', function() {
-      const forms = this.querySelectorAll('form');
-      forms.forEach(form => {
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          const orig = submitBtn.getAttribute('data-original-text');
-          if (orig) submitBtn.innerHTML = orig;
-        }
+      this.querySelectorAll('button[type="submit"]').forEach(btn => {
+        btn.disabled = false;
+        if (btn.dataset.orig) btn.innerHTML = btn.dataset.orig;
       });
     });
   });
-
-  // Mobile enhancement
-  if (window.innerWidth <= 768) {
-    const table = document.querySelector('.exams-table');
-    if (table && !table.closest('.table-responsive')) {
-      const cardBody = table.closest('.card-body');
-      if (cardBody) {
-        cardBody.style.overflowX = 'auto';
-        cardBody.style.webkitOverflowScrolling = 'touch';
-      }
-    }
-  }
 });
 </script>
 {% endblock %}

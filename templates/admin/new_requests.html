@@ -1,205 +1,126 @@
-{% extends "admin/admin_base.html" %}
+{% extends "admin_base.html" %}
 {% block title %}New Requests{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1 class="page-title">
-    <i class="fas fa-bell me-3"></i>New Access Requests
-  </h1>
-</div>
+<style>
+  .table { --bs-table-bg: transparent; --bs-table-color: var(--text-primary); }
+  .table thead th {
+    background: var(--table-head-bg); color: var(--text-muted);
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; border-bottom: 1px solid var(--table-border); padding: 0.75rem 1rem;
+  }
+  .table tbody td { border-bottom: 1px solid var(--table-border); padding: 0.75rem 1rem; vertical-align: middle; }
+  .table tbody tr:last-child td { border-bottom: none; }
+  .table tbody tr:hover td { background: var(--table-row-hover); }
+
+  .avatar-chip {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent-subtle); border: 1px solid var(--accent-border);
+    color: var(--accent); font-size: 0.68rem; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .access-badge {
+    padding: 3px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 700;
+    display: inline-flex; align-items: center;
+  }
+  .access-user  { background: rgba(45,91,227,0.12); color: #7b9ef7; border: 1px solid rgba(45,91,227,0.2); }
+  .access-admin { background: rgba(239,68,68,0.1);  color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+  .access-both  { background: rgba(139,92,246,0.1); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2); }
+
+  .status-badge {
+    padding: 3px 9px; border-radius: 20px; font-size: 0.7rem; font-weight: 700;
+    text-transform: uppercase; display: inline-flex; align-items: center; gap: 0.25rem;
+  }
+  .status-pending { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+
+  .icon-btn {
+    width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--card-border);
+    background: var(--card-bg); color: var(--text-secondary);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 0.75rem; transition: all 0.15s;
+  }
+  .icon-btn.approve:hover { border-color: #10b981; color: #10b981; background: rgba(16,185,129,0.08); }
+  .icon-btn.deny:hover    { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.08); }
+
+  .reason-text { max-width: 220px; font-size: 0.8rem; color: var(--text-secondary); word-break: break-word; line-height: 1.4; }
+
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+  .empty-state i { font-size: 2.5rem; opacity: 0.2; display: block; margin-bottom: 0.75rem; }
+  .empty-state p { font-size: 0.88rem; margin: 0; }
+</style>
 
 {% if requests %}
-<div class="card">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table requests-table mb-0">
-        <thead>
-<tr>
-    <th>Request ID</th>
-    <th>Username</th>
-    <th>Email</th>
-    <th>Current Access</th>
-    <th>Requested Access</th>
-    <th>Request Date</th>
-    <th style="min-width: 200px;">User Reason</th>
-    <th>Status</th>
-    <th style="width: 160px;">Actions</th>
-</tr>
-        </thead>
-        <tbody>
-          {% for request in requests %}
-          <tr>
-            <td>
-              <span class="fw-bold">#{{ request.request_id }}</span>
-            </td>
-            <td>
-              <div class="d-flex align-items-center">
-                <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-3">
-                  <i class="fas fa-user text-white"></i>
-                </div>
-                <div>
-                  <div class="fw-bold">{{ request.username }}</div>
-                </div>
-              </div>
-            </td>
-            <td>
-              <span class="text-muted">{{ request.email }}</span>
-            </td>
-            <td>
-              {% set current_class = 'user' if request.current_access == 'user' else 'admin' if request.current_access == 'admin' else 'both' %}
-              <span class="access-badge access-{{ current_class }}">
-                {% if request.current_access == 'user' %}User
-                {% elif request.current_access == 'admin' %}Admin
-                {% elif ',' in request.current_access %}User & Admin
-                {% else %}{{ request.current_access|title }}
-                {% endif %}
-              </span>
-            </td>
-            <td>
-              {% set requested_class = 'user' if request.requested_access == 'user' else 'admin' if request.requested_access == 'admin' else 'both' %}
-              <span class="access-badge access-{{ requested_class }}">
-                {% if request.requested_access == 'user' %}User
-                {% elif request.requested_access == 'admin' %}Admin
-                {% elif ',' in request.requested_access %}User & Admin
-                {% else %}{{ request.requested_access|title }}
-                {% endif %}
-              </span>
-            </td>
-            <td>
-              <small class="text-muted">{{ request.request_date }}</small>
-            </td>
-<td>
-    <div style="max-width: 250px; word-wrap: break-word; line-height: 1.4;">
-        {% if request.reason %}
-            <span class="text-dark">{{ request.reason }}</span>
-        {% else %}
-            <span class="text-muted fst-italic">No reason provided</span>
-        {% endif %}
-    </div>
-</td>            
-            <td>
-              <span class="status-badge status-{{ request.status|lower }}">
-                {{ request.status|title }}
-              </span>
-            </td>
-            <td class="action-buttons">
-              <button class="btn btn-success btn-sm approve-btn" 
-                      data-request-id="{{ request.request_id }}"
-                      data-username="{{ request.username }}"
-                      title="Approve Request">
-                <i class="fas fa-check"></i>
-              </button>
-              <button class="btn btn-danger btn-sm deny-btn"
-                      data-request-id="{{ request.request_id }}"
-                      data-username="{{ request.username }}"
-                      title="Deny Request">
-                <i class="fas fa-times"></i>
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
+<div class="table-responsive">
+  <table class="table mb-0">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>User</th>
+        <th>Email</th>
+        <th>Current</th>
+        <th>Requested</th>
+        <th>Date</th>
+        <th>Reason</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in requests %}
+      <tr>
+        <td><span style="font-size:0.78rem;font-weight:700;color:var(--text-muted)">#{{ req.request_id }}</span></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.6rem">
+            <div class="avatar-chip"><i class="fas fa-user"></i></div>
+            <span style="font-size:0.83rem;font-weight:600;color:var(--text-primary)">{{ req.username }}</span>
+          </div>
+        </td>
+        <td><span style="font-size:0.8rem;color:var(--text-muted)">{{ req.email }}</span></td>
+        <td>
+          {% set cc = 'user' if req.current_access == 'user' else 'admin' if req.current_access == 'admin' else 'both' %}
+          <span class="access-badge access-{{ cc }}">
+            {% if req.current_access == 'user' %}User
+            {% elif req.current_access == 'admin' %}Admin
+            {% elif ',' in req.current_access %}User & Admin
+            {% else %}{{ req.current_access|title }}{% endif %}
+          </span>
+        </td>
+        <td>
+          {% set rc = 'user' if req.requested_access == 'user' else 'admin' if req.requested_access == 'admin' else 'both' %}
+          <span class="access-badge access-{{ rc }}">
+            {% if req.requested_access == 'user' %}User
+            {% elif req.requested_access == 'admin' %}Admin
+            {% elif ',' in req.requested_access %}User & Admin
+            {% else %}{{ req.requested_access|title }}{% endif %}
+          </span>
+        </td>
+        <td><span style="font-size:0.78rem;color:var(--text-muted)">{{ req.request_date }}</span></td>
+        <td>
+          <div class="reason-text">
+            {% if req.reason %}{{ req.reason }}
+            {% else %}<span style="font-style:italic;color:var(--text-muted)">No reason</span>{% endif %}
+          </div>
+        </td>
+        <td><span class="status-badge status-{{ req.status|lower }}"><i class="fas fa-clock"></i>{{ req.status|title }}</span></td>
+        <td>
+          <div style="display:flex;gap:0.3rem">
+            <button class="icon-btn approve approve-btn" data-request-id="{{ req.request_id }}" data-username="{{ req.username }}" title="Approve">
+              <i class="fas fa-check"></i>
+            </button>
+            <button class="icon-btn deny deny-btn" data-request-id="{{ req.request_id }}" data-username="{{ req.username }}" title="Deny">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% else %}
-<div class="card">
-  <div class="card-body">
-    <div class="empty-state">
-      <i class="fas fa-inbox"></i>
-      <h4>No Pending Requests</h4>
-      <p class="text-muted">All access requests have been processed.</p>
-    </div>
-  </div>
+<div class="empty-state">
+  <i class="fas fa-inbox"></i>
+  <p><strong>No Pending Requests</strong><br><span style="font-size:0.8rem">All access requests have been processed.</span></p>
 </div>
 {% endif %}
-
-<style>
-.avatar-sm {
-  width: 32px;
-  height: 32px;
-  font-size: 0.75rem;
-}
-
-.requests-table thead th {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-weight: 700;
-  padding: 16px;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border: none;
-}
-
-.requests-table tbody td {
-  padding: 16px;
-  vertical-align: middle;
-  border: none;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.requests-table tbody tr:hover {
-  background: linear-gradient(135deg, #f8faff 0%, rgba(102, 126, 234, 0.02) 100%);
-}
-
-.access-badge {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.access-user {
-  background: rgba(59, 130, 246, 0.15);
-  color: #1d4ed8;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.access-admin {
-  background: rgba(239, 68, 68, 0.15);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.access-both {
-  background: rgba(147, 51, 234, 0.15);
-  color: #7c3aed;
-  border: 1px solid rgba(147, 51, 234, 0.3);
-}
-
-.status-badge {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.status-pending {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  color: #000;
-}
-
-.action-buttons .btn {
-  padding: 8px 12px;
-  margin: 0 2px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #6b7280;
-}
-
-.empty-state i {
-  font-size: 3rem;
-  margin-bottom: 20px;
-  opacity: 0.5;
-}
-</style>
 {% endblock %}

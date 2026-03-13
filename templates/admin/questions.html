@@ -1,1292 +1,505 @@
-{% extends "admin/admin_base.html" %}
-{% block title %}Questions{% endblock %}
+{% extends "admin_base.html" %}
+{% block title %}Manage Questions{% endblock %}
 
 {% block content %}
 <style>
-  .page-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 28px 32px;
-    margin: -32px -32px 32px -32px;
-    border-radius: 0 0 24px 24px;
-    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2);
+  .page-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
   }
-  
-  .page-title {
-    font-size: 2.2rem;
-    font-weight: 800;
-    margin: 0;
-  }
-  
+  .page-top h1 { font-size: clamp(1.2rem,3vw,1.6rem); font-weight: 700; margin: 0; color: var(--text-primary); }
+  .page-top p  { margin: 0.15rem 0 0; font-size: 0.82rem; color: var(--text-muted); }
+
   .control-card {
-    background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
-    border: 2px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-    margin-bottom: 20px;
-  }
-  
-  .batch-card {
-    background: linear-gradient(135deg, #545da8 0%, #8993ac 100%);
-    border: 2px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  }
-  
-  .batch-header {
-    color: #2d3748;
-    font-weight: 800;
-    font-size: 1.3rem;
-    margin-bottom: 12px;
-  }
-  
-  .batch-description {
-    color: #4a5568;
-    font-weight: 500;
-    margin-bottom: 20px;
-    padding: 12px 16px;
-    background: linear-gradient(135deg, #f0f4ff 0%, #e6f2ff 100%);
-    border-radius: 10px;
-    border-left: 4px solid #667eea;
-  }
-  
-  .apply-controls {
-    background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 16px;
-  }
-  
-  .batch-row {
-    background: rgb(255, 255, 255);
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-  }
-  
-  .batch-row:hover {
-    border-color: #667eea;
-    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.1);
-    transform: translateY(-2px);
-  }
-  
-  .enhanced-table {
-    background: white;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-    border: none;
-  }
-  
-  .enhanced-table thead th {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    font-weight: 700;
-    padding: 20px 16px;
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  
-  .enhanced-table tbody td {
-    border: none;
-    border-bottom: 1px solid #f1f5f9;
-    padding: 16px;
-    color: #4a5568;
-    font-weight: 500;
-    vertical-align: middle;
-  }
-  
-  .enhanced-table tbody tr:hover {
-    background: linear-gradient(135deg, #f8faff 0%, rgba(102, 126, 234, 0.02) 100%);
-  }
-  
-  .enhanced-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-  
-  .question-text {
-    max-width: 420px;
-    white-space: pre-wrap;
-    line-height: 1.5;
-    color: #2d3748;
-    font-weight: 500;
-  }
-  
-  .question-id {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 12px;
-  }
-  
-  .question-type {
-    background: linear-gradient(135deg, #198754 0%, #20c997 100%);
-    color: white;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 12px;
-  }
-  
-  .marks-info {
-    background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
-    color: blue;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 13px;
-  }
-  
-  .image-path {
-    color: #667eea;
-    background: #f0f4ff;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 700;
-    font-family: monospace;
-  }
-  
-  .action-buttons .btn {
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 12px;
-    margin: 0 2px;
-  }
-  
-  .selection-controls {
-    background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
-  }
-  
-  .enhanced-checkbox {
-    width: 20px;
-    height: 20px;
-    accent-color: #667eea;
-    cursor: pointer;
-    border-radius: 4px;
-  }
-  
-  .batch-controls {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-  }
-  
-  .batch-btn {
-    position: relative !important;
-    border-radius: 10px;
-    padding: 10px 20px;
-    font-weight: 600;
-    border: 2px solid;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    overflow: hidden !important;
-    letter-spacing: 0.3px !important;
-  }
-  
-  .batch-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-    transition: left 0.5s ease;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem;
   }
 
-  .batch-btn:hover::before {
-    left: 100%;
+  .exam-info-pill {
+    margin-top: 1rem; padding: 0.6rem 1rem;
+    background: var(--accent-subtle); border: 1px solid var(--accent-border);
+    border-radius: 10px; display: flex; align-items: center;
+    justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+  }
+  .exam-info-pill span { font-size: 0.82rem; color: var(--text-primary); }
+  .exam-id-badge {
+    background: var(--accent); color: #ffffff !important;
+    padding: 3px 10px; border-radius: 7px; font-size: 0.78rem; font-weight: 700;
   }
 
-  .batch-btn:active {
-    transform: translateY(-1px) scale(1.01) !important;
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--card-border); background: var(--card-bg);
+    color: var(--text-secondary); display: inline-flex; align-items: center;
+    justify-content: center; cursor: pointer; transition: all 0.15s; font-size: 0.78rem;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
+  .icon-btn.danger:hover { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.08); }
+  .action-btns { display: flex; gap: 0.35rem; align-items: center; }
+
+  .question-id-badge {
+    background: var(--accent-subtle); border: 1px solid var(--accent-border);
+    color: var(--accent); padding: 3px 10px; border-radius: 7px;
+    font-size: 0.75rem; font-weight: 700; display: inline-block;
+  }
+  .question-type-badge {
+    padding: 3px 9px; border-radius: 6px; font-size: 0.72rem; font-weight: 700;
+    display: inline-block;
+  }
+  .type-mcq  { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+  .type-msq  { background: rgba(245,158,11,0.12);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+  .type-num  { background: rgba(99,102,241,0.12);  color: #818cf8; border: 1px solid rgba(99,102,241,0.2); }
+
+  .marks-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--table-head-bg); border: 1px solid var(--card-border);
+    padding: 3px 8px; border-radius: 6px;
+    font-size: 0.78rem; font-weight: 700; white-space: nowrap;
+  }
+  .marks-pos { color: #10b981; }
+  .marks-neg { color: #ef4444; }
+
+  .image-pill {
+    background: var(--table-head-bg); border: 1px solid var(--card-border);
+    color: var(--text-muted); padding: 2px 7px; border-radius: 5px;
+    font-size: 0.7rem; font-weight: 600; font-family: monospace;
+    display: inline-block; max-width: 150px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
-  .batch-btn i {
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+  .question-text { max-width: 380px; white-space: pre-wrap; line-height: 1.5; font-size: 0.85rem; color: var(--text-primary); }
+
+  .search-bar {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+    display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap;
+  }
+  .search-bar .form-control, .search-bar .form-select {
+    background: var(--input-bg); border: 1px solid var(--input-border);
+    color: var(--input-text); border-radius: 9px; font-size: 0.83rem; padding: 0.5rem 0.75rem;
+  }
+  .search-bar .form-control::placeholder { color: var(--input-placeholder); }
+  .search-bar .form-control:focus, .search-bar .form-select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); outline: none;
+    background: var(--input-bg);
+  }
+  .search-bar label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; display: block; }
+  .search-bar .form-select option { background: var(--card-bg); color: var(--text-primary); }
+  #exam-select option { background: #111118; color: #e6eef8; }
+
+  .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; }
+  .card-header-flat {
+    padding: 1rem 1.25rem; border-bottom: 1px solid var(--card-border);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+  }
+  .card-header-flat h5 { margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+
+  .bulk-settings {
+    padding: 1rem 1.25rem; border-bottom: 1px solid var(--card-border);
+    background: var(--table-head-bg);
+  }
+  .bulk-settings label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; display: block; }
+  .bulk-settings .form-control, .bulk-settings .form-select {
+    background: var(--input-bg); border: 1px solid var(--input-border);
+    color: var(--input-text); border-radius: 8px; font-size: 0.82rem; padding: 0.45rem 0.7rem;
+  }
+  .bulk-settings .form-select option { background: var(--card-bg); color: var(--text-primary); }
+  .bulk-settings .form-control:focus, .bulk-settings .form-select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); outline: none;
+    background: var(--input-bg);
   }
 
-  /* Add Row Button - Green Success */
-  #add-row {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-    border: none !important;
-    color: white !important;
-    font-weight: 600 !important;
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
+  .table { --bs-table-bg: transparent; --bs-table-color: var(--text-primary); }
+  .table thead th {
+    background: var(--table-head-bg); color: var(--text-muted);
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; border-bottom: 1px solid var(--table-border); padding: 0.75rem 1rem;
   }
+  .table tbody td { border-bottom: 1px solid var(--table-border); padding: 0.75rem 1rem; vertical-align: middle; }
+  .table tbody tr:last-child td { border-bottom: none; }
+  .table tbody tr:hover td { background: var(--table-row-hover); }
 
-  #add-row:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-    transform: translateY(-2px) scale(1.02) !important;
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4) !important;
-    color: white !important;
-  }
+  .enhanced-checkbox { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 
-  /* Clear All Button - Red Danger */
-  #clear-rows {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-    border: none !important;
-    color: white !important;
-    font-weight: 600 !important;
-    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3) !important;
+  /* Pagination */
+  .pagination-wrap {
+    padding: 1rem 1.25rem; border-top: 1px solid var(--card-border);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;
   }
-
-  #clear-rows:hover {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
-    transform: translateY(-2px) scale(1.02) !important;
-    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4) !important;
-    color: white !important;
-  }
-
-  /* Add All Questions Button - Orange Action */
-  #batch-submit {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-    border: none !important;
-    color: white !important;
-    font-weight: 600 !important;
-    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3) !important;
-  }
-
-  #batch-submit:hover {
-    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
-    transform: translateY(-2px) scale(1.02) !important;
-    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4) !important;
-    color: white !important;
-  }
-
-  /* Open LaTeX Editor Button - Purple/Blue Premium */
-  #open-latex-editor {
-    position: relative;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    border: none !important;
-    color: white !important;
-    font-weight: 700 !important;
-    font-size: 12px !important;
-    letter-spacing: 0.5px;
-    padding: 14px 28px !important;
-    border-radius: 12px !important;
-    box-shadow: 
-      0 4px 15px rgba(102, 126, 234, 0.3),
-      0 2px 4px rgba(0, 0, 0, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    overflow: hidden;
-  }
-
-  #open-latex-editor::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.5s ease;
-  }
-
-  #open-latex-editor:hover {
-    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%) !important;
-    transform: translateY(-2px) scale(1.02) !important;
-    box-shadow: 
-      0 8px 25px rgba(102, 126, 234, 0.4),
-      0 4px 12px rgba(0, 0, 0, 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-  }
-
-  #open-latex-editor:hover::before {
-    left: 100%;
-  }
-
-  #open-latex-editor:active {
-    transform: translateY(-1px) scale(1.01) !important;
-  }
-
-  
-  .load-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    padding: 10px 24px;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    transition: all 0.3s ease;
-  }
-  
-  .load-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-    color: white;
-  }
-
-  /* Pagination Styles */
-  .pagination-container {
-    background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
-    border: 2px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 20px;
-    margin-top: 20px;
-  }
-
-  .pagination-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
-  }
-
-  .pagination-info {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    flex-wrap: wrap;
-  }
-
-  .entries-selector {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
+  .pagination-info { font-size: 0.8rem; color: var(--text-muted); }
+  .entries-selector { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted); }
   .entries-selector select {
-    padding: 8px 12px;
-    border: 2px solid #e2e8f0;
-    border-radius: 8px;
-    background: white;
-    font-weight: 600;
-    color: #4a5568;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    background: var(--input-bg); border: 1px solid var(--input-border);
+    color: var(--input-text); border-radius: 7px; padding: 4px 8px; font-size: 0.8rem;
+  }
+  .page-nav { display: flex; align-items: center; gap: 0.3rem; }
+  .page-btn {
+    min-width: 32px; height: 32px; border-radius: 7px; border: 1px solid var(--card-border);
+    background: var(--card-bg); color: var(--text-secondary); font-size: 0.78rem; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0 0.4rem;
+    transition: all 0.15s;
+  }
+  .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
+  .page-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Batch section */
+  .batch-card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 1.5rem; margin-top: 1.5rem;
+  }
+  .batch-card h5 { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem; }
+  .batch-desc {
+    font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1.25rem;
+    padding: 0.75rem 1rem; background: var(--accent-subtle);
+    border: 1px solid var(--accent-border); border-radius: 9px;
   }
 
-  .entries-selector select:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  .batch-row-item {
+    background: var(--table-head-bg); border: 1px solid var(--card-border);
+    border-radius: 11px; padding: 1rem; margin-bottom: 1rem;
+    transition: border-color 0.15s;
   }
-
-  .pagination-stats {
-    color: #4a5568;
-    font-weight: 600;
-    font-size: 14px;
+  .batch-row-item:hover { border-color: var(--accent-border); }
+  .batch-row-item label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; display: block; }
+  .batch-row-item .form-control, .batch-row-item .form-select {
+    background: var(--input-bg); border: 1px solid var(--input-border);
+    color: var(--input-text); border-radius: 8px; font-size: 0.82rem; padding: 0.45rem 0.7rem;
   }
-
-  .pagination-nav {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  .batch-row-item .form-control::placeholder { color: var(--input-placeholder); }
+  .batch-row-item .form-control:focus, .batch-row-item .form-select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); outline: none; background: var(--input-bg);
   }
+  .batch-row-item .form-select option { background: var(--card-bg); color: var(--text-primary); }
 
-  .pagination-btn {
-    padding: 10px 15px;
-    border: 2px solid #e2e8f0;
-    background: white;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    color: #4a5568;
-    transition: all 0.3s ease;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
+  .quick-apply {
+    background: var(--table-head-bg); border: 1px solid var(--card-border);
+    border-radius: 11px; padding: 1rem; margin-bottom: 1.25rem;
   }
-
-  .pagination-btn:hover {
-    border-color: #667eea;
-    color: #667eea;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-    text-decoration: none;
+  .quick-apply label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; display: block; }
+  .quick-apply .form-control, .quick-apply .form-select {
+    background: var(--input-bg); border: 1px solid var(--input-border);
+    color: var(--input-text); border-radius: 8px; font-size: 0.82rem; padding: 0.45rem 0.7rem;
   }
-
-  .pagination-btn:disabled,
-  .pagination-btn.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+  .quick-apply .form-control:focus, .quick-apply .form-select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); outline: none; background: var(--input-bg);
   }
+  .quick-apply .form-select option { background: var(--card-bg); color: var(--text-primary); }
 
-  .pagination-btn:disabled:hover,
-  .pagination-btn.disabled:hover {
-    border-color: #e2e8f0;
-    color: #4a5568;
-    transform: none;
-    box-shadow: none;
+  .btn-flat {
+    border-radius: 9px; font-size: 0.82rem; font-weight: 600;
+    padding: 0.45rem 1rem; border: none; cursor: pointer; transition: all 0.15s;
+    display: inline-flex; align-items: center; text-decoration: none;
   }
+  .btn-flat.primary   { background: var(--accent); color: white; }
+  .btn-flat.primary:hover { background: var(--accent-hover); color: white; }
+  .btn-flat.success   { background: var(--accent); color: white; }
+  .btn-flat.success:hover { background: var(--accent-hover); color: white; }
+  .btn-flat.danger-btn { background: var(--accent); color: white; }
+  .btn-flat.danger-btn:hover { background: var(--accent-hover); color: white; }
+  .btn-flat.secondary { background: var(--btn-secondary-bg); border: 1px solid var(--btn-secondary-border); color: var(--btn-secondary-color); }
+  .btn-flat.secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-flat.warning   { background: var(--accent); color: white; }
+  .btn-flat.warning:hover { background: var(--accent-hover); color: white; }
 
-  .pagination-btn.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-color: #667eea;
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+  .empty-state i { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.25; display: block; }
+  .empty-state p { font-size: 0.9rem; margin: 0.5rem 0 1rem; }
+
+  /* Modal overrides */
+  .modal-content { background: var(--modal-bg); border: 1px solid var(--card-border); border-radius: 14px; color: var(--text-primary); }
+  .modal-header { background: var(--card-bg); border-bottom: 1px solid var(--card-border); border-radius: 14px 14px 0 0; padding: 1rem 1.25rem; }
+  .modal-body { padding: 1.25rem; background: var(--modal-bg); }
+  .modal-footer { background: var(--modal-footer-bg); border-top: 1px solid var(--card-border); padding: 0.75rem 1.25rem; border-radius: 0 0 14px 14px; }
+  .modal-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
+  [data-theme="dark"] .btn-close { filter: brightness(0) invert(1); opacity: 0.5; }
+  .modal-body .form-label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; }
+  .modal-body .form-control, .modal-body .form-select {
+    background: var(--input-bg); border: 1px solid var(--input-border);
+    color: var(--input-text); border-radius: 9px; font-size: 0.85rem; padding: 0.5rem 0.75rem;
   }
-
-  .pagination-btn.active:hover {
-    color: white;
+  .modal-body .form-control::placeholder { color: var(--input-placeholder); }
+  .modal-body .form-control:focus, .modal-body .form-select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); outline: none; background: var(--input-bg);
   }
-
-  .page-numbers {
-    display: flex;
-    align-items: center;
-    gap: 5px;
+  .modal-body .form-select option { background: var(--card-bg); color: var(--text-primary); }
+  .modal-body textarea.form-control { resize: vertical; min-height: 70px; }
+  .modal-section-title {
+    font-size: 0.82rem; font-weight: 700; color: var(--text-secondary);
+    margin: 1rem 0 0.6rem; padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--card-border);
+    display: flex; align-items: center; gap: 0.4rem;
   }
+  .modal-section-title i { color: var(--accent); }
+  .form-hint { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem; }
 
-  .search-controls {
-    background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
-  }
-
-  .search-input {
-    padding: 12px 16px;
-    border: 2px solid #e2e8f0;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    width: 100%;
-    max-width: 300px;
-  }
-
-  .search-input:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  }
-
-  .no-results {
-    text-align: center;
-    padding: 40px 20px;
-    color: #64748b;
-  }
-
-  .no-results i {
-    font-size: 3rem;
-    margin-bottom: 15px;
-    opacity: 0.5;
+  /* q-toast */
+  #qToast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 99999;
+    padding: 0.7rem 1.2rem; border-radius: 10px; font-size: 0.85rem; font-weight: 600;
+    color: #fff; display: none; align-items: center; gap: 0.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3); min-width: 240px;
   }
 
   @media (max-width: 768px) {
-    .pagination-controls {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 15px;
-    }
-
-    .pagination-info {
-      justify-content: center;
-      text-align: center;
-    }
-
-    .pagination-nav {
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    .page-numbers {
-      flex-wrap: wrap;
-      justify-content: center;
-    }
+    .page-top { flex-direction: column; align-items: flex-start; }
+    .search-bar { flex-direction: column; align-items: stretch; }
+    .search-bar > * { width: 100% !important; max-width: 100% !important; }
+    .card-header-flat { flex-direction: column; align-items: flex-start; }
+    .pagination-wrap { flex-direction: column; align-items: flex-start; }
+    /* Marks visible on mobile — prevent cell clipping */
+    .table thead th, .table tbody td { padding: 0.6rem 0.7rem; }
+    .marks-badge { font-size: 0.75rem; }
   }
 </style>
-<style>
-/* Mobile Responsive Fixes for All Admin Pages */
-@media (max-width: 768px) {
-  /* Container and Layout Fixes */
-  .container, .container-fluid {
-    padding-left: 15px !important;
-    padding-right: 15px !important;
-  }
 
-  /* Page Headers */
-  .page-header, .header-content, .analytics-header, .main-container .page-header {
-    padding: 20px 15px !important;
-    margin: -20px -15px 20px -15px !important;
-    text-align: center;
-  }
-
-  .page-title, .analytics-header h1, h1, h2 {
-    font-size: 1.5rem !important;
-    margin-bottom: 10px !important;
-  }
-
-  .page-subtitle, .analytics-header p {
-    font-size: 0.9rem !important;
-  }
-
-  /* Cards and Panels */
-  .card, .main-container, .analytics-card, .stats-card, .exam-card {
-    margin-bottom: 20px !important;
-    border-radius: 12px !important;
-  }
-
-  .card-body, .card-content {
-    padding: 15px !important;
-  }
-
-  .card-header {
-    padding: 15px !important;
-    font-size: 1rem !important;
-  }
-
-  /* Tables - Make them horizontally scrollable */
-  .table-responsive {
-    margin: 0 -15px !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-  }
-
-  .table {
-    font-size: 0.85rem !important;
-    margin-bottom: 0 !important;
-  }
-
-  .table th, .table td {
-    padding: 8px 6px !important;
-    white-space: nowrap !important;
-    min-width: 80px !important;
-  }
-
-  .table th {
-    font-size: 0.75rem !important;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  /* Action buttons in tables */
-  .btn-sm, .table .btn {
-    padding: 6px 10px !important;
-    font-size: 0.8rem !important;
-    margin: 2px !important;
-  }
-
-  /* Forms */
-  .form-control, .form-select, input, textarea, select {
-    font-size: 16px !important; /* Prevents zoom on iOS */
-    padding: 12px 15px !important;
-    border-radius: 8px !important;
-  }
-
-  .form-label, label {
-    font-size: 0.9rem !important;
-    font-weight: 600 !important;
-    margin-bottom: 5px !important;
-  }
-
-  .form-group, .mb-3, .mb-4 {
-    margin-bottom: 15px !important;
-  }
-
-  /* Buttons */
-  .btn {
-    padding: 12px 20px !important;
-    font-size: 0.9rem !important;
-    border-radius: 8px !important;
-    margin: 5px 2px !important;
-    min-height: 44px !important;
-    display: inline-block;
-  }
-
-  .btn-group {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 5px !important;
-  }
-
-  .btn-group .btn {
-    margin: 0 0 5px 0 !important;
-    width: 100% !important;
-  }
-
-  /* Modals */
-  .modal-dialog {
-    margin: 10px !important;
-    max-width: calc(100% - 20px) !important;
-  }
-
-  .modal-content {
-    border-radius: 15px !important;
-  }
-
-  .modal-header, .modal-body, .modal-footer {
-    padding: 15px !important;
-  }
-
-  .modal-title {
-    font-size: 1.1rem !important;
-  }
-
-  /* Stats and Analytics */
-  .stats-row, .stat-cards, .quick-stats {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 15px !important;
-  }
-
-  .stat-card, .analytics-card, .stats-card {
-    margin-bottom: 15px !important;
-    padding: 15px !important;
-  }
-
-  .stat-value, .stat-number {
-    font-size: 1.8rem !important;
-  }
-
-  .stat-label {
-    font-size: 0.85rem !important;
-  }
-
-  /* Filters and Controls */
-  .controls-section, .filter-section, .tab-controls-container {
-    padding: 15px !important;
-    margin-bottom: 20px !important;
-  }
-
-  .filter-row, .controls-row {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 15px !important;
-  }
-
-  .filter-group, .control-group {
-    width: 100% !important;
-    margin-bottom: 10px !important;
-  }
-
-  /* Tabs */
-  .nav-tabs, .nav-tabs-custom, .modern-tabs {
-    flex-direction: column !important;
-    border: none !important;
-  }
-
-  .nav-tab, .nav-link {
-    margin-bottom: 5px !important;
-    text-align: center !important;
-    padding: 12px 15px !important;
-  }
-
-  /* Grid Layouts */
-  .row {
-    margin-left: -10px !important;
-    margin-right: -10px !important;
-  }
-
-  .col, .col-md-6, .col-lg-4, .col-xl-3, [class*="col-"] {
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-    margin-bottom: 15px !important;
-  }
-
-  /* Specific Page Elements */
-  .exam-grid, .question-grid, .analytics-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 15px !important;
-  }
-
-  .exam-card, .question-card, .attempt-card {
-    width: 100% !important;
-    margin-bottom: 15px !important;
-  }
-
-  /* Search and Filters */
-  .search-container, .filter-container {
-    padding: 15px !important;
-    margin-bottom: 20px !important;
-  }
-
-  .search-input, input[type="search"] {
-    width: 100% !important;
-    margin-bottom: 10px !important;
-  }
-
-  /* Action Bars */
-  .action-bar, .page-actions, .bulk-actions {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 10px !important;
-    padding: 15px !important;
-    margin-bottom: 20px !important;
-  }
-
-  .action-bar .btn, .page-actions .btn {
-    width: 100% !important;
-  }
-
-  /* Pagination */
-  .pagination {
-    justify-content: center !important;
-    flex-wrap: wrap !important;
-    margin: 20px 0 !important;
-  }
-
-  .pagination .page-link {
-    padding: 8px 12px !important;
-    font-size: 0.85rem !important;
-    margin: 2px !important;
-  }
-
-  /* Alerts */
-  .alert {
-    margin: 10px 0 !important;
-    padding: 12px 15px !important;
-    font-size: 0.9rem !important;
-    border-radius: 8px !important;
-  }
-
-  /* Breadcrumbs */
-  .breadcrumb {
-    padding: 10px 15px !important;
-    margin-bottom: 15px !important;
-    font-size: 0.85rem !important;
-  }
-
-  /* Progress Bars */
-  .progress {
-    height: 8px !important;
-    margin: 10px 0 !important;
-  }
-
-  /* Badges and Labels */
-  .badge {
-    font-size: 0.7rem !important;
-    padding: 4px 8px !important;
-  }
-
-  /* Tooltips - Disable on mobile */
-  .tooltip {
-    display: none !important;
-  }
-
-  /* Dropdown Menus */
-  .dropdown-menu {
-    position: static !important;
-    display: block !important;
-    float: none !important;
-    width: 100% !important;
-    margin-top: 5px !important;
-    box-shadow: none !important;
-    border: 1px solid #ddd !important;
-  }
-
-  /* Charts and Graphs */
-  .chart-container, .graph-container {
-    overflow-x: auto !important;
-    margin: 0 -15px !important;
-    padding: 0 15px !important;
-  }
-
-  /* File Upload Areas */
-  .upload-area, .file-drop-zone {
-    padding: 20px 15px !important;
-    margin: 15px 0 !important;
-    text-align: center !important;
-  }
-
-  /* Status Indicators */
-  .status-indicator, .badge-status {
-    font-size: 0.75rem !important;
-    padding: 3px 8px !important;
-  }
-
-  /* List Views */
-  .list-group-item {
-    padding: 12px 15px !important;
-    border-radius: 8px !important;
-    margin-bottom: 5px !important;
-  }
-
-  /* Media Objects */
-  .media, .d-flex.align-items-center {
-    flex-direction: column !important;
-    text-align: center !important;
-    gap: 10px !important;
-  }
-
-  /* Utility Classes Override */
-  .text-nowrap {
-    white-space: normal !important;
-  }
-
-  .d-none.d-md-block {
-    display: none !important;
-  }
-
-  .d-md-flex {
-    display: block !important;
-  }
-
-  /* Hide desktop-only elements */
-  .desktop-only, .d-none.d-lg-block, .d-none.d-xl-block {
-    display: none !important;
-  }
-
-  /* Show mobile-only elements */
-  .mobile-only {
-    display: block !important;
-  }
-
-  /* Fix overflow issues */
-  .overflow-auto {
-    overflow-x: auto !important;
-  }
-
-  /* Center align content */
-  .text-center-mobile {
-    text-align: center !important;
-  }
-
-  /* Full width mobile buttons */
-  .btn-mobile-full {
-    width: 100% !important;
-    margin-bottom: 10px !important;
-  }
-}
-
-/* Extra Small Devices (320px and below) */
-@media (max-width: 575px) {
-  .container, .container-fluid {
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-  }
-
-  .page-title, h1 {
-    font-size: 1.3rem !important;
-  }
-
-  .card-body {
-    padding: 12px !important;
-  }
-
-  .btn {
-    padding: 10px 15px !important;
-    font-size: 0.85rem !important;
-  }
-
-  .table th, .table td {
-    padding: 6px 4px !important;
-    font-size: 0.8rem !important;
-  }
-
-  .form-control, input, select, textarea {
-    padding: 10px 12px !important;
-  }
-
-  .modal-dialog {
-    margin: 5px !important;
-    max-width: calc(100% - 10px) !important;
-  }
-}
-
-/* Landscape Orientation Adjustments */
-@media (max-width: 768px) and (orientation: landscape) {
-  .page-header {
-    padding: 15px !important;
-  }
-
-  .card-body {
-    padding: 15px !important;
-  }
-
-  .modal-dialog {
-    max-height: 90vh !important;
-    overflow-y: auto !important;
-  }
-}
-
-/* High DPI Screens */
-@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2) {
-  .btn {
-    border-width: 0.5px !important;
-  }
-
-  .table {
-    border-width: 0.5px !important;
-  }
-}
-
-/* Print Styles for Mobile */
-@media print {
-  .mobile-menu-toggle, .sidebar {
-    display: none !important;
-  }
-
-  .content-wrap {
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-}
-
-/* Accessibility Improvements */
-@media (max-width: 768px) {
-  /* Focus states */
-  .btn:focus, .form-control:focus, .form-select:focus {
-    outline: 3px solid rgba(102, 126, 234, 0.3) !important;
-    outline-offset: 2px !important;
-  }
-
-  /* High contrast mode support */
-  @media (prefers-contrast: high) {
-    .btn {
-      border: 2px solid !important;
-    }
-    
-    .card {
-      border: 2px solid #333 !important;
-    }
-  }
-
-  /* Reduced motion support */
-  @media (prefers-reduced-motion: reduce) {
-    * {
-      transition: none !important;
-      animation: none !important;
-    }
-  }
-}
-</style>
-<!-- Page Header with Buttons -->
-<div class="page-header">
-  <div class="d-flex justify-content-between align-items-center flex-wrap">
-    <h1 class="page-title mb-3 mb-md-0">
-      <i class="fas fa-question-circle me-3"></i>Questions Management
-    </h1>
-    <div class="d-flex gap-2 flex-wrap">
-      <!-- Import CSV Button -->
-      <button class="btn btn-success" id="import-csv-btn" style="border-radius: 10px; font-weight: 600;">
-        <i class="fas fa-file-upload me-2"></i>Import CSV
-      </button>
-      
-      <!-- Export CSV Button -->
-      <button class="btn btn-info" id="export-csv-btn" style="border-radius: 10px; font-weight: 600;">
-        <i class="fas fa-file-download me-2"></i>Export CSV
-      </button>
-      
-      <!-- Add Question Button -->
-      <a class="btn btn-light me-2" href="{{ url_for('admin.add_question') }}" style="border-radius: 10px; font-weight: 900;">
-        <i class="fas fa-plus me-2"></i>Add Question
-      </a>
-      
-      <!-- Back Button -->
-      <a class="btn btn-outline-light" href="{{ url_for('admin.questions_index') }}" style="border-radius: 10px; font-weight: 600;">
-        <i class="fas fa-list me-2"></i>Back to List
-      </a>
-    </div>
+<!-- Page Top -->
+<div class="page-top">
+  <div>
+    <h1><i class="fas fa-question-circle me-2" style="color:var(--accent)"></i>Questions Management</h1>
+    <p>Manage, batch-add, and bulk-update exam questions.</p>
+  </div>
+  <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+    <button class="btn-flat success" id="import-csv-btn"><i class="fas fa-file-upload me-1"></i>Import CSV</button>
+    <button class="btn-flat secondary" id="export-csv-btn"><i class="fas fa-file-download me-1"></i>Export CSV</button>
+    <button class="btn-flat primary" id="addQuestionBtn" onclick="openAddQuestionModal()">
+      <i class="fas fa-plus me-1"></i>Add Question
+    </button>
+    <a class="btn-flat secondary" href="{{ url_for('admin.questions_index') }}"><i class="fas fa-list me-1"></i>Back to List</a>
   </div>
 </div>
 
-<!-- Enhanced Exam selector -->
-<!-- Enhanced Exam selector with ID display -->
+<!-- Exam Selector -->
 <div class="control-card">
   <form id="exam-select-form" class="row g-3 align-items-end">
     <div class="col-md-8">
-      <label class="form-label fw-bold" style="color: #2d3748;">
-        <i class="fas fa-graduation-cap me-2"></i>Select Exam to Manage
+      <label class="form-label" style="font-size:0.8rem;font-weight:600;color:var(--text-muted)">
+        <i class="fas fa-graduation-cap me-1"></i>Select Exam
       </label>
-      <select id="exam-select" class="form-select" name="exam_id" style="font-weight: 500;">
+      <select id="exam-select" class="form-control" name="exam_id"
+              style="background:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text);border-radius:9px;font-size:0.85rem;color-scheme:dark">
         {% for e in exams %}
-          <option value="{{ e.id }}" 
-                  {% if selected_exam_id == e.id %}selected{% endif %}
-                  data-exam-name="{{ e.name }}">
+          <option value="{{ e.id }}" {% if selected_exam_id == e.id %}selected{% endif %} data-exam-name="{{ e.name }}">
             {{ e.name }} (ID: {{ e.id }})
           </option>
         {% endfor %}
       </select>
     </div>
     <div class="col-md-4">
-      <button id="reload-btn" type="button" class="load-btn w-100">
-        <i class="fas fa-sync-alt me-2"></i>Load Questions
+      <button id="reload-btn" type="button" class="btn-flat primary w-100" style="padding:0.55rem 1rem">
+        <i class="fas fa-sync-alt me-1"></i>Load Questions
       </button>
     </div>
   </form>
-  
-  <!-- Exam Info Display -->
   {% if selected_exam_id %}
-  <div style="
-    margin-top: 15px;
-    padding: 12px 16px;
-    background: linear-gradient(135deg, #f0f4ff 0%, #e6f2ff 100%);
-    border-left: 4px solid #667eea;
-    border-radius: 8px;
-  ">
-    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-      <span style="color: #4a5568; font-weight: 500;">
-        <i class="fas fa-info-circle me-2" style="color: #667eea;"></i>
-        Currently viewing questions for selected exam
-      </span>
-      <span style="
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 0.9rem;
-      ">
-        <i class="fas fa-hashtag me-1"></i>Exam ID: {{ selected_exam_id }}
-      </span>
-    </div>
+  <div class="exam-info-pill">
+    <span><i class="fas fa-info-circle me-1"></i>Viewing questions for selected exam</span>
+    <span class="exam-id-badge"><i class="fas fa-hashtag me-1"></i>Exam ID: {{ selected_exam_id }}</span>
   </div>
   {% endif %}
 </div>
 
-<!-- Search Controls -->
-<div class="search-controls">
-  <div class="row g-3 align-items-center">
-    <div class="col-md-4">
-      <label class="form-label fw-bold" style="color: #2d3748;">
-        <i class="fas fa-search me-2"></i>Search Questions
-      </label>
-      <input type="text" id="search-input" class="search-input" placeholder="Search by question text, ID, or type...">
-    </div>
-    <div class="col-md-3">
-      <label class="form-label fw-bold" style="color: #2d3748;">Filter by Type</label>
-      <select id="type-filter" class="form-select">
-        <option value="">All Types</option>
-        <option value="MCQ">MCQ</option>
-        <option value="MSQ">MSQ</option>
-        <option value="NUMERIC">NUMERIC</option>
-      </select>
-    </div>
-    <div class="col-md-2">
-      <label class="form-label fw-bold" style="color: #2d3748;">Show Images</label>
-      <select id="image-filter" class="form-select">
-        <option value="">All</option>
-        <option value="with">With Images</option>
-        <option value="without">Without Images</option>
-      </select>
-    </div>
-    <div class="col-md-3 d-flex align-items-end gap-2">
-      <button id="clear-filters" class="btn btn-outline-secondary">
-        <i class="fas fa-times me-1"></i>Clear
-      </button>
-    </div>
+<!-- Search & Filter -->
+<div class="search-bar">
+  <div style="flex:1;min-width:200px">
+    <label>Search Questions</label>
+    <input type="text" id="search-input" class="form-control" placeholder="Search by text, ID, type...">
+  </div>
+  <div style="min-width:140px">
+    <label>Filter by Type</label>
+    <select id="type-filter" class="form-select">
+      <option value="">All Types</option>
+      <option value="MCQ">MCQ</option>
+      <option value="MSQ">MSQ</option>
+      <option value="NUMERIC">NUMERIC</option>
+    </select>
+  </div>
+  <div style="min-width:130px">
+    <label>Images</label>
+    <select id="image-filter" class="form-select">
+      <option value="">All</option>
+      <option value="with">With Images</option>
+      <option value="without">Without Images</option>
+    </select>
+  </div>
+  <div>
+    <label>&nbsp;</label>
+    <button id="clear-filters" class="btn-flat secondary" style="display:block">
+      <i class="fas fa-times me-1"></i>Clear
+    </button>
   </div>
 </div>
 
-<!-- Enhanced Questions listing + controls -->
-<div class="card border-0 shadow-lg mb-4">
-  <div class="card-header" style="background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%); border: none;">
-    <div class="d-flex justify-content-between align-items-center">
-      <h4 class="mb-0" style="color: #2d3748; font-weight: 700;">
-        <i class="fas fa-list-alt me-2" style="color: #667eea;"></i>
-        Questions List (<span id="total-count">{{ questions|length }}</span>)
-      </h4>
-      <div class="d-flex gap-2">
-        <button id="delete-selected" class="btn btn-danger">
-          <i class="fas fa-trash me-1"></i>Delete Selected
-        </button>
-        <button id="select-none" class="btn btn-outline-secondary">
-          <i class="fas fa-times me-1"></i>Clear Selection
-        </button>
-      </div>
+<!-- Questions Table -->
+<div class="card">
+  <div class="card-header-flat">
+    <h5><i class="fas fa-list-alt me-2" style="color:var(--accent)"></i>Questions List (<span id="total-count">{{ questions|length }}</span>)</h5>
+    <div style="display:flex;gap:0.4rem">
+      <button id="delete-selected" class="btn-flat danger-btn"><i class="fas fa-trash me-1"></i>Delete Selected</button>
+      <button id="select-none" class="btn-flat secondary"><i class="fas fa-times me-1"></i>Clear Selection</button>
     </div>
   </div>
-  
-  <div class="card-body p-0">
-    <!-- Apply controls for listing -->
-    <div class="selection-controls m-4">
-      <h6 class="mb-3 fw-bold" style="color: #2d3748;">
-        <i class="fas fa-cogs me-2" style="color: #667eea;"></i>Bulk Update Settings
-      </h6>
-      <div class="row g-3 align-items-end">
-        <div class="col-auto">
-          <label class="form-label fw-bold">Question Type</label>
-          <select id="list-type" class="form-select">
-            <option value="MCQ">MCQ</option>
-            <option value="MSQ">MSQ</option>
-            <option value="NUMERIC">NUMERIC</option>
-          </select>
-        </div>
-        <div class="col-auto">
-          <label class="form-label fw-bold">Positive Marks</label>
-          <input id="list-pos" class="form-control" placeholder="e.g. 4">
-        </div>
-        <div class="col-auto">
-          <label class="form-label fw-bold">Negative Marks</label>
-          <input id="list-neg" class="form-control" placeholder="e.g. 1">
-        </div>
-        <div class="col-auto">
-          <label class="form-label fw-bold">Tolerance</label>
-          <input id="list-tol" class="form-control" placeholder="For NUMERIC">
-        </div>
-        <div class="col-auto">
-          <button id="apply-list" class="btn btn-primary">
-            <i class="fas fa-magic me-1"></i>Apply Changes
-          </button>
-        </div>
-      </div>
-    </div>
 
-    <div id="questions-container">
-      {% if questions %}
-        <table class="table enhanced-table mb-0" id="questions-table">
-          <thead>
-            <tr>
-              <th style="width:50px">
-                <input id="select-all" type="checkbox" class="enhanced-checkbox" title="Select all">
-              </th>
-              <th>ID</th>
-              <th>Question</th>
-              <th>Type</th>
-              <th>Image</th>
-              <th>Marks</th>
-              <th style="width:120px">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="questions-tbody">
-            {% for q in questions %}
-              <tr class="question-row" 
-                  data-question-text="{{ q.question_text|lower }}"
-                  data-question-type="{{ q.question_type }}"
-                  data-has-image="{{ 'true' if q.image_path else 'false' }}"
-                  data-question-id="{{ q.id }}">
-                <td>
-                  <input class="row-checkbox enhanced-checkbox" data-id="{{ q.id }}" type="checkbox">
-                </td>
-                <td>
-                  <span class="question-id">{{ q.id }}</span>
-                </td>
-                <td>
-                  <div class="question-text">{{ q.question_text }}</div>
-                </td>
-                <td>
-                  <span class="question-type">{{ q.question_type }}</span>
-                </td>
-                <td>
-                  {% if q.image_path %}
-                    <span class="image-path">{{ q.image_path }}</span>
-                  {% else %}
-                    <span class="text-muted">-</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <span class="marks-info">+{{ q.positive_marks }}/-{{ q.negative_marks }}</span>
-                  {% if q.tolerance %}
-                    <br><small class="text-info fw-bold">(tol: {{ q.tolerance }})</small>
-                  {% endif %}
-                </td>
-                <td class="action-buttons">
-                  <a class="btn btn-warning btn-sm" href="{{ url_for('admin.edit_question', question_id=q.id) }}" title="Edit">
-                    <i class="fas fa-edit"></i>
-                  </a>
-                  <form method="post" action="{{ url_for('admin.delete_question', question_id=q.id) }}" style="display:inline" onsubmit="return confirm('Delete question #{{ q.id }}?');">
-                    <button class="btn btn-danger btn-sm" type="submit" title="Delete">
-                      <i class="fas fa-trash"></i>
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-
-        <!-- Pagination Controls -->
-        <div class="pagination-container">
-          <div class="pagination-controls">
-            <div class="pagination-info">
-              <div class="entries-selector">
-                <label for="entries-per-page" class="fw-bold" style="color: #2d3748;">Show:</label>
-                <select id="entries-per-page">
-                  <option value="5">5</option>
-                  <option value="10" selected>10</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                  <option value="all">All</option>
-                </select>
-                <span class="fw-bold" style="color: #2d3748;">entries</span>
-              </div>
-              <div class="pagination-stats">
-                Showing <span id="start-entry">1</span> to <span id="end-entry">10</span> of <span id="filtered-count">{{ questions|length }}</span> entries
-                <span id="filter-info"></span>
-              </div>
-            </div>
-            
-            <div class="pagination-nav">
-              <button id="first-page" class="pagination-btn">
-                <i class="fas fa-angle-double-left"></i> First
-              </button>
-              <button id="prev-page" class="pagination-btn">
-                <i class="fas fa-angle-left"></i> Previous
-              </button>
-              
-              <div class="page-numbers" id="page-numbers">
-                <!-- Page numbers will be generated by JavaScript -->
-              </div>
-              
-              <button id="next-page" class="pagination-btn">
-                Next <i class="fas fa-angle-right"></i>
-              </button>
-              <button id="last-page" class="pagination-btn">
-                Last <i class="fas fa-angle-double-right"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      {% else %}
-        <div class="p-5 text-center">
-          <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-          <h5 class="text-muted">No questions found for this exam</h5>
-          <p class="text-muted">Start by adding some questions using the "Add Question" button above.</p>
-        </div>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-<!-- Enhanced Batch add panel -->
-<div class="batch-card">
-  <h4 class="batch-header">
-    <i class="fas fa-layer-group me-2" style="color: #667eea;"></i>Batch Add Questions
-  </h4>
-  
-  <div class="batch-description">
-    <i class="fas fa-info-circle me-2"></i>
-    Add multiple questions at once! Create rows below, fill in the details, then click "Add All" to save everything in one operation.
-  </div>
-
-  <div class="batch-controls">
-    <button id="add-row" class="btn btn-success batch-btn">
-      <i class="fas fa-plus me-1"></i>Add Row
-    </button>
-    <button id="clear-rows" class="btn btn-outline-secondary batch-btn">
-      <i class="fas fa-broom me-1"></i>Clear All
-    </button>
-    <button id="batch-submit" class="btn btn-primary batch-btn">
-      <i class="fas fa-upload me-1"></i>Add All Questions
-    <button id="open-latex-editor" class="btn btn-primary batch-btn" aria-label="Open LaTeX editor">
-      <span class="latex-icon" aria-hidden="true">∫</span>
-      Open LaTeX Editor
-    </button>
-  </div>
-
-  <!-- Global apply controls for batch rows -->
-  <div class="apply-controls mb-4">
-    <h6 class="mb-3 fw-bold" style="color: #2d3748;">
-      <i class="fas fa-magic me-2" style="color: #667eea;"></i>Quick Apply Settings
-    </h6>
-    <div class="row g-3 align-items-end">
+  <!-- Bulk Update Settings -->
+  <div class="bulk-settings">
+    <p style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);margin-bottom:0.75rem">
+      <i class="fas fa-cogs me-1" style="color:var(--accent)"></i>Bulk Update Settings
+    </p>
+    <div class="row g-2 align-items-end">
       <div class="col-auto">
-        <label class="form-label fw-bold">Apply to Type</label>
+        <label>Question Type</label>
+        <select id="list-type" class="form-select">
+          <option value="MCQ">MCQ</option>
+          <option value="MSQ">MSQ</option>
+          <option value="NUMERIC">NUMERIC</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <label>Positive Marks</label>
+        <input id="list-pos" class="form-control" placeholder="e.g. 4" style="width:90px">
+      </div>
+      <div class="col-auto">
+        <label>Negative Marks</label>
+        <input id="list-neg" class="form-control" placeholder="e.g. 1" style="width:90px">
+      </div>
+      <div class="col-auto">
+        <label>Tolerance</label>
+        <input id="list-tol" class="form-control" placeholder="NUMERIC" style="width:100px">
+      </div>
+      <div class="col-auto">
+        <button id="apply-list" class="btn-flat primary"><i class="fas fa-magic me-1"></i>Apply Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="questions-container">
+    {% if questions %}
+    <div class="table-responsive">
+      <table class="table mb-0" id="questions-table">
+        <thead>
+          <tr>
+            <th style="width:44px"><input id="select-all" type="checkbox" class="enhanced-checkbox"></th>
+            <th>ID</th>
+            <th>Question</th>
+            <th>Type</th>
+            <th>Image</th>
+            <th>Marks</th>
+            <th style="width:90px">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="questions-tbody">
+          {% for q in questions %}
+          <tr class="question-row"
+              data-question-text="{{ q.question_text|lower }}"
+              data-question-type="{{ q.question_type }}"
+              data-has-image="{{ 'true' if q.image_path else 'false' }}"
+              data-question-id="{{ q.id }}">
+            <td><input class="row-checkbox enhanced-checkbox" data-id="{{ q.id }}" type="checkbox"></td>
+            <td><span class="question-id-badge">{{ q.id }}</span></td>
+            <td><div class="question-text">{{ q.question_text }}</div></td>
+            <td>
+              <span class="question-type-badge {% if q.question_type == 'MCQ' %}type-mcq{% elif q.question_type == 'MSQ' %}type-msq{% else %}type-num{% endif %}">
+                {{ q.question_type }}
+              </span>
+            </td>
+            <td>
+              {% if q.image_path %}
+                <span class="image-pill" title="{{ q.image_path }}">{{ q.image_path }}</span>
+              {% else %}
+                <span style="color:var(--text-muted);font-size:0.78rem">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="marks-badge">
+                <span class="marks-pos">+{{ q.positive_marks }}</span>
+                <span style="color:var(--text-muted)">/</span>
+                <span class="marks-neg">-{{ q.negative_marks }}</span>
+              </span>
+              {% if q.tolerance %}
+                <br><small style="color:var(--text-muted);font-size:0.7rem">tol: {{ q.tolerance }}</small>
+              {% endif %}
+            </td>
+            <td>
+              <div class="action-btns">
+                <button class="icon-btn" title="Edit"
+                        onclick="openEditQuestionModal({{ q.id }})">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button class="icon-btn danger" title="Delete"
+                        onclick="showDeleteQuestionConfirm({{ q.id }}, '{{ q.question_text[:60] | replace("'", "\\'") | replace('"', '') }}')">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-wrap">
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <div class="entries-selector">
+          Show
+          <select id="entries-per-page">
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="all">All</option>
+          </select>
+          entries
+        </div>
+        <div class="pagination-info">
+          Showing <span id="start-entry">1</span>–<span id="end-entry">10</span> of
+          <span id="filtered-count">{{ questions|length }}</span>
+          <span id="filter-info"></span>
+        </div>
+      </div>
+      <div class="page-nav">
+        <button id="first-page" class="page-btn"><i class="fas fa-angle-double-left"></i></button>
+        <button id="prev-page" class="page-btn"><i class="fas fa-angle-left"></i></button>
+        <div id="page-numbers" style="display:flex;gap:0.3rem"></div>
+        <button id="next-page" class="page-btn"><i class="fas fa-angle-right"></i></button>
+        <button id="last-page" class="page-btn"><i class="fas fa-angle-double-right"></i></button>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <i class="fas fa-inbox"></i>
+      <p>No questions found for this exam.</p>
+      <button class="btn-flat primary" onclick="openAddQuestionModal()"><i class="fas fa-plus me-1"></i>Add Question</button>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Batch Add Panel -->
+<div class="batch-card">
+  <h5><i class="fas fa-layer-group me-2" style="color:var(--accent)"></i>Batch Add Questions</h5>
+  <div class="batch-desc">
+    <i class="fas fa-info-circle me-1"></i>
+    Add multiple questions at once. Create rows, fill in details, then click "Add All".
+  </div>
+
+  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem">
+    <button id="add-row" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Add Row</button>
+    <button id="clear-rows" class="btn btn-secondary btn-sm"><i class="fas fa-broom me-1"></i>Clear All</button>
+    <button id="batch-submit" class="btn btn-primary btn-sm"><i class="fas fa-upload me-1"></i>Add All Questions</button>
+    <button id="open-latex-editor" class="btn btn-secondary btn-sm"><span style="font-size:1rem">∫</span> LaTeX Editor</button>
+  </div>
+
+  <!-- Quick Apply -->
+  <div class="quick-apply">
+    <p style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);margin-bottom:0.75rem">
+      <i class="fas fa-magic me-1" style="color:var(--accent)"></i>Quick Apply to Rows
+    </p>
+    <div class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label>Apply to Type</label>
         <select id="global-type" class="form-select">
           <option value="MCQ">MCQ</option>
           <option value="MSQ">MSQ</option>
@@ -1294,336 +507,445 @@
         </select>
       </div>
       <div class="col-auto">
-        <label class="form-label fw-bold">Positive Marks</label>
-        <input id="global-pos" class="form-control" placeholder="e.g. 4">
+        <label>Positive Marks</label>
+        <input id="global-pos" class="form-control" placeholder="e.g. 4" style="width:90px">
       </div>
       <div class="col-auto">
-        <label class="form-label fw-bold">Negative Marks</label>
-        <input id="global-neg" class="form-control" placeholder="e.g. 1">
+        <label>Negative Marks</label>
+        <input id="global-neg" class="form-control" placeholder="e.g. 1" style="width:90px">
       </div>
       <div class="col-auto">
-        <label class="form-label fw-bold">Tolerance</label>
-        <input id="global-tol" class="form-control" placeholder="For NUMERIC">
+        <label>Tolerance</label>
+        <input id="global-tol" class="form-control" placeholder="NUMERIC" style="width:100px">
       </div>
       <div class="col-auto">
-        <button id="apply-global" class="btn btn-outline-primary">
-          <i class="fas fa-wand-magic-sparkles me-1"></i>Apply to Rows
+        <button id="apply-global" class="btn-flat secondary"><i class="fas fa-wand-magic-sparkles me-1"></i>Apply to Rows</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="batch-rows"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     ADD / EDIT QUESTION MODAL
+     ═══════════════════════════════════════════════ -->
+<div class="modal fade" id="questionFormModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" id="qModalHeader">
+        <h5 class="modal-title" id="qModalTitle"><i class="fas fa-plus-circle me-2"></i>Add Question</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="qModalForm" novalidate>
+          <input type="hidden" id="qModalQuestionId" value="">
+
+          <!-- Basic Info -->
+          <div class="modal-section-title"><i class="fas fa-cog"></i>Basic Information</div>
+          <div class="mb-3">
+            <label class="form-label">Select Exam <span style="color:#ef4444">*</span></label>
+            <select name="exam_id" id="qf-exam-id" class="form-select" required>
+              <option value="" disabled selected>Choose an exam...</option>
+              {% for e in exams %}
+              <option value="{{ e.id }}">{{ e.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Question Content -->
+          <div class="modal-section-title"><i class="fas fa-question-circle"></i>Question Content</div>
+          <div class="mb-3">
+            <label class="form-label">Question Text <span style="color:#ef4444">*</span></label>
+            <textarea name="question_text" id="qf-question-text" class="form-control" rows="3"
+                      placeholder="Enter your question here..." required></textarea>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Option A</label>
+              <textarea name="option_a" id="qf-option-a" class="form-control" rows="2" placeholder="Option A..."></textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Option B</label>
+              <textarea name="option_b" id="qf-option-b" class="form-control" rows="2" placeholder="Option B..."></textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Option C</label>
+              <textarea name="option_c" id="qf-option-c" class="form-control" rows="2" placeholder="Option C..."></textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Option D</label>
+              <textarea name="option_d" id="qf-option-d" class="form-control" rows="2" placeholder="Option D..."></textarea>
+            </div>
+          </div>
+
+          <!-- Answer & Settings -->
+          <div class="modal-section-title"><i class="fas fa-check-circle" style="color:#10b981"></i>Answer &amp; Settings</div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">Correct Answer <span style="color:#ef4444">*</span></label>
+              <input name="correct_answer" id="qf-correct-answer" class="form-control"
+                     placeholder="e.g. A, B, C, D or numeric" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Question Type</label>
+              <select name="question_type" id="qf-question-type" class="form-select">
+                <option value="MCQ">Multiple Choice (MCQ)</option>
+                <option value="MSQ">Multiple Select (MSQ)</option>
+                <option value="NUMERIC">Numerical Answer</option>
+              </select>
+            </div>
+            <div class="col-md-4" id="qf-tolerance-wrap">
+              <label class="form-label">Tolerance <span style="font-weight:400;color:var(--text-muted)">(NUMERIC)</span></label>
+              <input name="tolerance" id="qf-tolerance" class="form-control" placeholder="e.g. 0.1">
+            </div>
+          </div>
+
+          <!-- Scoring & Media -->
+          <div class="modal-section-title"><i class="fas fa-star" style="color:#f59e0b"></i>Scoring &amp; Media</div>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label">Positive Marks</label>
+              <input name="positive_marks" id="qf-positive-marks" class="form-control" placeholder="e.g. 4" value="4">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Negative Marks</label>
+              <input name="negative_marks" id="qf-negative-marks" class="form-control" placeholder="e.g. 1" value="1">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Image Path <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+              <input name="image_path" id="qf-image-path" class="form-control" placeholder="e.g. physics/ph-1.png">
+              <div class="form-hint"><i class="fas fa-info-circle"></i> Format: SubjectName/filename.ext</div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;align-items:center">
+        <span id="qModalError" style="color:#ef4444;font-size:0.82rem;display:none"></span>
+        <div style="display:flex;gap:0.5rem;margin-left:auto">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" id="qModalSaveBtn" onclick="submitQuestionModal()">
+            <i class="fas fa-save me-1"></i>Save Question
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Question Modal -->
+<div class="modal fade" id="deleteQuestionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#ef4444;border-radius:14px 14px 0 0">
+        <h5 class="modal-title" style="color:white"><i class="fas fa-trash me-2"></i>Delete Question</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:brightness(0) invert(1)"></button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:0.5rem">You are about to delete:</p>
+        <p id="questionTextToDelete" style="color:#ef4444;font-weight:700;font-size:0.88rem;margin-bottom:1rem;word-break:break-word"></p>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.75rem">
+          <p style="color:#ef4444;font-weight:600;font-size:0.82rem;margin:0 0 0.4rem">This will permanently delete:</p>
+          <ul style="color:var(--text-secondary);font-size:0.8rem;margin:0;padding-left:1.2rem">
+            <li>The question and all its options</li>
+            <li>All student responses for this question</li>
+            <li>All discussion messages for this question</li>
+          </ul>
+        </div>
+        <p style="color:var(--text-muted);font-size:0.76rem;margin:0;text-align:center">
+          <i class="fas fa-exclamation-circle me-1"></i>This action cannot be undone.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" id="confirmQuestionDeleteBtn">
+          <i class="fas fa-trash me-1"></i>Delete Question
         </button>
       </div>
     </div>
   </div>
-  <div id="batch-rows"></div>
+</div>
+
+<!-- Toast notification -->
+<div id="qToast"><i class="fas fa-check-circle"></i><span id="qToastMsg"></span></div>
+
+<!-- ── Shared utility modals (info / confirm) ─────────────────────── -->
+<!-- Info/Alert Modal -->
+<div class="modal fade" id="qInfoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:440px">
+    <div class="modal-content">
+      <div class="modal-header" id="qInfoModalHeader">
+        <h5 class="modal-title" id="qInfoModalTitle"><i class="fas fa-info-circle me-2"></i>Notice</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="qInfoModalBody" style="color:var(--text-secondary);font-size:0.88rem;margin:0;line-height:1.6"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal">
+          <i class="fas fa-check me-1"></i>OK
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal fade" id="qConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px">
+    <div class="modal-content">
+      <div class="modal-header" id="qConfirmModalHeader">
+        <h5 class="modal-title" id="qConfirmModalTitle"><i class="fas fa-question-circle me-2"></i>Confirm</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="qConfirmModalBody" style="color:var(--text-secondary);font-size:0.88rem;margin:0;line-height:1.6"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" id="qConfirmModalOkBtn">
+          <i class="fas fa-check me-1"></i><span id="qConfirmModalOkLabel">Confirm</span>
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
 (function(){
-  // Pagination variables
-  let currentPage = 1;
+
+  /* ── Modal helpers (replace all alert/confirm) ── */
+  function showInfo(title, message, isError) {
+    const header  = document.getElementById('qInfoModalHeader');
+    const titleEl = document.getElementById('qInfoModalTitle');
+    const bodyEl  = document.getElementById('qInfoModalBody');
+    const closeBtn = document.querySelector('#qInfoModal .btn-close');
+    header.style.background = isError ? 'linear-gradient(135deg,#ef4444,#dc2626)' : '';
+    titleEl.style.color     = isError ? 'white' : '';
+    if (closeBtn) closeBtn.style.filter = isError ? 'brightness(0) invert(1)' : '';
+    titleEl.innerHTML = isError
+      ? '<i class="fas fa-exclamation-circle me-2"></i>' + title
+      : '<i class="fas fa-info-circle me-2"></i>' + title;
+    bodyEl.innerHTML = message;
+    new bootstrap.Modal(document.getElementById('qInfoModal')).show();
+  }
+
+  function showConfirmModal(title, message, okLabel, isDanger, onConfirm) {
+    const header  = document.getElementById('qConfirmModalHeader');
+    const titleEl = document.getElementById('qConfirmModalTitle');
+    const bodyEl  = document.getElementById('qConfirmModalBody');
+    const closeBtn = document.querySelector('#qConfirmModal .btn-close');
+
+    header.style.background = isDanger ? 'linear-gradient(135deg,#ef4444,#dc2626)' : '';
+    titleEl.style.color     = isDanger ? 'white' : '';
+    if (closeBtn) closeBtn.style.filter = isDanger ? 'brightness(0) invert(1)' : '';
+    titleEl.innerHTML = isDanger
+      ? '<i class="fas fa-exclamation-triangle me-2"></i>' + title
+      : '<i class="fas fa-question-circle me-2"></i>' + title;
+    bodyEl.innerHTML = message;
+
+    /* Replace the OK button with a fresh clone to wipe all stale listeners */
+    const oldBtn = document.getElementById('qConfirmModalOkBtn');
+    const fresh  = oldBtn.cloneNode(false); // shallow clone — no children
+    fresh.id        = 'qConfirmModalOkBtn';
+    fresh.className = isDanger ? 'btn btn-danger btn-sm' : 'btn btn-primary btn-sm';
+    fresh.innerHTML = '<i class="fas fa-check me-1"></i>' + okLabel;
+    oldBtn.replaceWith(fresh);
+
+    const modal = new bootstrap.Modal(document.getElementById('qConfirmModal'));
+    fresh.addEventListener('click', function() {
+      modal.hide();
+      onConfirm();
+    });
+    modal.show();
+  }
+
+  /* ── Pagination ── */
+  let currentPage  = 1;
   let itemsPerPage = 10;
   let filteredRows = [];
-  let allRows = [];
-  
-  // Initialize pagination
+  let allRows      = [];
+
   function initializePagination() {
-    allRows = Array.from(document.querySelectorAll('.question-row'));
+    allRows      = Array.from(document.querySelectorAll('.question-row'));
     filteredRows = [...allRows];
     updatePagination();
   }
 
-  // Search and filter functionality
   function applyFilters() {
-    const searchTerm = document.getElementById('search-input').value.toLowerCase();
-    const typeFilter = document.getElementById('type-filter').value;
+    const searchTerm  = document.getElementById('search-input').value.toLowerCase();
+    const typeFilter  = document.getElementById('type-filter').value;
     const imageFilter = document.getElementById('image-filter').value;
-    
     filteredRows = allRows.filter(row => {
-      const questionText = row.dataset.questionText;
-      const questionId = row.dataset.questionId;
-      const questionType = row.dataset.questionType;
-      const hasImage = row.dataset.hasImage === 'true';
-      
-      // Search filter
-      const matchesSearch = !searchTerm || 
-        questionText.includes(searchTerm) || 
-        questionId.includes(searchTerm) ||
-        questionType.toLowerCase().includes(searchTerm);
-      
-      // Type filter
-      const matchesType = !typeFilter || questionType === typeFilter;
-      
-      // Image filter
-      let matchesImage = true;
-      if (imageFilter === 'with') matchesImage = hasImage;
+      const matchesSearch = !searchTerm ||
+        row.dataset.questionText.includes(searchTerm) ||
+        row.dataset.questionId.includes(searchTerm) ||
+        row.dataset.questionType.toLowerCase().includes(searchTerm);
+      const matchesType  = !typeFilter  || row.dataset.questionType === typeFilter;
+      const hasImage     = row.dataset.hasImage === 'true';
+      let   matchesImage = true;
+      if (imageFilter === 'with')    matchesImage = hasImage;
       else if (imageFilter === 'without') matchesImage = !hasImage;
-      
       return matchesSearch && matchesType && matchesImage;
     });
-    
     currentPage = 1;
     updatePagination();
     updateFilterInfo();
   }
 
   function updateFilterInfo() {
-    const filterInfo = document.getElementById('filter-info');
-    const totalCount = document.getElementById('total-count');
-    const filteredCount = document.getElementById('filtered-count');
-    
-    totalCount.textContent = allRows.length;
-    filteredCount.textContent = filteredRows.length;
-    
-    if (filteredRows.length < allRows.length) {
-      filterInfo.textContent = ` (filtered from ${allRows.length} total)`;
-    } else {
-      filterInfo.textContent = '';
-    }
+    const totalCount   = document.getElementById('total-count');
+    const filteredCount= document.getElementById('filtered-count');
+    const filterInfo   = document.getElementById('filter-info');
+    if (totalCount)    totalCount.textContent    = allRows.length;
+    if (filteredCount) filteredCount.textContent = filteredRows.length;
+    if (filterInfo)    filterInfo.textContent    = filteredRows.length < allRows.length ? ` (filtered from ${allRows.length})` : '';
   }
 
   function updatePagination() {
     const totalItems = filteredRows.length;
     const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(totalItems / itemsPerPage);
-    
-    // Update pagination stats
     let startEntry, endEntry;
-    if (itemsPerPage === 'all') {
-      startEntry = totalItems > 0 ? 1 : 0;
-      endEntry = totalItems;
-    } else {
+    if (itemsPerPage === 'all') { startEntry = totalItems > 0 ? 1 : 0; endEntry = totalItems; }
+    else {
       startEntry = totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
-      endEntry = Math.min(currentPage * itemsPerPage, totalItems);
+      endEntry   = Math.min(currentPage * itemsPerPage, totalItems);
     }
-    
-    document.getElementById('start-entry').textContent = startEntry;
-    document.getElementById('end-entry').textContent = endEntry;
-    
-    // Show/hide rows
+    const s = document.getElementById('start-entry');
+    const e = document.getElementById('end-entry');
+    if (s) s.textContent = startEntry;
+    if (e) e.textContent = endEntry;
     allRows.forEach(row => row.style.display = 'none');
-    
-    if (itemsPerPage === 'all') {
-      filteredRows.forEach(row => row.style.display = '');
-    } else {
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const endIndex = startIndex + itemsPerPage;
-      filteredRows.slice(startIndex, endIndex).forEach(row => row.style.display = '');
+    if (itemsPerPage === 'all') { filteredRows.forEach(row => row.style.display = ''); }
+    else {
+      const si = (currentPage - 1) * itemsPerPage;
+      filteredRows.slice(si, si + itemsPerPage).forEach(row => row.style.display = '');
     }
-    
-    // Update navigation buttons
     const firstBtn = document.getElementById('first-page');
-    const prevBtn = document.getElementById('prev-page');
-    const nextBtn = document.getElementById('next-page');
-    const lastBtn = document.getElementById('last-page');
-    
-    firstBtn.disabled = currentPage === 1 || itemsPerPage === 'all';
-    prevBtn.disabled = currentPage === 1 || itemsPerPage === 'all';
-    nextBtn.disabled = currentPage === totalPages || itemsPerPage === 'all';
-    lastBtn.disabled = currentPage === totalPages || itemsPerPage === 'all';
-    
-    firstBtn.classList.toggle('disabled', firstBtn.disabled);
-    prevBtn.classList.toggle('disabled', prevBtn.disabled);
-    nextBtn.classList.toggle('disabled', nextBtn.disabled);
-    lastBtn.classList.toggle('disabled', lastBtn.disabled);
-    
-    // Generate page numbers
+    const prevBtn  = document.getElementById('prev-page');
+    const nextBtn  = document.getElementById('next-page');
+    const lastBtn  = document.getElementById('last-page');
+    if (firstBtn) firstBtn.disabled = currentPage === 1 || itemsPerPage === 'all';
+    if (prevBtn)  prevBtn.disabled  = currentPage === 1 || itemsPerPage === 'all';
+    if (nextBtn)  nextBtn.disabled  = currentPage === totalPages || itemsPerPage === 'all';
+    if (lastBtn)  lastBtn.disabled  = currentPage === totalPages || itemsPerPage === 'all';
     generatePageNumbers(totalPages);
   }
 
   function generatePageNumbers(totalPages) {
-    const pageNumbersContainer = document.getElementById('page-numbers');
-    pageNumbersContainer.innerHTML = '';
-    
-    if (itemsPerPage === 'all' || totalPages <= 1) {
-      return;
-    }
-    
-    const maxVisiblePages = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-    
-    // Adjust startPage if we're near the end
-    if (endPage - startPage < maxVisiblePages - 1) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-    
-    // Add ellipsis and first page if needed
-    if (startPage > 1) {
-      addPageButton(1);
-      if (startPage > 2) {
-        const ellipsis = document.createElement('span');
-        ellipsis.textContent = '...';
-        ellipsis.className = 'pagination-ellipsis';
-        ellipsis.style.padding = '10px 8px';
-        ellipsis.style.color = '#64748b';
-        pageNumbersContainer.appendChild(ellipsis);
-      }
-    }
-    
-    // Add visible page numbers
-    for (let i = startPage; i <= endPage; i++) {
-      addPageButton(i);
-    }
-    
-    // Add ellipsis and last page if needed
-    if (endPage < totalPages) {
-      if (endPage < totalPages - 1) {
-        const ellipsis = document.createElement('span');
-        ellipsis.textContent = '...';
-        ellipsis.className = 'pagination-ellipsis';
-        ellipsis.style.padding = '10px 8px';
-        ellipsis.style.color = '#64748b';
-        pageNumbersContainer.appendChild(ellipsis);
-      }
-      addPageButton(totalPages);
-    }
+    const container = document.getElementById('page-numbers');
+    if (!container) return;
+    container.innerHTML = '';
+    if (itemsPerPage === 'all' || totalPages <= 1) return;
+    const max = 5;
+    let start = Math.max(1, currentPage - Math.floor(max / 2));
+    let end   = Math.min(totalPages, start + max - 1);
+    if (end - start < max - 1) start = Math.max(1, end - max + 1);
+    if (start > 1) { addPageBtn(container, 1); if (start > 2) addEllipsis(container); }
+    for (let i = start; i <= end; i++) addPageBtn(container, i);
+    if (end < totalPages) { if (end < totalPages - 1) addEllipsis(container); addPageBtn(container, totalPages); }
   }
 
-  function addPageButton(pageNum) {
-    const pageBtn = document.createElement('button');
-    pageBtn.textContent = pageNum;
-    pageBtn.className = 'pagination-btn';
-    pageBtn.style.minWidth = '40px';
-    
-    if (pageNum === currentPage) {
-      pageBtn.classList.add('active');
-    }
-    
-    pageBtn.addEventListener('click', () => {
-      currentPage = pageNum;
-      updatePagination();
-    });
-    
-    document.getElementById('page-numbers').appendChild(pageBtn);
+  function addEllipsis(container) {
+    const span = document.createElement('span');
+    span.textContent = '…';
+    span.style.cssText = 'padding:0 4px;color:var(--text-muted);font-size:0.82rem;align-self:center';
+    container.appendChild(span);
   }
 
-  // Event listeners
-  document.getElementById('search-input').addEventListener('input', applyFilters);
-  document.getElementById('type-filter').addEventListener('change', applyFilters);
-  document.getElementById('image-filter').addEventListener('change', applyFilters);
-  
-  document.getElementById('clear-filters').addEventListener('click', () => {
-    document.getElementById('search-input').value = '';
-    document.getElementById('type-filter').value = '';
-    document.getElementById('image-filter').value = '';
+  function addPageBtn(container, num) {
+    const btn = document.createElement('button');
+    btn.textContent = num;
+    btn.className   = 'page-btn' + (num === currentPage ? ' active' : '');
+    btn.addEventListener('click', () => { currentPage = num; updatePagination(); });
+    container.appendChild(btn);
+  }
+
+  const searchInput  = document.getElementById('search-input');
+  const typeFilter   = document.getElementById('type-filter');
+  const imageFilter  = document.getElementById('image-filter');
+  const clearFilters = document.getElementById('clear-filters');
+  const entriesSelect= document.getElementById('entries-per-page');
+  const firstBtn     = document.getElementById('first-page');
+  const prevBtn      = document.getElementById('prev-page');
+  const nextBtn      = document.getElementById('next-page');
+  const lastBtn      = document.getElementById('last-page');
+
+  if (searchInput)   searchInput.addEventListener('input',  applyFilters);
+  if (typeFilter)    typeFilter.addEventListener('change',  applyFilters);
+  if (imageFilter)   imageFilter.addEventListener('change', applyFilters);
+  if (clearFilters)  clearFilters.addEventListener('click', () => {
+    if (searchInput)  searchInput.value = '';
+    if (typeFilter)   typeFilter.value  = '';
+    if (imageFilter)  imageFilter.value = '';
     applyFilters();
   });
-
-  document.getElementById('entries-per-page').addEventListener('change', (e) => {
-    itemsPerPage = e.target.value === 'all' ? 'all' : parseInt(e.target.value);
-    currentPage = 1;
-    updatePagination();
+  if (entriesSelect) entriesSelect.addEventListener('change', (ev) => {
+    itemsPerPage = ev.target.value === 'all' ? 'all' : parseInt(ev.target.value);
+    currentPage  = 1; updatePagination();
+  });
+  if (firstBtn) firstBtn.addEventListener('click', () => { currentPage = 1; updatePagination(); });
+  if (prevBtn)  prevBtn.addEventListener('click',  () => { if (currentPage > 1) { currentPage--; updatePagination(); } });
+  if (nextBtn)  nextBtn.addEventListener('click',  () => {
+    const tp = Math.ceil(filteredRows.length / itemsPerPage);
+    if (currentPage < tp) { currentPage++; updatePagination(); }
+  });
+  if (lastBtn)  lastBtn.addEventListener('click',  () => {
+    currentPage = Math.ceil(filteredRows.length / itemsPerPage); updatePagination();
   });
 
-  // Navigation button event listeners
-  document.getElementById('first-page').addEventListener('click', () => {
-    currentPage = 1;
-    updatePagination();
-  });
+  if (document.querySelectorAll('.question-row').length > 0) initializePagination();
 
-  document.getElementById('prev-page').addEventListener('click', () => {
-    if (currentPage > 1) {
-      currentPage--;
-      updatePagination();
-    }
-  });
-
-  document.getElementById('next-page').addEventListener('click', () => {
-    const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
-    if (currentPage < totalPages) {
-      currentPage++;
-      updatePagination();
-    }
-  });
-
-  document.getElementById('last-page').addEventListener('click', () => {
-    const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
-    currentPage = totalPages;
-    updatePagination();
-  });
-
-  // Initialize pagination on page load
-  if (document.querySelectorAll('.question-row').length > 0) {
-    initializePagination();
-  }
-
-  // Exam select + reload
   const examSelect = document.getElementById('exam-select');
-  const reloadBtn = document.getElementById('reload-btn');
-  reloadBtn.addEventListener('click', () => {
+  const reloadBtn  = document.getElementById('reload-btn');
+  if (reloadBtn) reloadBtn.addEventListener('click', () => {
     const id = examSelect.value;
-    reloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
+    reloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Loading...';
     window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(id);
   });
 
-  // ---------------- Batch UI ----------------
-  const addRowBtn = document.getElementById('add-row');
+  /* ── Batch UI ── */
+  const addRowBtn    = document.getElementById('add-row');
   const clearRowsBtn = document.getElementById('clear-rows');
-  const rowsDiv = document.getElementById('batch-rows');
-  const submitBtn = document.getElementById('batch-submit');
+  const rowsDiv      = document.getElementById('batch-rows');
+  const submitBtn    = document.getElementById('batch-submit');
 
   function makeRow() {
-    const idx = Date.now().toString(36).slice(-6);
     const div = document.createElement('div');
-    div.className = 'batch-row';
-    div.dataset.idx = idx;
+    div.className = 'batch-row-item';
     div.innerHTML = `
-      <div class="row g-3 align-items-center">
+      <div class="row g-2 align-items-start">
         <div class="col-md-6">
-          <label class="form-label fw-bold">Question Text</label>
-          <textarea class="form-control q-text" placeholder="Enter your question here..." rows="3"></textarea>
+          <label>Question Text</label>
+          <textarea class="form-control q-text" placeholder="Enter question..." rows="3"></textarea>
         </div>
         <div class="col-md-6">
           <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label fw-bold">Option A</label>
-              <textarea class="form-control q-a" placeholder="Option A" rows="1"></textarea>
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-bold">Option B</label>
-              <textarea class="form-control q-b" placeholder="Option B" rows="1"></textarea>
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-bold">Option C</label>
-              <textarea class="form-control q-c" placeholder="Option C" rows="1"></textarea>
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-bold">Option D</label>
-              <textarea class="form-control q-d" placeholder="Option D" rows="1"></textarea>
-            </div>
+            <div class="col-6"><label>Option A</label><textarea class="form-control q-a" rows="1" placeholder="Option A"></textarea></div>
+            <div class="col-6"><label>Option B</label><textarea class="form-control q-b" rows="1" placeholder="Option B"></textarea></div>
+            <div class="col-6"><label>Option C</label><textarea class="form-control q-c" rows="1" placeholder="Option C"></textarea></div>
+            <div class="col-6"><label>Option D</label><textarea class="form-control q-d" rows="1" placeholder="Option D"></textarea></div>
           </div>
         </div>
       </div>
-      
-      <div class="row g-3 align-items-center mt-3">
+      <div class="row g-2 align-items-end mt-1">
+        <div class="col-md-2"><label>Correct Ans</label><input class="form-control q-corr" placeholder="A/B/C/D"></div>
         <div class="col-md-2">
-          <label class="form-label fw-bold">Correct Answer</label>
-          <input class="form-control q-corr" placeholder="A/B/C/D">
-        </div>
-        <div class="col-md-2">
-          <label class="form-label fw-bold">Type</label>
+          <label>Type</label>
           <select class="form-select q-type">
             <option value="MCQ">MCQ</option>
             <option value="MSQ">MSQ</option>
             <option value="NUMERIC">NUMERIC</option>
           </select>
         </div>
-        <div class="col-md-3">
-          <label class="form-label fw-bold">Image Path</label>
-          <input class="form-control q-img" placeholder="e.g. physics/ph-1.png">
-        </div>
+        <div class="col-md-3"><label>Image Path</label><input class="form-control q-img" placeholder="e.g. physics/q1.png"></div>
+        <div class="col-md-1"><label>Pos.</label><input class="form-control q-pos" placeholder="4" value="4"></div>
+        <div class="col-md-1"><label>Neg.</label><input class="form-control q-neg" placeholder="1" value="1"></div>
+        <div class="col-md-2"><label>Tolerance</label><input class="form-control q-tol" placeholder="NUMERIC"></div>
         <div class="col-md-1">
-          <label class="form-label fw-bold">Pos.</label>
-          <input class="form-control q-pos" placeholder="4" value="4">
-        </div>
-        <div class="col-md-1">
-          <label class="form-label fw-bold">Neg.</label>
-          <input class="form-control q-neg" placeholder="1" value="1">
-        </div>
-        <div class="col-md-2">
-          <label class="form-label fw-bold">Tolerance</label>
-          <input class="form-control q-tol" placeholder="For NUMERIC">
-        </div>
-        <div class="col-md-1">
-          <label class="form-label fw-bold">&nbsp;</label>
-          <button type="button" class="btn btn-danger w-100 remove-row">
+          <label>&nbsp;</label>
+          <button type="button" class="btn btn-secondary btn-sm w-100 remove-row" style="display:block">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -1633,1023 +955,543 @@
     return div;
   }
 
-  addRowBtn.addEventListener('click', (e) => {
-    e.preventDefault();
+  if (addRowBtn) addRowBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
     rowsDiv.appendChild(makeRow());
-    // scroll the new row into view for usability
-    setTimeout(()=> {
-      const last = rowsDiv.querySelector('.batch-row:last-child');
-      if (last) last.scrollIntoView({behavior: 'smooth', block: 'center'});
+    setTimeout(() => {
+      const last = rowsDiv.querySelector('.batch-row-item:last-child');
+      if (last) last.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 50);
   });
 
-  clearRowsBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (!confirm('Clear all batch rows?')) return;
-    rowsDiv.innerHTML = '';
+  if (clearRowsBtn) clearRowsBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    if (rowsDiv.children.length === 0) return;
+    showConfirmModal(
+      'Clear All Rows',
+      'This will remove all unsaved batch rows. This action cannot be undone.',
+      'Clear All',
+      true,
+      () => { rowsDiv.innerHTML = ''; }
+    );
   });
 
-  // Apply global marks/tolerance to rows of selected type
   const applyGlobalBtn = document.getElementById('apply-global');
-  applyGlobalBtn.addEventListener('click', (e) => {
-    e.preventDefault();
+  if (applyGlobalBtn) applyGlobalBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
     const selType = document.getElementById('global-type').value;
     const pos = document.getElementById('global-pos').value.trim();
     const neg = document.getElementById('global-neg').value.trim();
     const tol = document.getElementById('global-tol').value.trim();
-
-    const rows = Array.from(rowsDiv.querySelectorAll('.batch-row'));
-    rows.forEach(r => {
-      const t = r.querySelector('.q-type').value;
-      if (t === selType) {
-        if (pos !== '') r.querySelector('.q-pos').value = pos;
-        if (neg !== '') r.querySelector('.q-neg').value = neg;
-        if (tol !== '') r.querySelector('.q-tol').value = tol;
+    Array.from(rowsDiv.querySelectorAll('.batch-row-item')).forEach(r => {
+      if (r.querySelector('.q-type').value === selType) {
+        if (pos) r.querySelector('.q-pos').value = pos;
+        if (neg) r.querySelector('.q-neg').value = neg;
+        if (tol) r.querySelector('.q-tol').value = tol;
       }
     });
     applyGlobalBtn.innerHTML = '<i class="fas fa-check me-1"></i>Applied ✓';
-    setTimeout(()=> applyGlobalBtn.innerHTML = '<i class="fas fa-wand-magic-sparkles me-1"></i>Apply to Rows', 1500);
+    setTimeout(() => applyGlobalBtn.innerHTML = '<i class="fas fa-wand-magic-sparkles me-1"></i>Apply to Rows', 1500);
   });
 
-  submitBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
+  if (submitBtn) submitBtn.addEventListener('click', async (ev) => {
+    ev.preventDefault();
     const exam_id = examSelect.value;
-    if (!exam_id) { alert('Pick an exam first'); return; }
-
-    const rows = Array.from(rowsDiv.querySelectorAll('.batch-row'));
-    if (rows.length === 0) { alert('No rows to add'); return; }
-
-    const payload = { exam_id: parseInt(exam_id,10), questions: [] };
+    if (!exam_id) {
+      showInfo('No Exam Selected', 'Please select an exam before adding questions.');
+      return;
+    }
+    const rows = Array.from(rowsDiv.querySelectorAll('.batch-row-item'));
+    if (rows.length === 0) {
+      showInfo('No Rows', 'Please add at least one question row first.');
+      return;
+    }
+    const payload = { exam_id: parseInt(exam_id, 10), questions: [] };
     for (const r of rows) {
       const q = {
-        question_text: (r.querySelector('.q-text')?.value || '').trim(),
-        option_a: (r.querySelector('.q-a')?.value || '').trim(),
-        option_b: (r.querySelector('.q-b')?.value || '').trim(),
-        option_c: (r.querySelector('.q-c')?.value || '').trim(),
-        option_d: (r.querySelector('.q-d')?.value || '').trim(),
-        correct_answer: (r.querySelector('.q-corr')?.value || '').trim(),
-        question_type: (r.querySelector('.q-type')?.value || 'MCQ'),
-        image_path: (r.querySelector('.q-img')?.value || '').trim(),
-        positive_marks: (r.querySelector('.q-pos')?.value || '4').toString(),
-        negative_marks: (r.querySelector('.q-neg')?.value || '1').toString(),
-        tolerance: (r.querySelector('.q-tol')?.value || '').toString()
+        question_text:  (r.querySelector('.q-text')?.value  || '').trim(),
+        option_a:       (r.querySelector('.q-a')?.value     || '').trim(),
+        option_b:       (r.querySelector('.q-b')?.value     || '').trim(),
+        option_c:       (r.querySelector('.q-c')?.value     || '').trim(),
+        option_d:       (r.querySelector('.q-d')?.value     || '').trim(),
+        correct_answer: (r.querySelector('.q-corr')?.value  || '').trim(),
+        question_type:  (r.querySelector('.q-type')?.value  || 'MCQ'),
+        image_path:     (r.querySelector('.q-img')?.value   || '').trim(),
+        positive_marks: (r.querySelector('.q-pos')?.value   || '4').toString(),
+        negative_marks: (r.querySelector('.q-neg')?.value   || '1').toString(),
+        tolerance:      (r.querySelector('.q-tol')?.value   || '').toString()
       };
-      // require at least question_text or at least one option to avoid blank rows
-      if (!q.question_text && !q.option_a && !q.option_b && !q.option_c && !q.option_d) continue;
+      if (!q.question_text && !q.option_a && !q.option_b) continue;
       payload.questions.push(q);
     }
-
-    if (payload.questions.length === 0) { alert('No valid question rows'); return; }
-
-    submitBtn.disabled = true;
-    const previousText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding Questions...';
+    if (payload.questions.length === 0) {
+      showInfo('No Valid Rows', 'No rows had enough data to add. Please fill in at least the question text.');
+      return;
+    }
+    submitBtn.disabled  = true;
+    const prev = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding...';
     try {
       const resp = await fetch("{{ url_for('admin.questions_batch_add') }}", {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
       const data = await resp.json();
       if (!data.success) {
-        alert('Batch add failed: ' + (data.message || 'Unknown'));
+        showInfo('Batch Add Failed', data.message || 'An unknown error occurred.', true);
       } else {
-        alert(`Successfully added ${data.added} question(s)! Reloading page...`);
-        window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(exam_id);
+        showInfo('Success', `Successfully added <strong>${data.added}</strong> question(s). The page will reload shortly.`);
+        setTimeout(() => {
+          window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(exam_id);
+        }, 1800);
       }
     } catch (err) {
-      alert('Unexpected error: ' + err);
-      console.error(err);
+      showInfo('Error', 'A network error occurred: ' + err.message, true);
     } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = previousText;
+      submitBtn.disabled  = false;
+      submitBtn.innerHTML = prev;
     }
   });
 
-  // ---------------- Multi-delete & selection ----------------
-  const selectAll = document.getElementById('select-all');
+  /* ── Multi-delete ── */
+  const selectAll       = document.getElementById('select-all');
   const deleteSelectedBtn = document.getElementById('delete-selected');
   const clearSelectionBtn = document.getElementById('select-none');
 
-  selectAll.addEventListener('change', (e) => {
-    const checked = selectAll.checked;
-    // Only check visible checkboxes
-    const visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox')).filter(cb => {
-      return cb.closest('tr').style.display !== 'none';
-    });
-    visibleCheckboxes.forEach(cb => cb.checked = checked);
+  if (selectAll) selectAll.addEventListener('change', () => {
+    const visible = Array.from(document.querySelectorAll('.row-checkbox'))
+      .filter(cb => cb.closest('tr').style.display !== 'none');
+    visible.forEach(cb => cb.checked = selectAll.checked);
   });
-
-  clearSelectionBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    selectAll.checked = false;
+  if (clearSelectionBtn) clearSelectionBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    if (selectAll) selectAll.checked = false;
     document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
   });
-
-  deleteSelectedBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
+  if (deleteSelectedBtn) deleteSelectedBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
     const checked = Array.from(document.querySelectorAll('.row-checkbox:checked'));
-    if (checked.length === 0) { alert('No questions selected'); return; }
-
-    if (!confirm(`Delete ${checked.length} selected question(s)? This action cannot be undone.`)) return;
-
-    const ids = checked.map(cb => parseInt(cb.dataset.id,10));
-    try {
-      deleteSelectedBtn.disabled = true;
-      deleteSelectedBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Deleting...';
-      const resp = await fetch("{{ url_for('admin.delete_multiple_questions') }}", {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ ids })
-      });
-      const data = await resp.json();
-      if (!data.success) {
-        alert('Delete failed: ' + (data.message || 'Unknown'));
-      } else {
-        alert(`Successfully deleted ${data.deleted} question(s)! Reloading page...`);
-        window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(examSelect.value);
-      }
-    } catch (err) {
-      alert('Unexpected error: ' + err);
-      console.error(err);
-    } finally {
-      deleteSelectedBtn.disabled = false;
-      deleteSelectedBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Delete Selected';
+    if (checked.length === 0) {
+      showInfo('No Questions Selected', 'Please select at least one question to delete.');
+      return;
     }
+    showConfirmModal(
+      'Delete Selected Questions',
+      `You are about to permanently delete <strong>${checked.length}</strong> selected question(s).<br><br>
+       This will also remove all associated student responses and discussion messages.<br>
+       <span style="color:#ef4444;font-size:0.82rem"><i class="fas fa-exclamation-circle me-1"></i>This action cannot be undone.</span>`,
+      'Delete ' + checked.length + ' Question' + (checked.length > 1 ? 's' : ''),
+      true,
+      async () => {
+        const ids = checked.map(cb => parseInt(cb.dataset.id, 10));
+        deleteSelectedBtn.disabled  = true;
+        deleteSelectedBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Deleting...';
+        try {
+          const resp = await fetch("{{ url_for('admin.delete_multiple_questions') }}", {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids })
+          });
+          const data = await resp.json();
+          if (!data.success) {
+            showInfo('Delete Failed', data.message || 'An unknown error occurred.', true);
+          } else {
+            showInfo('Deleted', `Successfully deleted <strong>${data.deleted}</strong> question(s). The page will reload shortly.`);
+            setTimeout(() => {
+              window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(examSelect.value);
+            }, 1800);
+          }
+        } catch (err) {
+          showInfo('Error', 'A network error occurred: ' + err.message, true);
+        } finally {
+          deleteSelectedBtn.disabled  = false;
+          deleteSelectedBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Delete Selected';
+        }
+      }
+    );
   });
 
-  // ---------------- Apply on listing ----------------
+  /* ── Apply bulk list ── */
   const applyListBtn = document.getElementById('apply-list');
-  applyListBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
+  if (applyListBtn) applyListBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
     const exam_id = document.getElementById('exam-select').value;
-    if (!exam_id) { alert('Pick an exam first'); return; }
-
+    if (!exam_id) {
+      showInfo('No Exam Selected', 'Please select an exam first.');
+      return;
+    }
     const qtype = document.getElementById('list-type').value;
-    const pos = document.getElementById('list-pos').value.trim();
-    const neg = document.getElementById('list-neg').value.trim();
-    const tol = document.getElementById('list-tol').value; // allow empty to skip
-
-    if (!qtype) { alert('Pick a question type'); return; }
-    if (pos === '' && neg === '' && tol === '') {
-      if (!confirm('You did not provide any values. Do you want to continue (no changes will be applied)?')) return;
-    }
-
-    if (!confirm(`Apply changes to all ${qtype} questions for this exam?`)) return;
-
-    applyListBtn.disabled = true;
-    const prev = applyListBtn.innerHTML;
-    applyListBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Applying...';
-
-    try {
-      const payload = {
-        exam_id: parseInt(exam_id, 10),
-        question_type: qtype,
-        positive_marks: pos === '' ? null : pos,
-        negative_marks: neg === '' ? null : neg,
-        tolerance: tol === '' ? null : tol
-      };
-
-      const resp = await fetch("{{ url_for('admin.questions_bulk_update') }}", {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
-      const data = await resp.json();
-      if (!data.success) {
-        alert('Update failed: ' + (data.message || 'Unknown'));
-      } else {
-        alert(`Successfully updated ${data.updated} question(s)! Reloading page...`);
-        window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(exam_id);
+    const pos   = document.getElementById('list-pos').value.trim();
+    const neg   = document.getElementById('list-neg').value.trim();
+    const tol   = document.getElementById('list-tol').value;
+    showConfirmModal(
+      'Apply Bulk Changes',
+      `This will update marks/settings for <strong>all ${qtype} questions</strong> in the selected exam.<br><br>
+       <span style="color:#ef4444;font-size:0.82rem"><i class="fas fa-exclamation-circle me-1"></i>This will overwrite existing values.</span>`,
+      'Apply Changes',
+      false,
+      async () => {
+        applyListBtn.disabled  = true;
+        const prev = applyListBtn.innerHTML;
+        applyListBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Applying...';
+        try {
+          const resp = await fetch("{{ url_for('admin.questions_bulk_update') }}", {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ exam_id: parseInt(exam_id, 10), question_type: qtype, positive_marks: pos || null, negative_marks: neg || null, tolerance: tol || null })
+          });
+          const data = await resp.json();
+          if (!data.success) {
+            showInfo('Update Failed', data.message || 'An unknown error occurred.', true);
+          } else {
+            showInfo('Success', `Updated <strong>${data.updated}</strong> question(s). The page will reload shortly.`);
+            setTimeout(() => {
+              window.location = "{{ url_for('admin.questions_index') }}" + '?exam_id=' + encodeURIComponent(exam_id);
+            }, 1800);
+          }
+        } catch (err) {
+          showInfo('Error', 'A network error occurred: ' + err.message, true);
+        } finally {
+          applyListBtn.disabled  = false;
+          applyListBtn.innerHTML = prev;
+        }
       }
-    } catch (err) {
-      alert('Unexpected error: ' + err);
-      console.error(err);
-    } finally {
-      applyListBtn.disabled = false;
-      applyListBtn.innerHTML = prev;
-    }
+    );
   });
 
 })();
 </script>
+
 <script>
+/* ── Add / Edit Question Modal ── */
+/* These must be on window scope because onclick= attributes reference them */
+
+function _qField(id) { return document.getElementById(id); }
+
+function _toggleToleranceField() {
+  const tw = _qField('qf-tolerance-wrap');
+  if (tw) tw.style.display = (_qField('qf-question-type').value === 'NUMERIC') ? '' : 'none';
+}
+
+function _qResetForm() {
+  _qField('qf-exam-id').value         = '';
+  _qField('qf-question-text').value   = '';
+  _qField('qf-option-a').value        = '';
+  _qField('qf-option-b').value        = '';
+  _qField('qf-option-c').value        = '';
+  _qField('qf-option-d').value        = '';
+  _qField('qf-correct-answer').value  = '';
+  _qField('qf-question-type').value   = 'MCQ';
+  _qField('qf-tolerance').value       = '';
+  _qField('qf-positive-marks').value  = '4';
+  _qField('qf-negative-marks').value  = '1';
+  _qField('qf-image-path').value      = '';
+  _qField('qModalError').style.display = 'none';
+  _toggleToleranceField();
+  /* Pre-select the currently loaded exam */
+  const examSel = document.getElementById('exam-select');
+  if (examSel && examSel.value) _qField('qf-exam-id').value = examSel.value;
+}
+
+let _qModalMode = 'add';
+let _qEditId    = null;
+let _qIdToDelete = null;
+
+function showDeleteQuestionConfirm(id, text) {
+  _qIdToDelete = id;
+  const el = document.getElementById('questionTextToDelete');
+  if (el) el.textContent = text || ('Question #' + id);
+  const modal = new bootstrap.Modal(document.getElementById('deleteQuestionModal'));
+  modal.show();
+}
+
+function openAddQuestionModal() {
+  _qModalMode = 'add';
+  _qEditId    = null;
+  _qResetForm();
+  _qField('qModalTitle').innerHTML   = '<i class="fas fa-plus-circle me-2" style="color:#10b981"></i>Add New Question';
+  _qField('qModalHeader').style.background = '';
+  _qField('qModalSaveBtn').innerHTML = '<i class="fas fa-save me-1"></i>Save Question';
+  _qField('qModalSaveBtn').disabled  = false;
+  new bootstrap.Modal(_qField('questionFormModal')).show();
+}
+
+async function openEditQuestionModal(questionId) {
+  _qModalMode = 'edit';
+  _qEditId    = questionId;
+  _qResetForm();
+  _qField('qModalTitle').innerHTML   = '<i class="fas fa-pencil-alt me-2" style="color:var(--accent)"></i>Edit Question'
+    + ' <span style="background:var(--accent-subtle);border:1px solid var(--accent-border);color:var(--accent);'
+    + 'padding:2px 8px;border-radius:6px;font-size:0.78rem;font-weight:700;margin-left:4px">#' + questionId + '</span>';
+  _qField('qModalHeader').style.background = '';
+  _qField('qModalSaveBtn').innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Loading...';
+  _qField('qModalSaveBtn').disabled  = true;
+
+  const modal = new bootstrap.Modal(_qField('questionFormModal'));
+  modal.show();
+
+  try {
+    const resp = await fetch('/admin/questions/get/' + questionId);
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.message || 'Failed to load question');
+    const q = data.question;
+    _qField('qf-exam-id').value        = q.exam_id        || '';
+    _qField('qf-question-text').value  = q.question_text  || '';
+    _qField('qf-option-a').value       = q.option_a       || '';
+    _qField('qf-option-b').value       = q.option_b       || '';
+    _qField('qf-option-c').value       = q.option_c       || '';
+    _qField('qf-option-d').value       = q.option_d       || '';
+    _qField('qf-correct-answer').value = q.correct_answer || '';
+    _qField('qf-question-type').value  = q.question_type  || 'MCQ';
+    _qField('qf-tolerance').value      = q.tolerance      != null ? q.tolerance : '';
+    _qField('qf-positive-marks').value = q.positive_marks != null ? q.positive_marks : '4';
+    _qField('qf-negative-marks').value = q.negative_marks != null ? q.negative_marks : '1';
+    _qField('qf-image-path').value     = q.image_path     || '';
+    _toggleToleranceField();
+  } catch (err) {
+    _qField('qModalError').textContent    = err.message;
+    _qField('qModalError').style.display  = 'block';
+  } finally {
+    _qField('qModalSaveBtn').innerHTML = '<i class="fas fa-save me-1"></i>Save Changes';
+    _qField('qModalSaveBtn').disabled  = false;
+  }
+}
+
+async function submitQuestionModal() {
+  const saveBtn = _qField('qModalSaveBtn');
+  const errEl   = _qField('qModalError');
+  errEl.style.display = 'none';
+
+  const examId  = _qField('qf-exam-id').value;
+  const qText   = _qField('qf-question-text').value.trim();
+  const correct = _qField('qf-correct-answer').value.trim();
+  if (!examId)  { errEl.textContent = 'Please select an exam.';      errEl.style.display = 'block'; return; }
+  if (!qText)   { errEl.textContent = 'Question text is required.';  errEl.style.display = 'block'; return; }
+  if (!correct) { errEl.textContent = 'Correct answer is required.'; errEl.style.display = 'block'; return; }
+
+  const prev = saveBtn.innerHTML;
+  saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+  saveBtn.disabled  = true;
+
+  const form = new FormData();
+  form.append('exam_id',        _qField('qf-exam-id').value);
+  form.append('question_text',  _qField('qf-question-text').value);
+  form.append('option_a',       _qField('qf-option-a').value);
+  form.append('option_b',       _qField('qf-option-b').value);
+  form.append('option_c',       _qField('qf-option-c').value);
+  form.append('option_d',       _qField('qf-option-d').value);
+  form.append('correct_answer', _qField('qf-correct-answer').value);
+  form.append('question_type',  _qField('qf-question-type').value);
+  form.append('tolerance',      _qField('qf-tolerance').value);
+  form.append('positive_marks', _qField('qf-positive-marks').value);
+  form.append('negative_marks', _qField('qf-negative-marks').value);
+  form.append('image_path',     _qField('qf-image-path').value);
+
+  const url = _qModalMode === 'add'
+    ? '/admin/questions/add-ajax'
+    : '/admin/questions/edit-ajax/' + _qEditId;
+
+  try {
+    const resp = await fetch(url, { method: 'POST', body: form });
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.message || 'Save failed');
+    bootstrap.Modal.getInstance(_qField('questionFormModal')).hide();
+    _showQToast(data.message, 'success');
+    setTimeout(() => {
+      const examSel = document.getElementById('exam-select');
+      window.location = "{{ url_for('admin.questions_index') }}"
+        + (examSel?.value ? '?exam_id=' + encodeURIComponent(examSel.value) : '');
+    }, 900);
+  } catch (err) {
+    errEl.textContent   = err.message;
+    errEl.style.display = 'block';
+    saveBtn.innerHTML   = prev;
+    saveBtn.disabled    = false;
+  }
+}
+
+function _showQToast(msg, type) {
+  const t  = document.getElementById('qToast');
+  const tm = document.getElementById('qToastMsg');
+  t.style.background = type === 'success' ? '#10b981' : '#ef4444';
+  tm.textContent = msg;
+  t.style.display = 'flex';
+  setTimeout(() => { t.style.display = 'none'; }, 3000);
+}
+
+/* Tolerance field toggle — wire up on DOM ready */
+document.addEventListener('DOMContentLoaded', function() {
+  const qTypeEl = document.getElementById('qf-question-type');
+  if (qTypeEl) qTypeEl.addEventListener('change', _toggleToleranceField);
+  _toggleToleranceField();
+
+  /* Delete single question modal */
+  const confirmDelBtn = document.getElementById('confirmQuestionDeleteBtn');
+  if (confirmDelBtn) {
+    confirmDelBtn.addEventListener('click', function() {
+      if (!_qIdToDelete) return;
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/admin/questions/delete/' + _qIdToDelete;
+      document.body.appendChild(form);
+      form.submit();
+    });
+  }
+});
+
+/* LaTeX editor popup */
 (function(){
   const btn = document.getElementById('open-latex-editor');
-  if(!btn) return;
-
+  if (!btn) return;
   btn.addEventListener('click', () => {
-    // open side-by-side popup; adjust size if needed
-    const w = Math.max(Math.round(window.innerWidth * 0.6), 900);
-    const h = Math.max(Math.round(window.innerHeight * 0.75), 600);
-    const left = Math.round(window.screenX + (window.innerWidth - w) / 2);
-    const top = Math.round(window.screenY + (window.innerHeight - h) / 2);
-    window.open('/admin/latex_editor', 'latexEditor', `width=${w},height=${h},left=${left},top=${top},resizable=yes`);
+    const w    = Math.max(Math.round(window.innerWidth  * 0.6), 900);
+    const h    = Math.max(Math.round(window.innerHeight * 0.75), 600);
+    const left = Math.round(window.screenX + (window.innerWidth  - w) / 2);
+    const top  = Math.round(window.screenY + (window.innerHeight - h) / 2);
+    window.open('/admin/latex_editor', 'latexEditor',
+      `width=${w},height=${h},left=${left},top=${top},resizable=yes`);
   });
-
-  // receive message from popup
-  window.addEventListener('message', function(ev){
+  window.addEventListener('message', function(ev) {
     try {
-      // IMPORTANT: check origin if your site uses different host. Here we accept same-origin only
       if (ev.origin !== window.location.origin) return;
       const data = ev.data || {};
       if (data.type === 'latex-selected' && typeof data.latex === 'string') {
-        const latex = data.latex;
-
-        // Try best-effort to find the textarea/input to insert into:
-        const target = document.querySelector('textarea[name="latex_content"], textarea#latex_editor, textarea[name="question_text"], textarea#question_text, textarea');
+        const latex  = data.latex;
+        const target = document.querySelector('textarea[name="question_text"], textarea');
         if (target) {
-          // insert at cursor if focused; else append at end
-          try {
-            const s = target.selectionStart || target.value.length;
-            const e = target.selectionEnd || s;
-            target.value = target.value.slice(0,s) + latex + target.value.slice(e);
-            target.focus();
-            // move caret after inserted text
-            const pos = s + latex.length;
-            target.selectionStart = target.selectionEnd = pos;
-          } catch(err) {
-            // fallback: append
-            target.value = target.value + '\n' + latex;
-          }
-          // trigger input event so any listeners update preview/hidden fields
+          const s = target.selectionStart || target.value.length;
+          const e = target.selectionEnd   || s;
+          target.value = target.value.slice(0, s) + latex + target.value.slice(e);
+          target.focus();
+          target.selectionStart = target.selectionEnd = s + latex.length;
           target.dispatchEvent(new Event('input', { bubbles: true }));
-        } else {
-          // fallback: try focused element
-          const active = document.activeElement;
-          if (active && (active.tagName === 'TEXTAREA' || (active.tagName==='INPUT' && active.type==='text'))) {
-            const s = active.selectionStart || active.value.length;
-            const e = active.selectionEnd || s;
-            active.value = active.value.slice(0,s)+latex+active.value.slice(e);
-            active.selectionStart = active.selectionEnd = s + latex.length;
-            active.dispatchEvent(new Event('input', { bubbles: true }));
-          } else {
-            alert('LaTeX received. No textarea found to paste into — paste manually:\n\n' + latex);
-          }
-        }
+        } else alert('LaTeX received. Paste manually:\n\n' + latex);
       }
-    } catch(e) {
-      console.error('latex message handler error', e);
-    }
+    } catch(e) { console.error(e); }
   }, false);
 })();
-</script>
-<script>
-// Universal Mobile Enhancements
-(function() {
-    'use strict';
 
-    document.addEventListener('DOMContentLoaded', function() {
-        initMobileEnhancements();
-    });
-
-    function initMobileEnhancements() {
-        if (window.innerWidth <= 768) {
-            makeTablesMobileResponsive();
-            enhanceFormsMobile();
-            improveButtonGroupsMobile();
-            addMobileSwipeSupport();
-            optimizeModalsMobile();
-            enhanceMobileNavigation();
-        }
-    }
-
-    // Make tables horizontally scrollable with better UX
-    function makeTablesMobileResponsive() {
-        const tables = document.querySelectorAll('.table');
-        tables.forEach(table => {
-            if (!table.closest('.table-responsive')) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'table-responsive';
-                wrapper.style.overflowX = 'auto';
-                wrapper.style.margin = '0 -15px';
-                wrapper.style.padding = '0 15px';
-                
-                table.parentNode.insertBefore(wrapper, table);
-                wrapper.appendChild(table);
-            }
-            
-            // Add mobile table indicators
-            const headerCells = table.querySelectorAll('thead th');
-            const bodyCells = table.querySelectorAll('tbody td');
-            
-            headerCells.forEach((header, index) => {
-                const headerText = header.textContent.trim();
-                const columnCells = table.querySelectorAll(`tbody tr td:nth-child(${index + 1})`);
-                
-                columnCells.forEach(cell => {
-                    cell.setAttribute('data-label', headerText);
-                });
-            });
-        });
-    }
-
-    // Enhance forms for mobile
-    function enhanceFormsMobile() {
-        const inputs = document.querySelectorAll('input, select, textarea');
-        inputs.forEach(input => {
-            // Prevent zoom on iOS
-            if (input.type === 'email' || input.type === 'number' || input.type === 'tel') {
-                input.style.fontSize = '16px';
-            }
-            
-            // Add mobile-friendly focus effects
-            input.addEventListener('focus', function() {
-                this.style.transform = 'scale(1.02)';
-                this.style.transition = 'transform 0.2s ease';
-            });
-            
-            input.addEventListener('blur', function() {
-                this.style.transform = 'scale(1)';
-            });
-        });
-
-        // Convert button groups to vertical on mobile
-        const buttonGroups = document.querySelectorAll('.btn-group');
-        buttonGroups.forEach(group => {
-            group.style.flexDirection = 'column';
-            group.style.gap = '5px';
-        });
-    }
-
-    // Improve button groups for mobile
-    function improveButtonGroupsMobile() {
-        const actionButtons = document.querySelectorAll('.table .btn-group, .action-buttons');
-        actionButtons.forEach(group => {
-            const buttons = group.querySelectorAll('.btn');
-            if (buttons.length > 2) {
-                // Create dropdown for many buttons
-                const dropdown = createMobileDropdown(buttons);
-                group.appendChild(dropdown);
-                
-                // Hide original buttons
-                buttons.forEach(btn => btn.style.display = 'none');
-            }
-        });
-    }
-
-    function createMobileDropdown(buttons) {
-        const dropdown = document.createElement('div');
-        dropdown.className = 'dropdown';
-        dropdown.innerHTML = `
-            <button class="btn btn-primary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown">
-                <i class="fas fa-ellipsis-v"></i> Actions
-            </button>
-            <ul class="dropdown-menu">
-                ${Array.from(buttons).map(btn => `
-                    <li><a class="dropdown-item" href="#" onclick="this.closest('.dropdown').querySelector('button[onclick=\\'${btn.getAttribute('onclick')}\\']')?.click()">
-                        ${btn.innerHTML}
-                    </a></li>
-                `).join('')}
-            </ul>
-        `;
-        return dropdown;
-    }
-
-    // Add swipe support for dismissible elements
-    function addMobileSwipeSupport() {
-        const swipeElements = document.querySelectorAll('.alert-dismissible, .modal');
-        swipeElements.forEach(element => {
-            let startX = 0;
-            let startY = 0;
-
-            element.addEventListener('touchstart', function(e) {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-            }, { passive: true });
-
-            element.addEventListener('touchend', function(e) {
-                const endX = e.changedTouches[0].clientX;
-                const endY = e.changedTouches[0].clientY;
-                const diffX = startX - endX;
-                const diffY = startY - endY;
-
-                // Swipe right to dismiss alerts
-                if (Math.abs(diffX) > Math.abs(diffY) && diffX < -100 && element.classList.contains('alert')) {
-                    const closeBtn = element.querySelector('.btn-close');
-                    if (closeBtn) closeBtn.click();
-                }
-            }, { passive: true });
-        });
-    }
-
-    // Optimize modals for mobile
-    function optimizeModalsMobile() {
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            modal.addEventListener('shown.bs.modal', function() {
-                // Scroll to top when modal opens
-                modal.scrollTop = 0;
-                
-                // Focus first input
-                const firstInput = modal.querySelector('input, select, textarea');
-                if (firstInput) {
-                    setTimeout(() => firstInput.focus(), 300);
-                }
-            });
-        });
-    }
-
-    // Enhance mobile navigation
-    function enhanceMobileNavigation() {
-        // Add mobile-friendly pagination
-        const pagination = document.querySelector('.pagination');
-        if (pagination) {
-            pagination.style.flexWrap = 'wrap';
-            pagination.style.justifyContent = 'center';
-        }
-
-        // Enhance dropdowns
-        const dropdowns = document.querySelectorAll('.dropdown-toggle');
-        dropdowns.forEach(dropdown => {
-            dropdown.addEventListener('click', function() {
-                // Ensure dropdown is visible on mobile
-                setTimeout(() => {
-                    const menu = this.nextElementSibling;
-                    if (menu && menu.classList.contains('dropdown-menu')) {
-                        const rect = menu.getBoundingClientRect();
-                        if (rect.bottom > window.innerHeight) {
-                            menu.style.top = 'auto';
-                            menu.style.bottom = '100%';
-                        }
-                    }
-                }, 100);
-            });
-        });
-    }
-
-    // Handle window resize
-    window.addEventListener('resize', function() {
-        if (window.innerWidth <= 768) {
-            initMobileEnhancements();
-        }
-    });
-
-    // Add mobile utility functions
-    window.MobileUtils = {
-        // Show full-screen loading
-        showMobileLoading: function() {
-            const loading = document.createElement('div');
-            loading.id = 'mobile-loading';
-            loading.innerHTML = `
-                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                            background: rgba(0,0,0,0.8); z-index: 9999; 
-                            display: flex; align-items: center; justify-content: center;">
-                    <div style="background: white; padding: 20px; border-radius: 10px; text-align: center;">
-                        <div class="spinner-border text-primary" role="status"></div>
-                        <p style="margin-top: 10px; margin-bottom: 0;">Loading...</p>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(loading);
-        },
-        
-        // Hide loading
-        hideMobileLoading: function() {
-            const loading = document.getElementById('mobile-loading');
-            if (loading) loading.remove();
-        },
-        
-        // Show mobile toast
-        showMobileToast: function(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.style.cssText = `
-                position: fixed; top: 20px; left: 20px; right: 20px; z-index: 9999;
-                background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
-                color: white; padding: 15px; border-radius: 10px; text-align: center;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3); transform: translateY(-100px);
-                transition: transform 0.3s ease;
-            `;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            
-            setTimeout(() => toast.style.transform = 'translateY(0)', 100);
-            setTimeout(() => {
-                toast.style.transform = 'translateY(-100px)';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-    };
-
-    // Auto-enhance specific elements
-    setTimeout(() => {
-        // Make long text truncated with "..." on mobile
-        const longTexts = document.querySelectorAll('.text-truncate-mobile');
-        longTexts.forEach(text => {
-            if (text.textContent.length > 50) {
-                text.title = text.textContent;
-                text.textContent = text.textContent.substring(0, 47) + '...';
-            }
-        });
-
-        // Add mobile-friendly tooltips (convert to click)
-        const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltips.forEach(tooltip => {
-            const content = tooltip.getAttribute('title') || tooltip.getAttribute('data-bs-original-title');
-            tooltip.addEventListener('click', function(e) {
-                e.preventDefault();
-                window.MobileUtils.showMobileToast(content, 'info');
-            });
-        });
-    }, 500);
-
-})();
-
-// Add CSS for mobile table labels
-const mobileTableCSS = `
-<style>
-@media (max-width: 768px) {
-    /* Stack table cells vertically with labels */
-    .table-responsive-stack .table,
-    .table-responsive-stack .table thead,
-    .table-responsive-stack .table tbody,
-    .table-responsive-stack .table th,
-    .table-responsive-stack .table td,
-    .table-responsive-stack .table tr {
-        display: block;
-    }
-    
-    .table-responsive-stack .table thead tr {
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-    }
-    
-    .table-responsive-stack .table tr {
-        border: 1px solid #ccc;
-        margin-bottom: 10px;
-        padding: 10px;
-        border-radius: 8px;
-        background: white;
-    }
-    
-    .table-responsive-stack .table td {
-        border: none !important;
-        position: relative;
-        padding-left: 50% !important;
-        padding-top: 8px !important;
-        padding-bottom: 8px !important;
-    }
-    
-    .table-responsive-stack .table td:before {
-        content: attr(data-label) ": ";
-        position: absolute;
-        left: 6px;
-        width: 45%;
-        padding-right: 10px;
-        white-space: nowrap;
-        font-weight: bold;
-        color: #333;
-    }
-}
-</style>
-`;
-
-
-document.head.insertAdjacentHTML('beforeend', mobileTableCSS);
-
-// CSV Import/Export Functionality with Beautiful Modals
+/* CSV Import/Export */
 (function(){
-  const importBtn = document.getElementById('import-csv-btn');
-  const exportBtn = document.getElementById('export-csv-btn');
+  const importBtn  = document.getElementById('import-csv-btn');
+  const exportBtn  = document.getElementById('export-csv-btn');
   const examSelect = document.getElementById('exam-select');
-  
-  // Get selected exam name and ID
-  function getSelectedExamInfo() {
-    if (!examSelect || !examSelect.value) return null;
-    const selectedOption = examSelect.options[examSelect.selectedIndex];
-    return {
-      id: examSelect.value,
-      name: selectedOption.text
-    };
+
+  function getExamInfo() {
+    if (!examSelect?.value) return null;
+    return { id: examSelect.value, name: examSelect.options[examSelect.selectedIndex].text };
   }
-  
-  // Show custom alert modal
-  function showAlert(title, message, type = 'info') {
-    const iconMap = {
-      success: 'fa-check-circle',
-      error: 'fa-exclamation-circle',
-      warning: 'fa-exclamation-triangle',
-      info: 'fa-info-circle'
-    };
-    
-    const colorMap = {
-      success: '#10b981',
-      error: '#ef4444',
-      warning: '#f59e0b',
-      info: '#667eea'
-    };
-    
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      animation: fadeIn 0.3s ease;
-    `;
-    
+
+  function showCsvAlert(title, message, type) {
+    const colors = { success:'#10b981', error:'#ef4444', warning:'#f59e0b', info:'#2d5be3' };
+    const icons  = { success:'fa-check-circle', error:'fa-times-circle', warning:'fa-exclamation-triangle', info:'fa-info-circle' };
+    const modal  = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center';
     modal.innerHTML = `
-      <div style="
-        background: white;
-        border-radius: 20px;
-        padding: 0;
-        max-width: 500px;
-        width: 90%;
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
-        animation: slideUp 0.3s ease;
-        overflow: hidden;
-      ">
-        <div style="
-          background: linear-gradient(135deg, ${colorMap[type]} 0%, ${colorMap[type]}dd 100%);
-          color: white;
-          padding: 25px;
-          text-align: center;
-        ">
-          <i class="fas ${iconMap[type]} fa-3x mb-3"></i>
-          <h4 style="margin: 0; font-weight: 700;">${title}</h4>
+      <div style="background:var(--modal-bg);border:1px solid var(--card-border);border-radius:16px;max-width:480px;width:90%;overflow:hidden">
+        <div style="background:${colors[type]};padding:1.25rem;text-align:center;color:white">
+          <i class="fas ${icons[type]} fa-2x mb-2 d-block"></i>
+          <h5 style="margin:0;font-weight:700">${title}</h5>
         </div>
-        <div style="padding: 30px; text-align: center; color: #333; line-height: 1.6;">
-          ${message}
-        </div>
-        <div style="padding: 0 30px 30px; text-align: center;">
-          <button class="btn btn-primary" style="
-            padding: 12px 40px;
-            border-radius: 10px;
-            font-weight: 600;
-            background: linear-gradient(135deg, ${colorMap[type]} 0%, ${colorMap[type]}dd 100%);
-            border: none;
-            box-shadow: 0 4px 15px ${colorMap[type]}40;
-          " onclick="this.closest('[style*=\\'position: fixed\\']').remove()">
-            <i class="fas fa-check me-2"></i>Got it
+        <div style="padding:1.25rem;color:var(--text-secondary);font-size:0.85rem;line-height:1.6">${message}</div>
+        <div style="padding:0 1.25rem 1.25rem;text-align:center">
+          <button style="background:${colors[type]};color:white;border:none;border-radius:9px;padding:0.5rem 1.5rem;font-weight:600;cursor:pointer"
+                  onclick="this.closest('[style*=position]').remove()">
+            <i class="fas fa-check me-1"></i>Got it
           </button>
         </div>
-      </div>
-    `;
-    
+      </div>`;
     document.body.appendChild(modal);
-    
-    // Add CSS animations if not exists
-    if (!document.getElementById('csv-modal-styles')) {
-      const style = document.createElement('style');
-      style.id = 'csv-modal-styles';
-      style.textContent = `
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideUp {
-          from { transform: translateY(50px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-      `;
-      document.head.appendChild(style);
+  }
+
+  function showCsvConfirm(title, message, examInfo, onConfirm) {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center';
+    const examHTML = examInfo
+      ? `<div style="background:var(--accent-subtle);border:1px solid var(--accent-border);border-radius:9px;padding:0.75rem;margin:0.75rem 0;font-size:0.82rem;color:var(--text-secondary)">
+           <strong>${examInfo.name}</strong>
+           <span style="background:var(--accent);color:white;padding:2px 8px;border-radius:5px;font-size:0.72rem;margin-left:0.5rem">ID: ${examInfo.id}</span>
+         </div>` : '';
+    modal.innerHTML = `
+      <div style="background:var(--modal-bg);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:90%;overflow:hidden">
+        <div style="background:#2d5be3;padding:1.25rem;text-align:center;color:white">
+          <i class="fas fa-question-circle fa-2x mb-2 d-block"></i>
+          <h5 style="margin:0;font-weight:700">${title}</h5>
+        </div>
+        <div style="padding:1.25rem;color:var(--text-secondary);font-size:0.85rem">${message}${examHTML}</div>
+        <div style="padding:0 1.25rem 1.25rem;display:flex;gap:0.5rem;justify-content:flex-end">
+          <button class="cancel-btn" style="background:var(--btn-secondary-bg);border:1px solid var(--btn-secondary-border);color:var(--btn-secondary-color);border-radius:9px;padding:0.45rem 1rem;font-weight:600;cursor:pointer">Cancel</button>
+          <button class="confirm-btn" style="background:#2d5be3;color:white;border:none;border-radius:9px;padding:0.45rem 1rem;font-weight:600;cursor:pointer"><i class="fas fa-check me-1"></i>Confirm</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('.cancel-btn').onclick  = () => modal.remove();
+    modal.querySelector('.confirm-btn').onclick = () => { modal.remove(); onConfirm(); };
+    modal.onclick = (ev) => { if (ev.target === modal) modal.remove(); };
+  }
+
+  if (exportBtn) exportBtn.addEventListener('click', function(ev) {
+    ev.preventDefault();
+    const examInfo = getExamInfo();
+    if (!examInfo) { showCsvAlert('No Exam Selected', 'Please select an exam first.', 'warning'); return; }
+    const tbody = document.getElementById('questions-tbody');
+    if (!tbody || tbody.children.length === 0) {
+      showCsvAlert('No Questions', `No questions to export for <strong>${examInfo.name}</strong>.`, 'info'); return;
     }
-  }
-  
-  // Show confirmation modal
-  function showConfirmModal(title, message, examInfo, onConfirm) {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      animation: fadeIn 0.3s ease;
-    `;
-    
-    const examInfoHTML = examInfo ? `
-      <div style="
-        background: linear-gradient(135deg, #f0f4ff 0%, #e6f2ff 100%);
-        border: 2px solid #667eea;
-        border-radius: 12px;
-        padding: 15px;
-        margin: 20px 0;
-      ">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-          <i class="fas fa-graduation-cap" style="color: #667eea; font-size: 1.2rem;"></i>
-          <strong style="color: #2d3748;">Selected Exam:</strong>
-        </div>
-        <div style="color: #4a5568; font-size: 1.1rem; font-weight: 600; margin-left: 32px;">
-          ${examInfo.name}
-        </div>
-        <div style="
-          display: inline-block;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 6px 12px;
-          border-radius: 8px;
-          font-weight: 700;
-          font-size: 0.9rem;
-          margin-top: 10px;
-          margin-left: 32px;
-        ">
-          <i class="fas fa-hashtag me-1"></i>Exam ID: ${examInfo.id}
-        </div>
-      </div>
-    ` : '';
-    
-    modal.innerHTML = `
-      <div style="
-        background: white;
-        border-radius: 20px;
-        padding: 0;
-        max-width: 550px;
-        width: 90%;
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
-        animation: slideUp 0.3s ease;
-        overflow: hidden;
-      ">
-        <div style="
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 25px;
-          text-align: center;
-        ">
-          <i class="fas fa-question-circle fa-3x mb-3"></i>
-          <h4 style="margin: 0; font-weight: 700;">${title}</h4>
-        </div>
-        <div style="padding: 30px; color: #333; line-height: 1.6;">
-          ${message}
-          ${examInfoHTML}
-        </div>
-        <div style="
-          padding: 0 30px 30px;
-          display: flex;
-          gap: 15px;
-          justify-content: center;
-        ">
-          <button class="btn btn-secondary cancel-btn" style="
-            padding: 12px 30px;
-            border-radius: 10px;
-            font-weight: 600;
-            flex: 1;
-            max-width: 200px;
-          ">
-            <i class="fas fa-times me-2"></i>Cancel
-          </button>
-          <button class="btn btn-primary confirm-btn" style="
-            padding: 12px 30px;
-            border-radius: 10px;
-            font-weight: 600;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-            flex: 1;
-            max-width: 200px;
-          ">
-            <i class="fas fa-check me-2"></i>Confirm
-          </button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    modal.querySelector('.cancel-btn').onclick = () => modal.remove();
-    modal.querySelector('.confirm-btn').onclick = () => {
-      modal.remove();
-      onConfirm();
-    };
-    
-    // Close on background click
-    modal.onclick = (e) => {
-      if (e.target === modal) modal.remove();
-    };
-  }
-  
-  // Export CSV
-  if (exportBtn) {
-    exportBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      
-      const examInfo = getSelectedExamInfo();
-      if (!examInfo) {
-        showAlert('No Exam Selected', 'Please select an exam from the dropdown first.', 'warning');
-        return;
-      }
-      
-      // Check if there are questions
-      const questionsTable = document.getElementById('questions-tbody');
-      if (!questionsTable || questionsTable.children.length === 0) {
-        showAlert('No Questions Found', `No questions available to export for exam: <strong>${examInfo.name}</strong>`, 'info');
-        return;
-      }
-      
-      // Show confirmation
-      showConfirmModal(
-        'Export Questions to CSV',
-        'This will download all questions for the selected exam in CSV format.',
-        examInfo,
-        () => {
-          // Download CSV
-          exportBtn.disabled = true;
-          exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
-          
-          window.location.href = `/admin/questions/export-csv/${examInfo.id}`;
-          
-          setTimeout(() => {
-            exportBtn.disabled = false;
-            exportBtn.innerHTML = '<i class="fas fa-file-download me-2"></i>Export CSV';
-            showAlert(
-              'Export Successful!', 
-              `Questions from <strong>${examInfo.name}</strong> (ID: ${examInfo.id}) have been downloaded successfully.`, 
-              'success'
-            );
-          }, 2000);
+    showCsvConfirm('Export Questions to CSV', 'This will download all questions for the selected exam.', examInfo, () => {
+      exportBtn.disabled  = true;
+      exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Exporting...';
+      window.location.href = `/admin/questions/export-csv/${examInfo.id}`;
+      setTimeout(() => {
+        exportBtn.disabled  = false;
+        exportBtn.innerHTML = '<i class="fas fa-file-download me-1"></i>Export CSV';
+        showCsvAlert('Exported!', `Questions from <strong>${examInfo.name}</strong> downloaded.`, 'success');
+      }, 2000);
+    });
+  });
+
+  if (importBtn) importBtn.addEventListener('click', function(ev) {
+    ev.preventDefault();
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file'; fileInput.accept = '.csv'; fileInput.style.display = 'none';
+    fileInput.addEventListener('change', async function(ev) {
+      const file = ev.target.files[0];
+      if (!file) return;
+      if (!file.name.endsWith('.csv')) { showCsvAlert('Invalid File', 'Please select a .csv file.', 'error'); return; }
+      showCsvConfirm('Import Questions from CSV',
+        `<p><strong>File:</strong> ${file.name}</p>
+         <div style="background:var(--table-head-bg);border:1px solid var(--card-border);border-radius:8px;padding:0.75rem;font-family:monospace;font-size:0.78rem;margin-top:0.5rem">
+           exam_id, question_text, option_a, option_b, option_c, option_d, correct_answer, question_type, image_path, positive_marks, negative_marks, tolerance
+         </div>
+         <p style="color:#ef4444;font-size:0.8rem;margin-top:0.75rem"><i class="fas fa-exclamation-triangle me-1"></i>exam_id must exist in database!</p>`,
+        null,
+        async () => {
+          const formData = new FormData();
+          formData.append('csv_file', file);
+          importBtn.disabled  = true;
+          importBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Importing...';
+          try {
+            const resp = await fetch('/admin/questions/import-csv', { method: 'POST', body: formData });
+            const data = await resp.json();
+            if (data.success) {
+              showCsvAlert('Import Complete',
+                `Successfully imported <strong>${data.inserted}</strong> question(s).`
+                + (data.skipped > 0 ? ` Skipped ${data.skipped} row(s).` : ''), 'success');
+              if (data.inserted > 0)
+                setTimeout(() => { window.location.href = `/admin/questions?exam_id=${examSelect?.value || ''}`; }, 3000);
+            } else {
+              showCsvAlert('Import Failed', data.message || 'Unknown error.', 'error');
+            }
+          } catch (err) {
+            showCsvAlert('System Error', err.message, 'error');
+          } finally {
+            importBtn.disabled  = false;
+            importBtn.innerHTML = '<i class="fas fa-file-upload me-1"></i>Import CSV';
+          }
         }
       );
     });
-  }
-  
-  // Import CSV
-  if (importBtn) {
-    importBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      
-      // Create file input
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = '.csv';
-      fileInput.style.display = 'none';
-      
-      fileInput.addEventListener('change', async function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        // Validate file
-        if (!file.name.endsWith('.csv')) {
-          showAlert('Invalid File Type', 'Please select a CSV file (.csv extension).', 'error');
-          return;
-        }
-        
-        // Show confirmation with format info
-        showConfirmModal(
-          'Import Questions from CSV',
-          `
-            <div style="text-align: left;">
-              <p><strong>File:</strong> ${file.name}</p>
-              <p style="margin-top: 15px;"><strong>Required CSV Format:</strong></p>
-              <div style="
-                background: #f8f9fa;
-                border-left: 4px solid #667eea;
-                padding: 12px;
-                border-radius: 8px;
-                font-family: monospace;
-                font-size: 0.85rem;
-                overflow-x: auto;
-                margin-top: 10px;
-              ">
-                exam_id, question_text, option_a, option_b,<br>
-                option_c, option_d, correct_answer,<br>
-                question_type, image_path, positive_marks,<br>
-                negative_marks, tolerance
-              </div>
-              <p style="margin-top: 15px; color: #dc2626; font-weight: 600;">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                Important: exam_id must exist in database!
-              </p>
-            </div>
-          `,
-          null,
-          async () => {
-            // Upload file
-            const formData = new FormData();
-            formData.append('csv_file', file);
-            
-            importBtn.disabled = true;
-            importBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Importing...';
-            
-            try {
-              const response = await fetch('/admin/questions/import-csv', {
-                method: 'POST',
-                body: formData
-              });
-              
-              const data = await response.json();
-              
-              if (data.success) {
-                let message = `
-                  <div style="text-align: center;">
-                    <div style="font-size: 3rem; color: #10b981; margin-bottom: 15px;">
-                      <i class="fas fa-check-circle"></i>
-                    </div>
-                    <p style="font-size: 1.2rem; font-weight: 600; margin-bottom: 10px;">
-                      Successfully imported ${data.inserted} question(s)!
-                    </p>
-                `;
-                
-                if (data.skipped > 0) {
-                  message += `
-                    <p style="color: #f59e0b; margin-top: 15px;">
-                      <i class="fas fa-exclamation-triangle me-2"></i>
-                      Skipped ${data.skipped} row(s) due to errors
-                    </p>
-                  `;
-                }
-                
-                if (data.errors && data.errors.length > 0) {
-                  message += `
-                    <details style="margin-top: 20px; text-align: left;">
-                      <summary style="cursor: pointer; font-weight: 600; color: #667eea;">
-                        <i class="fas fa-list me-2"></i>View Error Details
-                      </summary>
-                      <div style="
-                        background: #f8f9fa;
-                        border-radius: 8px;
-                        padding: 15px;
-                        margin-top: 10px;
-                        max-height: 200px;
-                        overflow-y: auto;
-                        font-size: 0.85rem;
-                      ">
-                        ${data.errors.map(err => `<div style="padding: 5px 0; border-bottom: 1px solid #dee2e6;">${err}</div>`).join('')}
-                      </div>
-                    </details>
-                  `;
-                }
-                
-                message += `</div>`;
-                
-                showAlert('Import Complete', message, 'success');
-                
-                // Reload page after 3 seconds
-                if (data.inserted > 0) {
-                  setTimeout(() => {
-                    const currentExamId = examSelect?.value || '';
-                    window.location.href = `/admin/questions?exam_id=${currentExamId}`;
-                  }, 3000);
-                }
-              } else {
-                let errorMsg = `
-                  <div style="text-align: center;">
-                    <div style="font-size: 2.5rem; color: #ef4444; margin-bottom: 15px;">
-                      <i class="fas fa-times-circle"></i>
-                    </div>
-                    <p style="font-weight: 600; margin-bottom: 10px;">Import Failed</p>
-                    <p>${data.message || 'Unknown error occurred'}</p>
-                `;
-                
-                if (data.errors && data.errors.length > 0) {
-                  errorMsg += `
-                    <details style="margin-top: 20px; text-align: left;">
-                      <summary style="cursor: pointer; font-weight: 600; color: #ef4444;">
-                        <i class="fas fa-list me-2"></i>View Error Details
-                      </summary>
-                      <div style="
-                        background: #fef2f2;
-                        border-radius: 8px;
-                        padding: 15px;
-                        margin-top: 10px;
-                        max-height: 200px;
-                        overflow-y: auto;
-                        font-size: 0.85rem;
-                        color: #991b1b;
-                      ">
-                        ${data.errors.map(err => `<div style="padding: 5px 0; border-bottom: 1px solid #fecaca;">${err}</div>`).join('')}
-                      </div>
-                    </details>
-                  `;
-                }
-                
-                errorMsg += `</div>`;
-                
-                showAlert('Import Error', errorMsg, 'error');
-              }
-            } catch (error) {
-              console.error('Import error:', error);
-              showAlert(
-                'System Error', 
-                `<p>An unexpected error occurred during import:</p><p style="color: #ef4444; font-weight: 600; margin-top: 10px;">${error.message}</p>`, 
-                'error'
-              );
-            } finally {
-              importBtn.disabled = false;
-              importBtn.innerHTML = '<i class="fas fa-file-upload me-2"></i>Import CSV';
-            }
-          }
-        );
-      });
-      
-      // Trigger file selection
-      document.body.appendChild(fileInput);
-      fileInput.click();
-      document.body.removeChild(fileInput);
-    });
-  }
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
+  });
 })();
-
 </script>
+
 {% endblock %}
