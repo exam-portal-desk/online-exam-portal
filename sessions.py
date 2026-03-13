@@ -157,7 +157,7 @@ def require_admin_role(f):
             flash("Session expired. Please login again.", "warning")
             return redirect(url_for('admin.admin_login'))
         
-        print(f"[require_admin_role] Session data: {session_data}")
+        #print(f"[require_admin_role] Session data: {session_data}")
         
         if not session_data:
             session.clear()
